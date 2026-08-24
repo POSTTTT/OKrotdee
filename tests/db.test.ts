@@ -4,6 +4,7 @@ import {
   addCarEvent,
   addPayment,
   availableCars,
+  cancelContract,
   carEvents,
   clientContracts,
   completeContractIfPaid,
@@ -18,14 +19,16 @@ import {
   listCars,
   listClients,
   listContracts,
+  overdueRow,
   paymentsFor,
+  repossessContract,
   setCarStatus,
   setLateFee,
   toDollarPlaceholders,
   updateCar,
   updateClient,
 } from "../src/db";
-import { outstanding } from "../src/money";
+import { contractFlag, outstanding, overdueCount } from "../src/money";
 import { memoryDb } from "./helpers";
 
 describe("toDollarPlaceholders", () => {
@@ -394,5 +397,47 @@ describe("payments", () => {
       await addPayment(db, installment.id, "2026-09-15", 1540000, "cash", null);
     }
     expect(await completeContractIfPaid(db, id)).toBe(false);
+  });
+});
+
+describe("repossession", () => {
+  it("closes the contract and takes the car back", async () => {
+    const { db, id } = await contracted();
+    await repossessContract(db, id);
+    expect((await getContract(db, id))?.status).toBe("repossessed");
+    expect((await getCar(db, 1))?.status).toBe("repossessed");
+  });
+
+  it("writes a repossessed event", async () => {
+    const { db, id } = await contracted();
+    await repossessContract(db, id);
+    const events = await carEvents(db, 1);
+    expect(events[events.length - 1].type).toBe("repossessed");
+    expect(events[events.length - 1].contract_id).toBe(id);
+  });
+
+  it("lets a repossessed car be sold again", async () => {
+    const { db, id } = await contracted();
+    await repossessContract(db, id);
+    await setCarStatus(db, 1, "available");
+    await createClient(db, { ...CLIENT, first_name: "Malee", thai_id: null });
+    const second = await createContract(db, { ...CONTRACT, client_id: 2 });
+    expect(second).toBeGreaterThan(id);
+    expect((await getCar(db, 1))?.status).toBe("on_contract");
+  });
+
+  it("returns the car to available on cancellation", async () => {
+    const { db, id } = await contracted();
+    await cancelContract(db, id);
+    expect((await getContract(db, id))?.status).toBe("cancelled");
+    expect((await getCar(db, 1))?.status).toBe("available");
+  });
+
+  it("only warns when two installments are missed", async () => {
+    const { db, id } = await contracted();
+    const rows = await installmentsFor(db, id);
+    const flag = contractFlag(overdueCount(rows.map(overdueRow), "2099-01-01"));
+    expect(flag).toBe("REPOSSESS_ELIGIBLE");
+    expect((await getContract(db, id))?.status).toBe("active");
   });
 });

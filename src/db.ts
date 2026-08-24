@@ -430,3 +430,20 @@ export async function completeContractIfPaid(db: Db, contractId: number): Promis
   await addCarEvent(db, contract.car_id, todayIso(), "contract_completed", contractId);
   return true;
 }
+
+/** Close the contract and take the car back. Staff-initiated only. */
+export async function repossessContract(db: Db, contractId: number): Promise<void> {
+  const contract = await getContract(db, contractId);
+  if (!contract) throw new Error("No such contract");
+  await db.execute("UPDATE contracts SET status = 'repossessed' WHERE id = ?", [contractId]);
+  await setCarStatus(db, contract.car_id, "repossessed");
+  await addCarEvent(db, contract.car_id, todayIso(), "repossessed", contractId);
+}
+
+/** Void a contract entered in error and free the car. */
+export async function cancelContract(db: Db, contractId: number): Promise<void> {
+  const contract = await getContract(db, contractId);
+  if (!contract) throw new Error("No such contract");
+  await db.execute("UPDATE contracts SET status = 'cancelled' WHERE id = ?", [contractId]);
+  await setCarStatus(db, contract.car_id, "available");
+}

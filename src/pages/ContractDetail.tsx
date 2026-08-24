@@ -3,9 +3,11 @@ import { Link, useParams } from "react-router-dom";
 
 import { useApp } from "../context";
 import {
+  cancelContract,
   getContract,
   installmentsFor,
   overdueRow,
+  repossessContract,
   type ContractRow,
   type InstallmentRow,
 } from "../db";
@@ -54,6 +56,30 @@ export default function ContractDetail() {
       {contract.note && (
         <p>
           {t("note")}: {contract.note}
+        </p>
+      )}
+
+      {contract.status === "active" && (
+        <p className="toolbar">
+          <button
+            className="danger"
+            onClick={async () => {
+              if (!confirm(t("confirm_repossess"))) return;
+              await repossessContract(db, contract.id);
+              await load();
+            }}
+          >
+            {t("mark_repossessed")}
+          </button>
+          <button
+            onClick={async () => {
+              if (!confirm(t("confirm_cancel"))) return;
+              await cancelContract(db, contract.id);
+              await load();
+            }}
+          >
+            {t("cancel_contract")}
+          </button>
         </p>
       )}
 
