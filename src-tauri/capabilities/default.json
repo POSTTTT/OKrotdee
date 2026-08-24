@@ -9,6 +9,7 @@
     "core:default",
     "opener:default",
     "sql:default",
+    "sql:allow-execute",
     "fs:allow-exists",
     "fs:allow-mkdir",
     "fs:allow-read-dir",
