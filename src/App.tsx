@@ -1,6 +1,9 @@
 import { Link, Route, Routes } from "react-router-dom";
 
 import { useApp } from "./context";
+import ClientDetail from "./pages/ClientDetail";
+import ClientForm from "./pages/ClientForm";
+import Clients from "./pages/Clients";
 import Dashboard from "./pages/Dashboard";
 
 export default function App() {
@@ -26,6 +29,10 @@ export default function App() {
       <main>
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/clients" element={<Clients />} />
+          <Route path="/clients/new" element={<ClientForm />} />
+          <Route path="/clients/:id" element={<ClientDetail />} />
+          <Route path="/clients/:id/edit" element={<ClientForm />} />
         </Routes>
       </main>
     </>
