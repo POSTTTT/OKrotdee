@@ -2,22 +2,30 @@ import { describe, expect, it } from "vitest";
 
 import {
   addCarEvent,
+  addPayment,
   availableCars,
   carEvents,
   clientContracts,
+  completeContractIfPaid,
   createCar,
   createClient,
   createContract,
   getCar,
   getClient,
+  getContract,
+  getInstallment,
+  installmentsFor,
   listCars,
   listClients,
   listContracts,
+  paymentsFor,
   setCarStatus,
+  setLateFee,
   toDollarPlaceholders,
   updateCar,
   updateClient,
 } from "../src/db";
+import { outstanding } from "../src/money";
 import { memoryDb } from "./helpers";
 
 describe("toDollarPlaceholders", () => {
@@ -286,5 +294,105 @@ describe("createContract", () => {
     expect(await availableCars(db)).toHaveLength(1);
     await createContract(db, CONTRACT);
     expect(await availableCars(db)).toHaveLength(0);
+  });
+});
+
+async function contracted() {
+  const db = await seeded();
+  const id = await createContract(db, CONTRACT);
+  return { db, id };
+}
+
+describe("payments", () => {
+  it("reads a contract joined with its client and car", async () => {
+    const { db, id } = await contracted();
+    const contract = await getContract(db, id);
+    expect(contract?.first_name).toBe("Somchai");
+    expect(contract?.plate_number).toBe("1กก1234");
+  });
+
+  it("starts every installment unpaid", async () => {
+    const { db, id } = await contracted();
+    const rows = await installmentsFor(db, id);
+    expect(rows).toHaveLength(40);
+    expect(rows[0].paid_total).toBe(0);
+    expect(rows[0].late_fee).toBe(0);
+  });
+
+  it("records a full payment", async () => {
+    const { db, id } = await contracted();
+    const [first] = await installmentsFor(db, id);
+    await addPayment(db, first.id, "2026-09-15", 1540000, "cash", null);
+    const row = await getInstallment(db, first.id);
+    expect(row?.paid_total).toBe(1540000);
+    expect(outstanding(row!.amount_due, row!.late_fee, row!.paid_total)).toBe(0);
+  });
+
+  it("leaves a balance after a partial payment", async () => {
+    const { db, id } = await contracted();
+    const [first] = await installmentsFor(db, id);
+    await addPayment(db, first.id, "2026-09-15", 1000000, "cash", null);
+    const row = await getInstallment(db, first.id);
+    expect(outstanding(row!.amount_due, row!.late_fee, row!.paid_total)).toBe(540000);
+  });
+
+  it("settles an installment with two partial payments", async () => {
+    const { db, id } = await contracted();
+    const [first] = await installmentsFor(db, id);
+    await addPayment(db, first.id, "2026-09-15", 1000000, "cash", null);
+    await addPayment(db, first.id, "2026-09-20", 540000, "transfer", "rest");
+    const row = await getInstallment(db, first.id);
+    expect(row?.paid_total).toBe(1540000);
+    expect(await paymentsFor(db, first.id)).toHaveLength(2);
+  });
+
+  it("adds the late fee to what is owed", async () => {
+    const { db, id } = await contracted();
+    const [first] = await installmentsFor(db, id);
+    await setLateFee(db, first.id, 50000);
+    await addPayment(db, first.id, "2026-09-20", 1540000, "cash", null);
+    const row = await getInstallment(db, first.id);
+    expect(row?.late_fee).toBe(50000);
+    expect(outstanding(row!.amount_due, row!.late_fee, row!.paid_total)).toBe(50000);
+  });
+
+  it("does not complete a contract while anything is owed", async () => {
+    const { db, id } = await contracted();
+    const [first] = await installmentsFor(db, id);
+    await addPayment(db, first.id, "2026-09-15", 1540000, "cash", null);
+    expect(await completeContractIfPaid(db, id)).toBe(false);
+    expect((await getContract(db, id))?.status).toBe("active");
+  });
+
+  it("completes the contract when every installment is paid", async () => {
+    const { db, id } = await contracted();
+    for (const installment of await installmentsFor(db, id)) {
+      await addPayment(db, installment.id, "2026-09-15", 1540000, "cash", null);
+    }
+    expect(await completeContractIfPaid(db, id)).toBe(true);
+    expect((await getContract(db, id))?.status).toBe("completed");
+    expect((await getCar(db, 1))?.status).toBe("sold");
+    const events = await carEvents(db, 1);
+    expect(events[events.length - 1].type).toBe("contract_completed");
+  });
+
+  it("completes only once", async () => {
+    const { db, id } = await contracted();
+    for (const installment of await installmentsFor(db, id)) {
+      await addPayment(db, installment.id, "2026-09-15", 1540000, "cash", null);
+    }
+    expect(await completeContractIfPaid(db, id)).toBe(true);
+    expect(await completeContractIfPaid(db, id)).toBe(false);
+    expect(await carEvents(db, 1)).toHaveLength(3);
+  });
+
+  it("keeps an unpaid late fee from completing the contract", async () => {
+    const { db, id } = await contracted();
+    const installments = await installmentsFor(db, id);
+    await setLateFee(db, installments[0].id, 50000);
+    for (const installment of installments) {
+      await addPayment(db, installment.id, "2026-09-15", 1540000, "cash", null);
+    }
+    expect(await completeContractIfPaid(db, id)).toBe(false);
   });
 });

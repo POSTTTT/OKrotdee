@@ -7,9 +7,11 @@ import Cars from "./pages/Cars";
 import ClientDetail from "./pages/ClientDetail";
 import ClientForm from "./pages/ClientForm";
 import Clients from "./pages/Clients";
+import ContractDetail from "./pages/ContractDetail";
 import ContractForm from "./pages/ContractForm";
 import Contracts from "./pages/Contracts";
 import Dashboard from "./pages/Dashboard";
+import PaymentForm from "./pages/PaymentForm";
 
 export default function App() {
   const { t, setLang } = useApp();
@@ -44,6 +46,8 @@ export default function App() {
           <Route path="/cars/:id/edit" element={<CarForm />} />
           <Route path="/contracts" element={<Contracts />} />
           <Route path="/contracts/new" element={<ContractForm />} />
+          <Route path="/contracts/:id" element={<ContractDetail />} />
+          <Route path="/installments/:id/pay" element={<PaymentForm />} />
         </Routes>
       </main>
     </>

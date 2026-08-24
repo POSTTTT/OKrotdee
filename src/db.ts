@@ -8,7 +8,7 @@
 
 import Database from "@tauri-apps/plugin-sql";
 
-import { generateSchedule, todayIso } from "./money";
+import { generateSchedule, outstanding, todayIso, type OverdueRow } from "./money";
 import { SCHEMA } from "./schema";
 
 export interface Db {
@@ -330,4 +330,103 @@ export async function createContract(db: Db, fields: ContractFields): Promise<nu
   await setCarStatus(db, fields.car_id, "on_contract");
   await addCarEvent(db, fields.car_id, todayIso(), "contract_started", lastInsertId);
   return lastInsertId;
+}
+
+export interface InstallmentRow {
+  id: number;
+  contract_id: number;
+  seq: number;
+  due_date: string;
+  amount_due: number;
+  late_fee: number;
+  paid_total: number;
+}
+
+export interface Payment {
+  id: number;
+  installment_id: number;
+  paid_on: string;
+  amount: number;
+  method: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+const INSTALLMENTS_SQL = (where: string) =>
+  "SELECT i.*, COALESCE(SUM(p.amount), 0) AS paid_total FROM installments i" +
+  " LEFT JOIN payments p ON p.installment_id = i.id" +
+  ` WHERE ${where} GROUP BY i.id ORDER BY i.seq`;
+
+/** A database row in the shape money.ts takes. */
+export function overdueRow(i: InstallmentRow): OverdueRow {
+  return {
+    dueDate: i.due_date,
+    amountDue: i.amount_due,
+    lateFee: i.late_fee,
+    paidTotal: i.paid_total,
+  };
+}
+
+export async function getContract(db: Db, id: number): Promise<ContractRow | undefined> {
+  return (
+    await db.select<ContractRow>(
+      "SELECT c.*, cl.first_name, cl.last_name, cars.brand, cars.series," +
+        " cars.plate_number FROM contracts c" +
+        " JOIN clients cl ON cl.id = c.client_id" +
+        " JOIN cars ON cars.id = c.car_id WHERE c.id = ?",
+      [id],
+    )
+  )[0];
+}
+
+export async function installmentsFor(db: Db, contractId: number): Promise<InstallmentRow[]> {
+  return db.select<InstallmentRow>(INSTALLMENTS_SQL("i.contract_id = ?"), [contractId]);
+}
+
+export async function getInstallment(db: Db, id: number): Promise<InstallmentRow | undefined> {
+  return (await db.select<InstallmentRow>(INSTALLMENTS_SQL("i.id = ?"), [id]))[0];
+}
+
+export async function paymentsFor(db: Db, installmentId: number): Promise<Payment[]> {
+  return db.select<Payment>(
+    "SELECT * FROM payments WHERE installment_id = ? ORDER BY paid_on, id",
+    [installmentId],
+  );
+}
+
+export async function setLateFee(db: Db, installmentId: number, lateFee: number): Promise<void> {
+  await db.execute("UPDATE installments SET late_fee = ? WHERE id = ?", [
+    lateFee,
+    installmentId,
+  ]);
+}
+
+export async function addPayment(
+  db: Db,
+  installmentId: number,
+  paidOn: string,
+  amount: number,
+  method: string | null,
+  note: string | null,
+): Promise<void> {
+  await db.execute(
+    "INSERT INTO payments (installment_id, paid_on, amount, method, note, created_at)" +
+      " VALUES (?, ?, ?, ?, ?, ?)",
+    [installmentId, paidOn, amount, method, note, nowIso()],
+  );
+}
+
+/** Close the contract and mark the car sold once nothing is outstanding. */
+export async function completeContractIfPaid(db: Db, contractId: number): Promise<boolean> {
+  const rows = await installmentsFor(db, contractId);
+  if (rows.some((r) => outstanding(r.amount_due, r.late_fee, r.paid_total) > 0)) {
+    return false;
+  }
+  const contract = await getContract(db, contractId);
+  if (!contract || contract.status !== "active") return false;
+
+  await db.execute("UPDATE contracts SET status = 'completed' WHERE id = ?", [contractId]);
+  await setCarStatus(db, contract.car_id, "sold");
+  await addCarEvent(db, contract.car_id, todayIso(), "contract_completed", contractId);
+  return true;
 }
