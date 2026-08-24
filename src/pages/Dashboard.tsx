@@ -124,7 +124,7 @@ export default function Dashboard() {
     <>
       <h1>{t("dashboard")}</h1>
       {backupError && (
-        <p className="flash">
+        <p className="flash alarm">
           {t("err_backup_failed")}: {backupError}
         </p>
       )}

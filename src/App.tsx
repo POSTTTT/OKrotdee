@@ -1,4 +1,4 @@
-import { Link, Route, Routes } from "react-router-dom";
+import { Link, NavLink, Route, Routes } from "react-router-dom";
 
 import { useApp } from "./context";
 import CarDetail from "./pages/CarDetail";
@@ -14,7 +14,8 @@ import Dashboard from "./pages/Dashboard";
 import PaymentForm from "./pages/PaymentForm";
 
 export default function App() {
-  const { t, setLang } = useApp();
+  const { t, lang, setLang } = useApp();
+  const navClass = ({ isActive }: { isActive: boolean }) => (isActive ? "on" : "");
 
   return (
     <>
@@ -23,14 +24,26 @@ export default function App() {
           {t("app_name")}
         </Link>
         <nav>
-          <Link to="/">{t("dashboard")}</Link>
-          <Link to="/clients">{t("clients")}</Link>
-          <Link to="/cars">{t("cars")}</Link>
-          <Link to="/contracts">{t("contracts")}</Link>
+          <NavLink to="/" end className={navClass}>
+            {t("dashboard")}
+          </NavLink>
+          <NavLink to="/clients" className={navClass}>
+            {t("clients")}
+          </NavLink>
+          <NavLink to="/cars" className={navClass}>
+            {t("cars")}
+          </NavLink>
+          <NavLink to="/contracts" className={navClass}>
+            {t("contracts")}
+          </NavLink>
         </nav>
         <span className="lang">
-          <button onClick={() => setLang("th")}>ไทย</button>
-          <button onClick={() => setLang("en")}>EN</button>
+          <button className={lang === "th" ? "on" : ""} onClick={() => setLang("th")}>
+            ไทย
+          </button>
+          <button className={lang === "en" ? "on" : ""} onClick={() => setLang("en")}>
+            EN
+          </button>
         </span>
       </header>
       <main>

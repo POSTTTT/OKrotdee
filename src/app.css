@@ -1,45 +1,343 @@
+/* OKroddee — a counter-side ledger, not a dashboard.
+   Offline by design: system fonts only, no network assets. */
+
+:root {
+  /* One warm gray family, so nothing clashes. */
+  --paper: #f4f2ee;
+  --surface: #fffefb;
+  --line: #e2ded6;
+  --line-strong: #cfc9be;
+  --ink: #23201c;
+  --ink-soft: #6b655c;
+  --ink-faint: #948d82;
+
+  /* One accent. Deep document-ink blue against warm paper. */
+  --accent: #26445f;
+  --accent-deep: #1a3145;
+  --accent-wash: #e7edf3;
+
+  /* Status hues, muted enough to sit together, separate enough to scan. */
+  --good: #2f6b45;
+  --good-wash: #e3efe6;
+  --warn: #8a5a12;
+  --warn-wash: #f8eddb;
+  --alarm: #8f2f24;
+  --alarm-wash: #f7e3e0;
+  --idle-wash: #eae6df;
+
+  --radius: 6px;
+  --radius-sm: 4px;
+  --shadow: 0 1px 2px rgba(35, 32, 28, 0.06), 0 4px 12px rgba(35, 32, 28, 0.04);
+  --speed: 150ms;
+}
+
 * { box-sizing: border-box; }
+
 body {
   margin: 0;
-  font: 16px/1.5 -apple-system, "Segoe UI", "Helvetica Neue", "Thonburi", sans-serif;
-  color: #1a1a1a;
-  background: #f6f6f4;
+  /* Thai faces sit early in the stack so Thai glyphs never fall back to a
+     Latin face that lacks proper tone-mark placement. */
+  font-family: -apple-system, "Segoe UI", "Sarabun", "Noto Sans Thai",
+    "Leelawadee UI", "Thonburi", system-ui, sans-serif;
+  font-size: 16px;
+  /* Thai stacks tone marks above and vowels below; 1.5 crowds them. */
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
 }
+
+/* Numbers are the point of this app: never let them shift column to column. */
+body { font-variant-numeric: tabular-nums; }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- Header ---------- */
+
 header {
-  display: flex; align-items: center; gap: 1.5rem;
-  padding: 0.75rem 1.25rem; background: #1f3a5f; color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+  padding: 0 1.5rem;
+  height: 52px;
+  background: var(--accent-deep);
+  color: #fff;
 }
 header a { color: #fff; text-decoration: none; }
-header .brand { font-weight: 700; font-size: 1.1rem; }
-header nav { display: flex; gap: 1rem; }
-header .lang { margin-left: auto; display: flex; gap: 0.4rem; }
-header .lang button { background: transparent; border: 1px solid #ffffff66; padding: 0.15rem 0.5rem; }
-main { max-width: 1100px; margin: 1.5rem auto; padding: 0 1.25rem; }
-h1 { font-size: 1.4rem; }
-h2 { font-size: 1.1rem; margin-top: 2rem; }
-table { width: 100%; border-collapse: collapse; background: #fff; }
-th, td { padding: 0.5rem 0.6rem; border-bottom: 1px solid #e3e3e0; text-align: left; }
-th { background: #eceae6; font-weight: 600; }
-td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-form.stack { display: grid; gap: 0.75rem; max-width: 32rem; }
-label { display: grid; gap: 0.25rem; font-size: 0.9rem; }
+header .brand {
+  font-weight: 600;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+header nav { display: flex; gap: 0.25rem; align-self: stretch; }
+header nav a {
+  display: flex;
+  align-items: center;
+  padding: 0 0.85rem;
+  font-size: 0.94rem;
+  color: #ffffffc4;
+  border-bottom: 2px solid transparent;
+  transition: color var(--speed), border-color var(--speed);
+}
+header nav a:hover { color: #fff; }
+/* Staff should never have to guess which screen they are on. */
+header nav a.on {
+  color: #fff;
+  border-bottom-color: #ffffff;
+}
+header .lang { margin-left: auto; display: flex; gap: 0.35rem; }
+header .lang button {
+  background: transparent;
+  border: 1px solid #ffffff40;
+  color: #ffffffc4;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.85rem;
+  border-radius: var(--radius-sm);
+}
+header .lang button:hover { background: #ffffff1a; color: #fff; }
+header .lang button.on {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: var(--accent-deep);
+  font-weight: 600;
+}
+
+/* ---------- Page ---------- */
+
+main {
+  max-width: 1180px;
+  margin: 1.75rem auto 4rem;
+  padding: 0 1.5rem;
+}
+
+h1 {
+  font-size: 1.45rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin: 0 0 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+h2 {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 2.5rem 0 0.75rem;
+}
+p { margin: 0.5rem 0; }
+
+/* ---------- Tables ---------- */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  font-size: 0.94rem;
+}
+th, td {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+th {
+  background: var(--paper);
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  /* A 40-row schedule scrolls past its own header otherwise. */
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  box-shadow: inset 0 -1px 0 var(--line-strong);
+}
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr { transition: background var(--speed); }
+tbody tr:hover { background: #faf8f4; }
+td.num, th.num { text-align: right; }
+table a { color: var(--accent); font-weight: 500; text-decoration: none; }
+table a:hover { text-decoration: underline; }
+/* The "nothing here yet" row should read as a state, not as data. */
+tbody td[colspan] {
+  color: var(--ink-faint);
+  padding: 1.75rem 0.75rem;
+  text-align: center;
+}
+
+/* ---------- Forms ---------- */
+
+form.stack { display: grid; gap: 0.9rem; max-width: 34rem; }
+label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
 input, select, textarea {
-  padding: 0.45rem; border: 1px solid #c9c7c2; border-radius: 4px; font: inherit;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.95rem;
+  transition: border-color var(--speed), box-shadow var(--speed);
 }
+input:hover, select:hover, textarea:hover { border-color: var(--ink-faint); }
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-wash);
+}
+textarea { resize: vertical; }
+
+/* ---------- Buttons ---------- */
+
 button, .button {
-  padding: 0.45rem 0.9rem; border: 0; border-radius: 4px;
-  background: #1f3a5f; color: #fff; font: inherit; cursor: pointer; text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.48rem 0.95rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background var(--speed), transform var(--speed), opacity var(--speed);
 }
-button.danger { background: #a12c22; }
-.flash { padding: 0.6rem 0.8rem; background: #fff3cd; border-left: 4px solid #d9a406; }
-.tag { padding: 0.1rem 0.45rem; border-radius: 999px; font-size: 0.8rem; }
-.tag.PAID, .tag.OK, .tag.available, .tag.completed, .tag.sold { background: #d8ecd8; }
-.tag.UPCOMING, .tag.on_contract, .tag.cancelled { background: #e4e4e0; }
-.tag.active { background: #dbe6f2; }
-.tag.PARTIAL, .tag.OVERDUE { background: #ffe0b2; }
-.tag.REPOSSESS_ELIGIBLE, .tag.repossessed { background: #f2c6c2; }
-ul.counts { list-style: none; padding: 0; display: flex; gap: 1rem; flex-wrap: wrap; }
-ul.counts li { background: #fff; padding: 1rem 1.25rem; border-radius: 6px; }
-ul.timeline { list-style: none; padding-left: 0; }
-ul.timeline li { padding: 0.4rem 0; border-bottom: 1px solid #e3e3e0; }
-.toolbar { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1rem; }
+button:hover, .button:hover { background: var(--accent-deep); }
+button:active, .button:active { transform: translateY(1px); }
+button.danger { background: var(--alarm); }
+button.danger:hover { background: #75261d; }
+/* Without this the double-click guard is invisible and staff click again. */
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+button:disabled:hover { background: var(--accent); }
+button.danger:disabled:hover { background: var(--alarm); }
+
+/* ---------- Messages ---------- */
+
+.flash {
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius-sm);
+  background: var(--warn-wash);
+  border: 1px solid #e4cf9f;
+  color: #6d4710;
+  font-size: 0.92rem;
+}
+/* A failed backup is not the same class of event as a typo in a form. */
+.flash.alarm {
+  background: var(--alarm-wash);
+  border-color: #e0b3ad;
+  color: #7a281f;
+  font-weight: 500;
+}
+
+/* ---------- Status tags ---------- */
+
+.tag {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.tag.PAID, .tag.OK, .tag.available, .tag.completed, .tag.sold {
+  background: var(--good-wash); color: var(--good); border-color: #c2ddca;
+}
+.tag.UPCOMING, .tag.on_contract, .tag.cancelled {
+  background: var(--idle-wash); color: var(--ink-soft); border-color: var(--line-strong);
+}
+.tag.active {
+  background: var(--accent-wash); color: var(--accent); border-color: #c3d3e0;
+}
+.tag.PARTIAL, .tag.OVERDUE {
+  background: var(--warn-wash); color: var(--warn); border-color: #e4cf9f;
+}
+/* The loudest thing on the screen, because of what it means. */
+.tag.REPOSSESS_ELIGIBLE, .tag.repossessed {
+  background: var(--alarm); color: #fff; border-color: var(--alarm);
+}
+
+/* ---------- Dashboard counts ---------- */
+
+/* One grouped strip with rules between, rather than three floating cards. */
+ul.counts {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+ul.counts li {
+  flex: 1 1 12rem;
+  padding: 0.9rem 1.25rem;
+  border-right: 1px solid var(--line);
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+}
+ul.counts li:last-child { border-right: 0; }
+ul.counts a { color: inherit; text-decoration: none; }
+ul.counts a:hover { color: var(--accent); }
+
+/* ---------- Timeline ---------- */
+
+ul.timeline {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+ul.timeline li {
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.94rem;
+}
+ul.timeline li:last-child { border-bottom: 0; }
+ul.timeline a { color: var(--accent); }
+
+/* ---------- Toolbar ---------- */
+
+.toolbar {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.toolbar input, .toolbar select { height: 36px; }
+.toolbar input[name="q"] { min-width: 16rem; }

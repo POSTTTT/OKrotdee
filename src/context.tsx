@@ -37,7 +37,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setLangState(code);
   };
 
-  if (error) return <p className="flash">{error}</p>;
+  if (error) return <p className="flash alarm">{error}</p>;
   if (!db) return <p>{translate("loading", lang)}</p>;
 
   return (
@@ -45,7 +45,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       value={{ db, lang, setLang, t: (key: string) => translate(key, lang) }}
     >
       {backupError && (
-        <p className="flash">
+        <p className="flash alarm">
           {translate("err_backup_failed", lang)}: {backupError}
         </p>
       )}
