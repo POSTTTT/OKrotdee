@@ -41,6 +41,11 @@ export async function openDatabase(): Promise<Db> {
     },
   };
 
+  // @tauri-apps/plugin-sql pools connections and PRAGMA foreign_keys is
+  // per-connection, so this only guarantees enforcement on the connection
+  // executing this call, not on every connection the app uses over its
+  // lifetime. Tests use a single unpooled better-sqlite3 connection (see
+  // tests/helpers.ts), where the same pragma is a real guarantee.
   await database.execute("PRAGMA foreign_keys = ON");
   for (const statement of SCHEMA.split(";")) {
     if (statement.trim()) await database.execute(statement);

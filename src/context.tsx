@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
+import { startupBackup } from "./backup";
 import { openDatabase, type Db } from "./db";
 import { DEFAULT_LANG, t as translate, type LangCode } from "./lang";
 
@@ -20,7 +21,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    openDatabase().then(setDb, (e) => setError(String(e)));
+    openDatabase().then(async (opened) => {
+      await startupBackup().catch(() => undefined);
+      setDb(opened);
+    }, (e) => setError(String(e)));
   }, []);
 
   const setLang = (code: LangCode) => {

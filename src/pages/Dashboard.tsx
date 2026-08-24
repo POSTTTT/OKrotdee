@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { backupTo, showBackups } from "../backup";
 import { useApp } from "../context";
 import { activeInstallments, collectedBetween, overdueRow, type DashboardRow } from "../db";
 import {
@@ -119,6 +120,17 @@ export default function Dashboard() {
   return (
     <>
       <h1>{t("dashboard")}</h1>
+      <div className="toolbar">
+        <button
+          onClick={async () => {
+            const target = await backupTo();
+            if (target) alert(`${t("backup_done")}: ${target}`);
+          }}
+        >
+          {t("backup_now")}
+        </button>
+        <button onClick={() => showBackups()}>{t("show_backups")}</button>
+      </div>
       <ul className="counts">
         <li>
           <Link to="/clients">
