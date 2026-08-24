@@ -12,8 +12,11 @@ justify repossessing the car.
 
 ## Constraints
 
-- Runs on one office computer, offline. No internet, no hosting, no cloud
-  account.
+- An installed desktop application, launched from an icon. No terminal, no
+  browser tab, no localhost URL for staff to remember.
+- Runs offline on the shop's computer. No internet, no hosting, no cloud
+  account, no telemetry.
+- Must run on both macOS and Windows.
 - Small number of staff, all trusted. No user accounts or permissions.
 - Currency is Thai baht. Contracts are hire-purchase style: a down payment
   followed by a fixed number of equal monthly installments.
@@ -27,38 +30,57 @@ justify repossessing the car.
    and whose car is eligible for repossession.
 3. Any car's history — who bought it, when, what was paid, whether it was
    repossessed — is visible on one page.
-4. The entire dataset is one file that can be copied to a USB stick.
+4. Staff can produce a copy of the entire dataset, on demand, without
+   leaving the application.
+5. Staff install it by double-clicking an installer, and launch it by
+   double-clicking an icon.
 
 ## Architecture
 
-A single Python process serving server-rendered HTML on `localhost`, backed
-by a SQLite file.
+A Tauri desktop application: a React interface in a native window, backed by
+a SQLite file in the operating system's application-data directory.
 
-- **Python 3 + Flask + Jinja2 + `sqlite3` (standard library).** No ORM, no
-  JavaScript build step, no external services.
-- Staff launch it with `run.command` (macOS) and use it in a browser.
-- All data lives in `okroddee.db` in the project directory.
+- **Tauri 2 + React + TypeScript + Vite.** SQLite is reached through
+  `@tauri-apps/plugin-sql`.
+- Every business rule lives in TypeScript. The Rust side is untouched
+  boilerplate that registers plugins and opens the window, so the
+  application can be maintained by someone with web skills alone.
+- The database schema is created from TypeScript on first run
+  (`CREATE TABLE IF NOT EXISTS`), so the schema has exactly one definition
+  and no Rust migration mirrors it.
+- Staff install a `.dmg` (macOS) or `.msi` (Windows) and launch from an icon.
 
-Rationale: the deployment target is one offline machine. A server-rendered
-application has no build step to break, no dependency tree to maintain
-offline, and its database is a single file that non-technical staff can back
-up by copying it.
+Rationale: the deployment target is a shop computer used by staff who are
+not developers. A packaged desktop application removes the terminal, the
+browser, and the launch URL. Keeping the rules in TypeScript keeps the Rust
+surface at zero, so the only toolchain a future maintainer needs is Node.
 
 ### File Layout
 
 ```
-app.py           Flask routes and request handling
-db.py            Schema definition, migrations, queries
-money.py         Satang arithmetic, schedule generation, status derivation
-lang.py          Thai/English label dictionary
-templates/       base.html plus one template per screen
-static/app.css   All styling
-test_money.py    pytest suite for money.py
-run.command      Launcher: back up the database, then start the server
+src/
+  main.tsx            React entry point
+  App.tsx             Layout, navigation, routes, language toggle
+  money.ts            Satang arithmetic, schedule generation, status derivation
+  validate.ts         Thai ID and payment validation
+  schema.ts           The CREATE TABLE statements, as one exported string
+  db.ts               Database handle and every query
+  lang.ts             Thai/English label dictionary
+  backup.ts           Startup backup and pruning
+  app.css             All styling
+  pages/              One component per screen
+src-tauri/
+  src/lib.rs          Plugin registration only
+  tauri.conf.json     Window, bundle, and identifier configuration
+  Cargo.toml
+tests/
+  money.test.ts       vitest suite for money.ts
+  validate.test.ts    vitest suite for validate.ts
+  schema.test.ts      vitest suite for schema.ts, run against better-sqlite3
 ```
 
-`money.py` holds every rule that can silently lose money and depends on
-nothing but the standard library, so it can be tested in isolation.
+`money.ts` and `validate.ts` hold every rule that can silently lose money
+and import nothing, so they are tested in plain Node without Tauri running.
 
 ## Data Model
 
@@ -254,32 +276,55 @@ Enforced when data is entered, not merely suggested:
 
 ## Internationalisation
 
-`lang.py` holds a dictionary of interface labels in Thai and English. The
-active language is stored in the session and toggled by a link in the
-header. Only interface labels are translated; data entered by staff is
+`lang.ts` holds a dictionary of interface labels in Thai and English. The
+active language is held in React state, persisted to `localStorage`, and
+toggled by a link in the header. Only interface labels are translated; data entered by staff is
 stored and displayed exactly as typed.
 
 ## Testing
 
-`test_money.py` covers `money.py` with pytest:
+`vitest` covers the three modules that import nothing from Tauri:
 
-- Schedule generation, including month-end clamping and multi-year contracts
-- Satang conversion and formatting round-trips
-- Status derivation for paid, partial, overdue, and upcoming installments
-- `overdue_count` and contract flag thresholds
-- Partial payments summing to exactly the amount due
-- Late fees included in the outstanding balance
+- `money.ts` — schedule generation including month-end clamping and
+  multi-year contracts; satang conversion and formatting round-trips; status
+  derivation for paid, partial, overdue, and upcoming installments;
+  `overdueCount` and contract flag thresholds; partial payments summing to
+  exactly the amount due; late fees included in the outstanding balance.
+- `validate.ts` — Thai ID checksums and payment entry rules.
+- `schema.ts` — the schema is executed against an in-memory database using
+  `better-sqlite3` (a development dependency only), which verifies the
+  `CHECK` constraints, the unique indexes, and the foreign keys without
+  launching the application.
 
 Screens are verified by hand. The rules that can silently lose money are the
 ones that get automated tests.
 
 ## Backup
 
-`run.command` copies `okroddee.db` to `backups/okroddee-YYYY-MM-DD.db`
-before starting the server, and prunes backups older than the most recent
-30. Staff copy the `backups/` folder to a USB stick weekly. This is the
-whole backup story for an offline single-machine deployment, and it is the
-system's largest known risk.
+The database lives in the platform application-data directory, where staff
+cannot conveniently reach it, so backup is the application's job:
+
+- On every start, the database file is copied to `backups/okroddee-YYYY-MM-DD.db`
+  beside it, and all but the 30 most recent copies are deleted.
+- A "Backup now" control on the dashboard writes a copy to a folder the
+  staff choose — a USB stick, a synced folder — using the system file
+  dialog.
+- A "Show backups" control opens the backup folder in Finder or Explorer.
+
+Staff are expected to run "Backup now" onto a USB stick weekly. This remains
+the system's largest known risk: one machine, one disk.
+
+## Build and Distribution
+
+Each operating system's installer must be built on that operating system.
+A macOS `.dmg` is built on the Mac used for development; a Windows `.msi`
+requires a Windows machine or a CI runner. A GitHub Actions workflow that
+builds both is included in the repository, but running it requires pushing
+to GitHub, which is a separate decision from building the application.
+
+The application is unsigned. macOS will require staff to approve it on first
+launch through System Settings, and Windows will show a SmartScreen warning.
+Code-signing certificates cost money annually and are out of scope.
 
 ## Out of Scope
 
@@ -293,3 +338,5 @@ Deliberately excluded from this version, to be added when actually needed:
 - SMS or email payment reminders.
 - Multi-branch or multi-company separation.
 - Automatic interest calculation.
+- Code signing and notarisation of the installers.
+- Automatic updates.
