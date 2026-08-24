@@ -13,6 +13,7 @@ export default function ClientForm() {
 
   const [client, setClient] = useState<Client | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (clientId) getClient(db, clientId).then((c) => setClient(c ?? null));
@@ -23,6 +24,7 @@ export default function ClientForm() {
     const form = new FormData(event.currentTarget);
     const value = (key: string) => ((form.get(key) as string) ?? "").trim() || null;
 
+    setBusy(true);
     try {
       const first_name = value("first_name");
       const last_name = value("last_name");
@@ -53,6 +55,8 @@ export default function ClientForm() {
             ? t("err_thai_id_taken")
             : String(e),
       );
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -86,7 +90,9 @@ export default function ClientForm() {
           <textarea name="note" rows={2} defaultValue={client?.note ?? ""} />
         </label>
         <div>
-          <button type="submit">{t("save")}</button>
+          <button type="submit" disabled={busy}>
+            {t("save")}
+          </button>
         </div>
       </form>
     </>

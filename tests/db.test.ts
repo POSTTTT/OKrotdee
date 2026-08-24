@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  activeContractForCar,
   activeInstallments,
   addCarEvent,
   addPayment,
@@ -435,12 +436,49 @@ describe("repossession", () => {
     expect((await getCar(db, 1))?.status).toBe("available");
   });
 
+  it("does not touch a contract that is already closed", async () => {
+    const { db, id } = await contracted();
+    await cancelContract(db, id);
+    await setCarStatus(db, 1, "on_contract"); // the car went out on another deal
+    await repossessContract(db, id);
+    expect((await getContract(db, id))?.status).toBe("cancelled");
+    expect((await getCar(db, 1))?.status).toBe("on_contract");
+  });
+
+  it("does not free the car when cancelling a closed contract", async () => {
+    const { db, id } = await contracted();
+    await repossessContract(db, id);
+    await setCarStatus(db, 1, "on_contract"); // resold on a new contract
+    await cancelContract(db, id);
+    expect((await getContract(db, id))?.status).toBe("repossessed");
+    expect((await getCar(db, 1))?.status).toBe("on_contract");
+  });
+
   it("only warns when two installments are missed", async () => {
     const { db, id } = await contracted();
     const rows = await installmentsFor(db, id);
     const flag = contractFlag(overdueCount(rows.map(overdueRow), "2099-01-01"));
     expect(flag).toBe("REPOSSESS_ELIGIBLE");
     expect((await getContract(db, id))?.status).toBe("active");
+  });
+});
+
+describe("one live contract per car", () => {
+  it("refuses a second contract when the car status was set back by hand", async () => {
+    const { db } = await contracted();
+    await setCarStatus(db, 1, "available");
+    await createClient(db, { ...CLIENT, first_name: "Malee", thai_id: null });
+    await expect(createContract(db, { ...CONTRACT, client_id: 2 })).rejects.toThrow(
+      "err_car_has_active_contract",
+    );
+    expect(await listContracts(db, "active")).toHaveLength(1);
+  });
+
+  it("finds the active contract on a car and nothing on a free one", async () => {
+    const { db, id } = await contracted();
+    expect((await activeContractForCar(db, 1))?.id).toBe(id);
+    await cancelContract(db, id);
+    expect(await activeContractForCar(db, 1)).toBeUndefined();
   });
 });
 

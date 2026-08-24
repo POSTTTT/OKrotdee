@@ -80,6 +80,7 @@ export default function Dashboard() {
   const [rows, setRows] = useState<DashboardRow[]>([]);
   const [collected, setCollected] = useState(0);
   const [counts, setCounts] = useState({ clients: 0, cars: 0, contracts: 0 });
+  const [backupError, setBackupError] = useState<string | null>(null);
   const today = todayIso();
 
   useEffect(() => {
@@ -113,23 +114,37 @@ export default function Dashboard() {
           (list) =>
             contractFlag(overdueCount(list.map(overdueRow), today)) === "REPOSSESS_ELIGIBLE",
         )
-        .map((list) => list[0]),
+        // list is ordered by due date, so list[0] is installment #1 and is
+        // usually long paid. Show the oldest one still owing money.
+        .map((list) => list.find(owing) ?? list[0]),
     };
   }, [rows, today]);
 
   return (
     <>
       <h1>{t("dashboard")}</h1>
+      {backupError && (
+        <p className="flash">
+          {t("err_backup_failed")}: {backupError}
+        </p>
+      )}
       <div className="toolbar">
         <button
           onClick={async () => {
-            const target = await backupTo();
-            if (target) alert(`${t("backup_done")}: ${target}`);
+            setBackupError(null);
+            try {
+              const target = await backupTo(db);
+              if (target) alert(`${t("backup_done")}: ${target}`);
+            } catch (e) {
+              setBackupError(String(e));
+            }
           }}
         >
           {t("backup_now")}
         </button>
-        <button onClick={() => showBackups()}>{t("show_backups")}</button>
+        <button onClick={() => showBackups().catch((e) => setBackupError(String(e)))}>
+          {t("show_backups")}
+        </button>
       </div>
       <ul className="counts">
         <li>

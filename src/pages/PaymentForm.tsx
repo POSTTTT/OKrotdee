@@ -19,33 +19,39 @@ export default function PaymentForm() {
   const { db, t } = useApp();
   const navigate = useNavigate();
   const installmentId = Number(useParams().id);
-  const [installment, setInstallment] = useState<InstallmentRow | null>(null);
-  const [contract, setContract] = useState<ContractRow | null>(null);
+  // undefined while loading, null when there is no such installment.
+  const [installment, setInstallment] = useState<InstallmentRow | null | undefined>();
+  const [contract, setContract] = useState<ContractRow | null | undefined>();
   const [error, setError] = useState<string | null>(null);
+  // One payment per click: a second click while the write is in flight would
+  // record the money twice.
+  const [busy, setBusy] = useState(false);
+  const [paidOn, setPaidOn] = useState(todayIso());
 
   useEffect(() => {
     getInstallment(db, installmentId).then(async (row) => {
       setInstallment(row ?? null);
-      if (row) setContract((await getContract(db, row.contract_id)) ?? null);
+      setContract(row ? ((await getContract(db, row.contract_id)) ?? null) : null);
     });
   }, [db, installmentId]);
 
-  if (!installment || !contract) return <p>{t("loading")}</p>;
+  if (installment === undefined || contract === undefined) return <p>{t("loading")}</p>;
+  if (!installment || !contract) return <p>{t("not_found")}</p>;
 
   const balance = outstanding(
     installment.amount_due,
     installment.late_fee,
     installment.paid_total,
   );
-  const late = daysLate(installment.due_date, todayIso());
+  const late = daysLate(installment.due_date, paidOn);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const text = (key: string) => ((form.get(key) as string) ?? "").trim();
     setError(null);
+    setBusy(true);
     try {
-      const paidOn = text("paid_on");
       const amount = toSatang(text("amount"));
       const lateFee = toSatang(text("late_fee") || "0");
       validatePayment(amount, paidOn, todayIso());
@@ -63,6 +69,8 @@ export default function PaymentForm() {
             : e.message
           : String(e),
       );
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -84,7 +92,13 @@ export default function PaymentForm() {
       <form className="stack" onSubmit={onSubmit}>
         <label>
           {t("payment_date")}
-          <input type="date" name="paid_on" defaultValue={todayIso()} required />
+          <input
+            type="date"
+            name="paid_on"
+            value={paidOn}
+            onChange={(e) => setPaidOn(e.target.value)}
+            required
+          />
         </label>
         <label>
           {t("amount")}
@@ -106,7 +120,9 @@ export default function PaymentForm() {
           <input name="note" />
         </label>
         <div className="toolbar">
-          <button type="submit">{t("save")}</button>
+          <button type="submit" disabled={busy}>
+            {t("save")}
+          </button>
         </div>
       </form>
     </>

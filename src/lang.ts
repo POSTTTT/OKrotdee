@@ -71,6 +71,7 @@ export const LABELS: Record<LangCode, Record<string, string>> = {
     backup_now: "Backup now",
     show_backups: "Show backups",
     backup_done: "Backup saved",
+    not_found: "Not found",
     available: "Available",
     on_contract: "On contract",
     sold: "Sold",
@@ -103,6 +104,8 @@ export const LABELS: Record<LangCode, Record<string, string>> = {
     err_choose_client_car: "Choose a client and a car",
     err_installment_amount_positive: "The installment amount must be greater than zero",
     err_choose_first_due_date: "Choose a first due date",
+    err_car_has_active_contract: "That car is already on an active contract",
+    err_backup_failed: "Backup failed — the data was NOT saved. Tell the owner",
   },
   th: {
     app_name: "OKroddee",
@@ -172,6 +175,7 @@ export const LABELS: Record<LangCode, Record<string, string>> = {
     backup_now: "สำรองข้อมูล",
     show_backups: "เปิดโฟลเดอร์สำรอง",
     backup_done: "สำรองข้อมูลแล้ว",
+    not_found: "ไม่พบข้อมูล",
     available: "พร้อมขาย",
     on_contract: "อยู่ในสัญญา",
     sold: "ขายแล้ว",
@@ -204,6 +208,8 @@ export const LABELS: Record<LangCode, Record<string, string>> = {
     err_choose_client_car: "กรุณาเลือกลูกค้าและรถ",
     err_installment_amount_positive: "ค่างวดต้องมากกว่าศูนย์",
     err_choose_first_due_date: "กรุณาเลือกวันครบกำหนดงวดแรก",
+    err_car_has_active_contract: "รถคันนี้ติดสัญญาที่กำลังผ่อนอยู่",
+    err_backup_failed: "สำรองข้อมูลไม่สำเร็จ ข้อมูลยังไม่ถูกสำรอง กรุณาแจ้งเจ้าของร้าน",
   },
 };
 

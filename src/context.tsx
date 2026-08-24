@@ -16,13 +16,18 @@ const AppContext = createContext<AppValue | null>(null);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [db, setDb] = useState<Db | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [backupError, setBackupError] = useState<string | null>(null);
   const [lang, setLangState] = useState<LangCode>(
     (localStorage.getItem("lang") as LangCode) || DEFAULT_LANG,
   );
 
   useEffect(() => {
+    // Open first: opening only applies the idempotent schema, so the copy still
+    // predates anything this session writes, and a checkpoint needs a
+    // connection. A failed backup must not keep the shop from working, but it
+    // must never pass unnoticed either.
     openDatabase().then(async (opened) => {
-      await startupBackup().catch(() => undefined);
+      await startupBackup(opened).catch((e) => setBackupError(String(e)));
       setDb(opened);
     }, (e) => setError(String(e)));
   }, []);
@@ -39,6 +44,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider
       value={{ db, lang, setLang, t: (key: string) => translate(key, lang) }}
     >
+      {backupError && (
+        <p className="flash">
+          {translate("err_backup_failed", lang)}: {backupError}
+        </p>
+      )}
       {children}
     </AppContext.Provider>
   );

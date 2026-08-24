@@ -33,8 +33,9 @@ button, .button {
 button.danger { background: #a12c22; }
 .flash { padding: 0.6rem 0.8rem; background: #fff3cd; border-left: 4px solid #d9a406; }
 .tag { padding: 0.1rem 0.45rem; border-radius: 999px; font-size: 0.8rem; }
-.tag.PAID, .tag.OK, .tag.available { background: #d8ecd8; }
-.tag.UPCOMING, .tag.on_contract { background: #e4e4e0; }
+.tag.PAID, .tag.OK, .tag.available, .tag.completed, .tag.sold { background: #d8ecd8; }
+.tag.UPCOMING, .tag.on_contract, .tag.cancelled { background: #e4e4e0; }
+.tag.active { background: #dbe6f2; }
 .tag.PARTIAL, .tag.OVERDUE { background: #ffe0b2; }
 .tag.REPOSSESS_ELIGIBLE, .tag.repossessed { background: #f2c6c2; }
 ul.counts { list-style: none; padding: 0; display: flex; gap: 1rem; flex-wrap: wrap; }

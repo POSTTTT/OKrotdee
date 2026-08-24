@@ -16,7 +16,9 @@ import { formatBaht, todayIso } from "../money";
 export default function CarDetail() {
   const { db, t } = useApp();
   const carId = Number(useParams().id);
-  const [car, setCar] = useState<Car | null>(null);
+  // undefined while loading, null when there is no such car.
+  const [car, setCar] = useState<Car | null | undefined>();
+  const [busy, setBusy] = useState(false);
   const [events, setEvents] = useState<CarEvent[]>([]);
   const [contracts, setContracts] = useState<ContractRow[]>([]);
 
@@ -32,22 +34,31 @@ export default function CarDetail() {
 
   const addNote = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    // React clears currentTarget once the handler returns, so hold on to the
+    // form itself; reading it after the await would throw and skip load().
+    const element = event.currentTarget;
+    const form = new FormData(element);
     const note = ((form.get("note") as string) ?? "").trim();
     if (!note) return;
-    await addCarEvent(
-      db,
-      carId,
-      (form.get("event_date") as string) || todayIso(),
-      "note",
-      null,
-      note,
-    );
-    event.currentTarget.reset();
-    await load();
+    setBusy(true);
+    try {
+      await addCarEvent(
+        db,
+        carId,
+        (form.get("event_date") as string) || todayIso(),
+        "note",
+        null,
+        note,
+      );
+      element.reset();
+      await load();
+    } finally {
+      setBusy(false);
+    }
   };
 
-  if (!car) return <p>{t("loading")}</p>;
+  if (car === undefined) return <p>{t("loading")}</p>;
+  if (car === null) return <p>{t("not_found")}</p>;
 
   return (
     <>
@@ -63,8 +74,8 @@ export default function CarDetail() {
         {car.color ?? "-"} &middot; {t("mileage")}: {car.mileage ?? "-"}
       </p>
       <p>
-        {t("cost_price")}: {car.cost_price ? formatBaht(car.cost_price) : "-"} &middot;{" "}
-        {t("asking_price")}: {car.asking_price ? formatBaht(car.asking_price) : "-"}
+        {t("cost_price")}: {car.cost_price != null ? formatBaht(car.cost_price) : "-"} &middot;{" "}
+        {t("asking_price")}: {car.asking_price != null ? formatBaht(car.asking_price) : "-"}
       </p>
 
       <h2>{t("contracts")}</h2>
@@ -111,7 +122,9 @@ export default function CarDetail() {
       <form className="toolbar" onSubmit={addNote}>
         <input type="date" name="event_date" defaultValue={todayIso()} />
         <input name="note" placeholder={t("add_note")} required />
-        <button type="submit">{t("add_note")}</button>
+        <button type="submit" disabled={busy}>
+          {t("add_note")}
+        </button>
       </form>
     </>
   );

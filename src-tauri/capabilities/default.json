@@ -18,6 +18,8 @@
       "identifier": "fs:scope",
       "allow": [
         { "path": "$APPCONFIG/okroddee.db" },
+        { "path": "$APPCONFIG/okroddee.db-wal" },
+        { "path": "$APPCONFIG/okroddee.db-shm" },
         { "path": "$APPCONFIG/backups" },
         { "path": "$APPCONFIG/backups/**" }
       ]

@@ -8,7 +8,8 @@ import { formatBaht } from "../money";
 export default function ClientDetail() {
   const { db, t } = useApp();
   const clientId = Number(useParams().id);
-  const [client, setClient] = useState<Client | null>(null);
+  // undefined while loading, null when there is no such client.
+  const [client, setClient] = useState<Client | null | undefined>();
   const [contracts, setContracts] = useState<ContractRow[]>([]);
 
   useEffect(() => {
@@ -16,7 +17,8 @@ export default function ClientDetail() {
     clientContracts(db, clientId).then(setContracts);
   }, [db, clientId]);
 
-  if (!client) return <p>{t("loading")}</p>;
+  if (client === undefined) return <p>{t("loading")}</p>;
+  if (client === null) return <p>{t("not_found")}</p>;
 
   return (
     <>

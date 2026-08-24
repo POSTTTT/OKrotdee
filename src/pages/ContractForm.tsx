@@ -20,6 +20,9 @@ export default function ContractForm() {
   const [cars, setCars] = useState<Car[]>([]);
   const [preview, setPreview] = useState<{ dates: string[]; amount: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // One contract per click: a second click while the write is in flight would
+  // insert a second contract and charge the client twice.
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     listClients(db).then(setClients);
@@ -58,6 +61,7 @@ export default function ContractForm() {
     const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement;
     const form = new FormData(event.currentTarget);
     setError(null);
+    setBusy(true);
     try {
       const fields = readFields(form);
       const dates = generateSchedule(
@@ -78,6 +82,8 @@ export default function ContractForm() {
             : e.message
           : String(e),
       );
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -135,10 +141,10 @@ export default function ContractForm() {
           <textarea name="note" rows={2} />
         </label>
         <div className="toolbar">
-          <button type="submit" name="action" value="preview">
+          <button type="submit" name="action" value="preview" disabled={busy}>
             {t("preview_schedule")}
           </button>
-          <button type="submit" name="action" value="create">
+          <button type="submit" name="action" value="create" disabled={busy}>
             {t("create_contract")}
           </button>
         </div>

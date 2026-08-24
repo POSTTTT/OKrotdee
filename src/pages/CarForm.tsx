@@ -2,7 +2,15 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { useApp } from "../context";
-import { createCar, getCar, setCarStatus, updateCar, type Car, type CarStatus } from "../db";
+import {
+  activeContractForCar,
+  createCar,
+  getCar,
+  setCarStatus,
+  updateCar,
+  type Car,
+  type CarStatus,
+} from "../db";
 import { isErrorKey } from "../lang";
 import { formatBaht, toSatang } from "../money";
 
@@ -16,6 +24,7 @@ export default function CarForm() {
 
   const [car, setCar] = useState<Car | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (carId) getCar(db, carId).then((c) => setCar(c ?? null));
@@ -34,6 +43,8 @@ export default function CarForm() {
       return value === null ? null : toSatang(value);
     };
 
+    setError(null);
+    setBusy(true);
     try {
       const brand = text("brand");
       if (!brand) throw new Error("err_brand_required");
@@ -51,9 +62,16 @@ export default function CarForm() {
         note: text("note"),
       };
       if (carId) {
-        await updateCar(db, carId, fields);
+        // While a contract is running, the contract page owns the car's
+        // status. Letting staff set it back to available here would let a
+        // second contract be written against the same car.
         const status = text("status") as CarStatus | null;
-        if (status && status !== car?.status) await setCarStatus(db, carId, status);
+        const changingStatus = !!status && status !== car?.status;
+        if (changingStatus && (await activeContractForCar(db, carId))) {
+          throw new Error("err_car_has_active_contract");
+        }
+        await updateCar(db, carId, fields);
+        if (changingStatus) await setCarStatus(db, carId, status!);
         navigate(`/cars/${carId}`);
       } else {
         navigate(`/cars/${await createCar(db, fields)}`);
@@ -67,6 +85,8 @@ export default function CarForm() {
             ? t(e.message)
             : message,
       );
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -111,14 +131,14 @@ export default function CarForm() {
           {t("cost_price")}
           <input
             name="cost_price"
-            defaultValue={car?.cost_price ? formatBaht(car.cost_price) : ""}
+            defaultValue={car?.cost_price != null ? formatBaht(car.cost_price) : ""}
           />
         </label>
         <label>
           {t("asking_price")}
           <input
             name="asking_price"
-            defaultValue={car?.asking_price ? formatBaht(car.asking_price) : ""}
+            defaultValue={car?.asking_price != null ? formatBaht(car.asking_price) : ""}
           />
         </label>
         <label>
@@ -138,7 +158,9 @@ export default function CarForm() {
           </label>
         )}
         <div>
-          <button type="submit">{t("save")}</button>
+          <button type="submit" disabled={busy}>
+            {t("save")}
+          </button>
         </div>
       </form>
     </>

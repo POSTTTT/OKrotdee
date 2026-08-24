@@ -23,7 +23,8 @@ import {
 export default function ContractDetail() {
   const { db, t } = useApp();
   const contractId = Number(useParams().id);
-  const [contract, setContract] = useState<ContractRow | null>(null);
+  // undefined while loading, null when there is no such contract.
+  const [contract, setContract] = useState<ContractRow | null | undefined>();
   const [installments, setInstallments] = useState<InstallmentRow[]>([]);
 
   const load = useCallback(async () => {
@@ -35,7 +36,8 @@ export default function ContractDetail() {
     load();
   }, [load]);
 
-  if (!contract) return <p>{t("loading")}</p>;
+  if (contract === undefined) return <p>{t("loading")}</p>;
+  if (contract === null) return <p>{t("not_found")}</p>;
 
   const today = todayIso();
   const flag = contractFlag(overdueCount(installments.map(overdueRow), today));

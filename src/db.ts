@@ -253,6 +253,19 @@ export async function carEvents(db: Db, carId: number): Promise<CarEvent[]> {
   );
 }
 
+/** The active contract on this car, if there is one. */
+export async function activeContractForCar(
+  db: Db,
+  carId: number,
+): Promise<ContractRow | undefined> {
+  return (
+    await db.select<ContractRow>(
+      "SELECT * FROM contracts WHERE car_id = ? AND status = 'active' LIMIT 1",
+      [carId],
+    )
+  )[0];
+}
+
 export async function carContracts(db: Db, carId: number): Promise<ContractRow[]> {
   return db.select<ContractRow>(
     "SELECT c.*, cl.first_name, cl.last_name FROM contracts c" +
@@ -297,6 +310,11 @@ export async function listContracts(db: Db, status?: string): Promise<ContractRo
 export async function createContract(db: Db, fields: ContractFields): Promise<number> {
   const car = await getCar(db, fields.car_id);
   if (!car || car.status !== "available") throw new Error("err_car_not_available");
+  // A car's status can be edited by hand; the contracts table is the truth
+  // about whether it is already financed.
+  if (await activeContractForCar(db, fields.car_id)) {
+    throw new Error("err_car_has_active_contract");
+  }
 
   // Validate before writing: the SQL plugin pools connections, so these
   // statements cannot share one transaction.
@@ -440,6 +458,7 @@ export async function completeContractIfPaid(db: Db, contractId: number): Promis
 export async function repossessContract(db: Db, contractId: number): Promise<void> {
   const contract = await getContract(db, contractId);
   if (!contract) throw new Error("err_no_such_contract");
+  if (contract.status !== "active") return;
   await db.execute("UPDATE contracts SET status = 'repossessed' WHERE id = ?", [contractId]);
   await setCarStatus(db, contract.car_id, "repossessed");
   await addCarEvent(db, contract.car_id, todayIso(), "repossessed", contractId);
@@ -449,6 +468,7 @@ export async function repossessContract(db: Db, contractId: number): Promise<voi
 export async function cancelContract(db: Db, contractId: number): Promise<void> {
   const contract = await getContract(db, contractId);
   if (!contract) throw new Error("err_no_such_contract");
+  if (contract.status !== "active") return;
   await db.execute("UPDATE contracts SET status = 'cancelled' WHERE id = ?", [contractId]);
   await setCarStatus(db, contract.car_id, "available");
 }
