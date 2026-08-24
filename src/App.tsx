@@ -1,6 +1,9 @@
 import { Link, Route, Routes } from "react-router-dom";
 
 import { useApp } from "./context";
+import CarDetail from "./pages/CarDetail";
+import CarForm from "./pages/CarForm";
+import Cars from "./pages/Cars";
 import ClientDetail from "./pages/ClientDetail";
 import ClientForm from "./pages/ClientForm";
 import Clients from "./pages/Clients";
@@ -33,6 +36,10 @@ export default function App() {
           <Route path="/clients/new" element={<ClientForm />} />
           <Route path="/clients/:id" element={<ClientDetail />} />
           <Route path="/clients/:id/edit" element={<ClientForm />} />
+          <Route path="/cars" element={<Cars />} />
+          <Route path="/cars/new" element={<CarForm />} />
+          <Route path="/cars/:id" element={<CarDetail />} />
+          <Route path="/cars/:id/edit" element={<CarForm />} />
         </Routes>
       </main>
     </>

@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  addCarEvent,
+  carEvents,
   clientContracts,
+  createCar,
   createClient,
+  getCar,
   getClient,
+  listCars,
   listClients,
+  setCarStatus,
   toDollarPlaceholders,
+  updateCar,
   updateClient,
 } from "../src/db";
 import { memoryDb } from "./helpers";
@@ -111,5 +118,83 @@ describe("clients", () => {
     const db = memoryDb();
     const id = await createClient(db, CLIENT);
     expect(await clientContracts(db, id)).toEqual([]);
+  });
+});
+
+const CAR = {
+  brand: "Toyota",
+  series: "Vios",
+  model_year: 2018,
+  color: "White",
+  plate_number: "1กก1234",
+  registration_no: "กท-1234",
+  chassis_no: "MR0000000000",
+  mileage: 85000,
+  cost_price: 45000000,
+  asking_price: 60000000,
+  note: null,
+};
+
+describe("cars", () => {
+  it("creates a car as available", async () => {
+    const db = memoryDb();
+    const id = await createCar(db, CAR);
+    const car = await getCar(db, id);
+    expect(car?.status).toBe("available");
+    expect(car?.asking_price).toBe(60000000);
+  });
+
+  it("writes an acquired event for a new car", async () => {
+    const db = memoryDb();
+    const id = await createCar(db, CAR);
+    const events = await carEvents(db, id);
+    expect(events).toHaveLength(1);
+    expect(events[0].type).toBe("acquired");
+  });
+
+  it("rejects a duplicate plate number", async () => {
+    const db = memoryDb();
+    await createCar(db, CAR);
+    await expect(createCar(db, { ...CAR, brand: "Honda" })).rejects.toThrow();
+  });
+
+  it("filters by status", async () => {
+    const db = memoryDb();
+    await createCar(db, CAR);
+    expect(await listCars(db, "available")).toHaveLength(1);
+    expect(await listCars(db, "sold")).toHaveLength(0);
+  });
+
+  it("searches by plate number and brand", async () => {
+    const db = memoryDb();
+    await createCar(db, CAR);
+    expect(await listCars(db, undefined, "Toyota")).toHaveLength(1);
+    expect(await listCars(db, undefined, "กก1234")).toHaveLength(1);
+    expect(await listCars(db, undefined, "Honda")).toHaveLength(0);
+  });
+
+  it("updates a car without touching its status", async () => {
+    const db = memoryDb();
+    const id = await createCar(db, CAR);
+    await setCarStatus(db, id, "on_contract");
+    await updateCar(db, id, { ...CAR, color: "Black" });
+    const car = await getCar(db, id);
+    expect(car?.color).toBe("Black");
+    expect(car?.status).toBe("on_contract");
+  });
+
+  it("rejects an invalid status", async () => {
+    const db = memoryDb();
+    const id = await createCar(db, CAR);
+    await expect(setCarStatus(db, id, "wrecked" as never)).rejects.toThrow();
+  });
+
+  it("keeps timeline events in date order", async () => {
+    const db = memoryDb();
+    const id = await createCar(db, CAR);
+    await addCarEvent(db, id, "2020-01-01", "note", null, "Older note");
+    const events = await carEvents(db, id);
+    expect(events[0].note).toBe("Older note");
+    expect(events).toHaveLength(2);
   });
 });
