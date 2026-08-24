@@ -266,7 +266,7 @@ describe("createContract", () => {
   it("refuses a car that is not available", async () => {
     const db = await seeded();
     await createContract(db, CONTRACT);
-    await expect(createContract(db, CONTRACT)).rejects.toThrow(/not available/);
+    await expect(createContract(db, CONTRACT)).rejects.toThrow(/err_car_not_available/);
     expect(await listContracts(db)).toHaveLength(1);
   });
 

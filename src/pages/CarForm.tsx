@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { useApp } from "../context";
 import { createCar, getCar, setCarStatus, updateCar, type Car, type CarStatus } from "../db";
+import { isErrorKey } from "../lang";
 import { formatBaht, toSatang } from "../money";
 
 const STATUSES: CarStatus[] = ["available", "on_contract", "sold", "repossessed"];
@@ -35,7 +36,7 @@ export default function CarForm() {
 
     try {
       const brand = text("brand");
-      if (!brand) throw new Error("Brand is required");
+      if (!brand) throw new Error("err_brand_required");
       const fields = {
         brand,
         series: text("series"),
@@ -58,10 +59,13 @@ export default function CarForm() {
         navigate(`/cars/${await createCar(db, fields)}`);
       }
     } catch (e) {
+      const message = String(e);
       setError(
-        String(e).includes("UNIQUE")
-          ? "That plate number already belongs to another car"
-          : String(e),
+        message.includes("UNIQUE")
+          ? t("err_plate_taken")
+          : e instanceof Error && isErrorKey(e.message)
+            ? t(e.message)
+            : message,
       );
     }
   };

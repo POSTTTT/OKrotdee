@@ -87,6 +87,22 @@ export const LABELS: Record<LangCode, Record<string, string>> = {
     acquired: "Acquired",
     contract_started: "Contract started",
     contract_completed: "Contract completed",
+    err_thai_id_digits: "Thai ID must be 13 digits",
+    err_thai_id_checksum: "Thai ID checksum is wrong",
+    err_payment_amount_positive: "Payment amount must be greater than zero",
+    err_payment_date_future: "Payment date cannot be in the future",
+    err_invalid_amount: "Not a valid amount",
+    err_installment_min_one: "A contract needs at least one installment",
+    err_due_day_range: "The due day must be between 1 and 31",
+    err_car_not_available: "That car is not available",
+    err_no_such_contract: "No such contract",
+    err_brand_required: "Brand is required",
+    err_plate_taken: "That plate number already belongs to another car",
+    err_name_required: "First name and last name are required",
+    err_thai_id_taken: "That Thai ID is already registered to another client",
+    err_choose_client_car: "Choose a client and a car",
+    err_installment_amount_positive: "The installment amount must be greater than zero",
+    err_choose_first_due_date: "Choose a first due date",
   },
   th: {
     app_name: "OKroddee",
@@ -172,6 +188,22 @@ export const LABELS: Record<LangCode, Record<string, string>> = {
     acquired: "รับรถเข้า",
     contract_started: "เริ่มสัญญา",
     contract_completed: "ปิดสัญญา",
+    err_thai_id_digits: "เลขบัตรประชาชนต้องมี 13 หลัก",
+    err_thai_id_checksum: "เลขบัตรประชาชนไม่ถูกต้อง",
+    err_payment_amount_positive: "จำนวนเงินที่ชำระต้องมากกว่าศูนย์",
+    err_payment_date_future: "วันที่ชำระต้องไม่เกินวันนี้",
+    err_invalid_amount: "จำนวนเงินไม่ถูกต้อง",
+    err_installment_min_one: "สัญญาต้องมีอย่างน้อยหนึ่งงวด",
+    err_due_day_range: "วันครบกำหนดต้องอยู่ระหว่าง 1 ถึง 31",
+    err_car_not_available: "รถคันนี้ไม่พร้อมขาย",
+    err_no_such_contract: "ไม่พบสัญญานี้",
+    err_brand_required: "กรุณาระบุยี่ห้อ",
+    err_plate_taken: "ทะเบียนนี้มีอยู่กับรถคันอื่นแล้ว",
+    err_name_required: "กรุณาระบุชื่อและนามสกุล",
+    err_thai_id_taken: "เลขบัตรประชาชนนี้มีอยู่กับลูกค้ารายอื่นแล้ว",
+    err_choose_client_car: "กรุณาเลือกลูกค้าและรถ",
+    err_installment_amount_positive: "ค่างวดต้องมากกว่าศูนย์",
+    err_choose_first_due_date: "กรุณาเลือกวันครบกำหนดงวดแรก",
   },
 };
 
@@ -180,4 +212,9 @@ export const DEFAULT_LANG: LangCode = "th";
 /** Look up a label, falling back to English and then to the key itself. */
 export function t(key: string, code: LangCode): string {
   return LABELS[code]?.[key] ?? LABELS.en[key] ?? key;
+}
+
+/** True when `message` is one of our own label keys, not raw driver/runtime text. */
+export function isErrorKey(message: string): boolean {
+  return message.startsWith("err_");
 }

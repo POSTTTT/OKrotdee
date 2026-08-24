@@ -296,7 +296,7 @@ export async function listContracts(db: Db, status?: string): Promise<ContractRo
 
 export async function createContract(db: Db, fields: ContractFields): Promise<number> {
   const car = await getCar(db, fields.car_id);
-  if (!car || car.status !== "available") throw new Error("That car is not available");
+  if (!car || car.status !== "available") throw new Error("err_car_not_available");
 
   // Validate before writing: the SQL plugin pools connections, so these
   // statements cannot share one transaction.
@@ -439,7 +439,7 @@ export async function completeContractIfPaid(db: Db, contractId: number): Promis
 /** Close the contract and take the car back. Staff-initiated only. */
 export async function repossessContract(db: Db, contractId: number): Promise<void> {
   const contract = await getContract(db, contractId);
-  if (!contract) throw new Error("No such contract");
+  if (!contract) throw new Error("err_no_such_contract");
   await db.execute("UPDATE contracts SET status = 'repossessed' WHERE id = ?", [contractId]);
   await setCarStatus(db, contract.car_id, "repossessed");
   await addCarEvent(db, contract.car_id, todayIso(), "repossessed", contractId);
@@ -448,7 +448,7 @@ export async function repossessContract(db: Db, contractId: number): Promise<voi
 /** Void a contract entered in error and free the car. */
 export async function cancelContract(db: Db, contractId: number): Promise<void> {
   const contract = await getContract(db, contractId);
-  if (!contract) throw new Error("No such contract");
+  if (!contract) throw new Error("err_no_such_contract");
   await db.execute("UPDATE contracts SET status = 'cancelled' WHERE id = ?", [contractId]);
   await setCarStatus(db, contract.car_id, "available");
 }

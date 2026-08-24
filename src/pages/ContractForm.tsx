@@ -10,6 +10,7 @@ import {
   type Client,
   type ContractFields,
 } from "../db";
+import { isErrorKey } from "../lang";
 import { formatBaht, generateSchedule, toSatang } from "../money";
 
 export default function ContractForm() {
@@ -38,17 +39,17 @@ export default function ContractForm() {
       first_due_date: text("first_due_date"),
       note: text("note") || null,
     };
-    if (!fields.client_id || !fields.car_id) throw new Error("Choose a client and a car");
+    if (!fields.client_id || !fields.car_id) throw new Error("err_choose_client_car");
     if (fields.installment_count < 1) {
-      throw new Error("A contract needs at least one installment");
+      throw new Error("err_installment_min_one");
     }
     if (fields.installment_amount <= 0) {
-      throw new Error("The installment amount must be greater than zero");
+      throw new Error("err_installment_amount_positive");
     }
     if (fields.due_day < 1 || fields.due_day > 31) {
-      throw new Error("The due day must be between 1 and 31");
+      throw new Error("err_due_day_range");
     }
-    if (!fields.first_due_date) throw new Error("Choose a first due date");
+    if (!fields.first_due_date) throw new Error("err_choose_first_due_date");
     return fields;
   };
 
@@ -70,7 +71,13 @@ export default function ContractForm() {
       }
       navigate(`/contracts/${await createContract(db, fields)}`);
     } catch (e) {
-      setError(String(e instanceof Error ? e.message : e));
+      setError(
+        e instanceof Error
+          ? isErrorKey(e.message)
+            ? t(e.message)
+            : e.message
+          : String(e),
+      );
     }
   };
 

@@ -27,7 +27,7 @@ export default function ClientForm() {
       const first_name = value("first_name");
       const last_name = value("last_name");
       if (!first_name || !last_name) {
-        throw new ValidationError("First name and last name are required");
+        throw new ValidationError("err_name_required");
       }
       const rawId = value("thai_id");
       const fields = {
@@ -48,9 +48,9 @@ export default function ClientForm() {
     } catch (e) {
       setError(
         e instanceof ValidationError
-          ? e.message
+          ? t(e.message)
           : String(e).includes("UNIQUE")
-            ? "That Thai ID is already registered to another client"
+            ? t("err_thai_id_taken")
             : String(e),
       );
     }

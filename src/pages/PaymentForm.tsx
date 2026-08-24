@@ -11,8 +11,9 @@ import {
   type ContractRow,
   type InstallmentRow,
 } from "../db";
+import { isErrorKey } from "../lang";
 import { daysLate, formatBaht, outstanding, toSatang, todayIso } from "../money";
-import { payment as validatePayment, ValidationError } from "../validate";
+import { payment as validatePayment } from "../validate";
 
 export default function PaymentForm() {
   const { db, t } = useApp();
@@ -55,7 +56,13 @@ export default function PaymentForm() {
       await completeContractIfPaid(db, installment.contract_id);
       navigate(`/contracts/${installment.contract_id}`);
     } catch (e) {
-      setError(e instanceof ValidationError || e instanceof Error ? e.message : String(e));
+      setError(
+        e instanceof Error
+          ? isErrorKey(e.message)
+            ? t(e.message)
+            : e.message
+          : String(e),
+      );
     }
   };
 

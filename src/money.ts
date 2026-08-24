@@ -22,7 +22,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 export function toSatang(value: string | number): number {
   const text = String(value).replace(/,/g, "").trim();
   const match = /^(-)?(\d+)(?:\.(\d+))?$/.exec(text);
-  if (!match) throw new Error(`not a valid amount: ${value}`);
+  if (!match) throw new Error("err_invalid_amount");
   const [, sign, whole, fraction = ""] = match;
   const digits = (fraction + "000").slice(0, 3);
   const satang = Number(whole) * 100 + Number(digits.slice(0, 2));
@@ -47,8 +47,8 @@ export function generateSchedule(
   count: number,
   dueDay: number,
 ): string[] {
-  if (count < 1) throw new Error("a contract needs at least one installment");
-  if (dueDay < 1 || dueDay > 31) throw new Error("dueDay must be between 1 and 31");
+  if (count < 1) throw new Error("err_installment_min_one");
+  if (dueDay < 1 || dueDay > 31) throw new Error("err_due_day_range");
 
   const [year, month] = firstDue.split("-").map(Number);
   const dates = [firstDue];
