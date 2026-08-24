@@ -447,3 +447,35 @@ export async function cancelContract(db: Db, contractId: number): Promise<void> 
   await db.execute("UPDATE contracts SET status = 'cancelled' WHERE id = ?", [contractId]);
   await setCarStatus(db, contract.car_id, "available");
 }
+
+export interface DashboardRow extends InstallmentRow {
+  first_name: string;
+  last_name: string;
+  brand: string;
+  series: string | null;
+  plate_number: string | null;
+}
+
+/** Every installment on every active contract, with who and what it is for. */
+export async function activeInstallments(db: Db): Promise<DashboardRow[]> {
+  return db.select<DashboardRow>(
+    "SELECT i.*, COALESCE(SUM(p.amount), 0) AS paid_total," +
+      " cl.first_name, cl.last_name, cars.brand, cars.series, cars.plate_number" +
+      " FROM installments i" +
+      " JOIN contracts c ON c.id = i.contract_id" +
+      " JOIN clients cl ON cl.id = c.client_id" +
+      " JOIN cars ON cars.id = c.car_id" +
+      " LEFT JOIN payments p ON p.installment_id = i.id" +
+      " WHERE c.status = 'active'" +
+      " GROUP BY i.id ORDER BY i.due_date, i.id",
+  );
+}
+
+/** Satang received between two ISO dates, inclusive. */
+export async function collectedBetween(db: Db, start: string, end: string): Promise<number> {
+  const rows = await db.select<{ total: number }>(
+    "SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE paid_on BETWEEN ? AND ?",
+    [start, end],
+  );
+  return rows[0]?.total ?? 0;
+}

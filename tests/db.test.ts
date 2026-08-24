@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  activeInstallments,
   addCarEvent,
   addPayment,
   availableCars,
   cancelContract,
   carEvents,
   clientContracts,
+  collectedBetween,
   completeContractIfPaid,
   createCar,
   createClient,
@@ -439,5 +441,41 @@ describe("repossession", () => {
     const flag = contractFlag(overdueCount(rows.map(overdueRow), "2099-01-01"));
     expect(flag).toBe("REPOSSESS_ELIGIBLE");
     expect((await getContract(db, id))?.status).toBe("active");
+  });
+});
+
+describe("dashboard queries", () => {
+  it("lists every installment on active contracts with its client and car", async () => {
+    const { db } = await contracted();
+    const rows = await activeInstallments(db);
+    expect(rows).toHaveLength(40);
+    expect(rows[0].first_name).toBe("Somchai");
+    expect(rows[0].plate_number).toBe("1กก1234");
+  });
+
+  it("excludes installments of cancelled contracts", async () => {
+    const { db, id } = await contracted();
+    await cancelContract(db, id);
+    expect(await activeInstallments(db)).toHaveLength(0);
+  });
+
+  it("totals money received in a date range", async () => {
+    const { db, id } = await contracted();
+    const [first, second] = await installmentsFor(db, id);
+    await addPayment(db, first.id, "2026-09-15", 1540000, "cash", null);
+    await addPayment(db, second.id, "2026-10-15", 1540000, "cash", null);
+    expect(await collectedBetween(db, "2026-09-01", "2026-09-30")).toBe(1540000);
+  });
+
+  it("counts both ends of the range", async () => {
+    const { db, id } = await contracted();
+    const [first] = await installmentsFor(db, id);
+    await addPayment(db, first.id, "2026-09-01", 1000000, "cash", null);
+    expect(await collectedBetween(db, "2026-09-01", "2026-09-01")).toBe(1000000);
+  });
+
+  it("returns zero when nothing was collected", async () => {
+    const { db } = await contracted();
+    expect(await collectedBetween(db, "2026-09-01", "2026-09-30")).toBe(0);
   });
 });
