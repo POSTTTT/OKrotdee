@@ -1,0 +1,165 @@
+import { useEffect, useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
+
+import { useApp } from "../context";
+import {
+  availableCars,
+  createContract,
+  listClients,
+  type Car,
+  type Client,
+  type ContractFields,
+} from "../db";
+import { formatBaht, generateSchedule, toSatang } from "../money";
+
+export default function ContractForm() {
+  const { db, t } = useApp();
+  const navigate = useNavigate();
+  const [clients, setClients] = useState<Client[]>([]);
+  const [cars, setCars] = useState<Car[]>([]);
+  const [preview, setPreview] = useState<{ dates: string[]; amount: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    listClients(db).then(setClients);
+    availableCars(db).then(setCars);
+  }, [db]);
+
+  const readFields = (form: FormData): ContractFields => {
+    const text = (key: string) => ((form.get(key) as string) ?? "").trim();
+    const fields: ContractFields = {
+      client_id: Number(text("client_id")),
+      car_id: Number(text("car_id")),
+      car_price: toSatang(text("car_price") || "0"),
+      down_payment: toSatang(text("down_payment") || "0"),
+      installment_amount: toSatang(text("installment_amount")),
+      installment_count: Number(text("installment_count")),
+      due_day: Number(text("due_day")),
+      first_due_date: text("first_due_date"),
+      note: text("note") || null,
+    };
+    if (!fields.client_id || !fields.car_id) throw new Error("Choose a client and a car");
+    if (fields.installment_count < 1) {
+      throw new Error("A contract needs at least one installment");
+    }
+    if (fields.installment_amount <= 0) {
+      throw new Error("The installment amount must be greater than zero");
+    }
+    if (fields.due_day < 1 || fields.due_day > 31) {
+      throw new Error("The due day must be between 1 and 31");
+    }
+    if (!fields.first_due_date) throw new Error("Choose a first due date");
+    return fields;
+  };
+
+  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement;
+    const form = new FormData(event.currentTarget);
+    setError(null);
+    try {
+      const fields = readFields(form);
+      const dates = generateSchedule(
+        fields.first_due_date,
+        fields.installment_count,
+        fields.due_day,
+      );
+      if (submitter?.value === "preview") {
+        setPreview({ dates, amount: fields.installment_amount });
+        return;
+      }
+      navigate(`/contracts/${await createContract(db, fields)}`);
+    } catch (e) {
+      setError(String(e instanceof Error ? e.message : e));
+    }
+  };
+
+  return (
+    <>
+      <h1>{t("create_contract")}</h1>
+      {error && <p className="flash">{error}</p>}
+      <form className="stack" onSubmit={onSubmit}>
+        <label>
+          {t("client")}
+          <select name="client_id" required>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.first_name} {c.last_name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {t("car")}
+          <select name="car_id" required>
+            {cars.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.brand} {c.series ?? ""} {c.plate_number ?? ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {t("car_price")}
+          <input name="car_price" />
+        </label>
+        <label>
+          {t("down_payment")}
+          <input name="down_payment" />
+        </label>
+        <label>
+          {t("installment_amount")}
+          <input name="installment_amount" required />
+        </label>
+        <label>
+          {t("installment_count")}
+          <input name="installment_count" type="number" required />
+        </label>
+        <label>
+          {t("due_day")}
+          <input name="due_day" type="number" min={1} max={31} defaultValue={15} required />
+        </label>
+        <label>
+          {t("first_due_date")}
+          <input name="first_due_date" type="date" required />
+        </label>
+        <label>
+          {t("note")}
+          <textarea name="note" rows={2} />
+        </label>
+        <div className="toolbar">
+          <button type="submit" name="action" value="preview">
+            {t("preview_schedule")}
+          </button>
+          <button type="submit" name="action" value="create">
+            {t("create_contract")}
+          </button>
+        </div>
+      </form>
+
+      {preview && (
+        <>
+          <h2>{t("schedule")}</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>{t("seq")}</th>
+                <th>{t("due_date")}</th>
+                <th className="num">{t("amount_due")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {preview.dates.map((due, index) => (
+                <tr key={due + index}>
+                  <td>{index + 1}</td>
+                  <td>{due}</td>
+                  <td className="num">{formatBaht(preview.amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+    </>
+  );
+}

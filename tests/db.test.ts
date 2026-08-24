@@ -2,14 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import {
   addCarEvent,
+  availableCars,
   carEvents,
   clientContracts,
   createCar,
   createClient,
+  createContract,
   getCar,
   getClient,
   listCars,
   listClients,
+  listContracts,
   setCarStatus,
   toDollarPlaceholders,
   updateCar,
@@ -196,5 +199,92 @@ describe("cars", () => {
     const events = await carEvents(db, id);
     expect(events[0].note).toBe("Older note");
     expect(events).toHaveLength(2);
+  });
+});
+
+const CONTRACT = {
+  client_id: 1,
+  car_id: 1,
+  car_price: 60000000,
+  down_payment: 10000000,
+  installment_amount: 1540000,
+  installment_count: 40,
+  due_day: 15,
+  first_due_date: "2026-09-15",
+  note: null,
+};
+
+async function seeded() {
+  const db = memoryDb();
+  await createClient(db, { ...CLIENT, thai_id: null });
+  await createCar(db, CAR);
+  return db;
+}
+
+describe("createContract", () => {
+  it("generates the full schedule", async () => {
+    const db = await seeded();
+    const id = await createContract(db, CONTRACT);
+    const rows = await db.select<{ due_date: string; amount_due: number }>(
+      "SELECT * FROM installments WHERE contract_id = ? ORDER BY seq",
+      [id],
+    );
+    expect(rows).toHaveLength(40);
+    expect(rows[0].due_date).toBe("2026-09-15");
+    expect(rows[1].due_date).toBe("2026-10-15");
+    expect(rows[39].due_date).toBe("2029-12-15");
+    expect(new Set(rows.map((r) => r.amount_due))).toEqual(new Set([1540000]));
+  });
+
+  it("puts the car on contract", async () => {
+    const db = await seeded();
+    await createContract(db, CONTRACT);
+    expect((await getCar(db, 1))?.status).toBe("on_contract");
+  });
+
+  it("writes a contract_started event", async () => {
+    const db = await seeded();
+    const id = await createContract(db, CONTRACT);
+    const events = await carEvents(db, 1);
+    expect(events.map((e) => e.type)).toEqual(["acquired", "contract_started"]);
+    expect(events[1].contract_id).toBe(id);
+  });
+
+  it("refuses a car that is not available", async () => {
+    const db = await seeded();
+    await createContract(db, CONTRACT);
+    await expect(createContract(db, CONTRACT)).rejects.toThrow(/not available/);
+    expect(await listContracts(db)).toHaveLength(1);
+  });
+
+  it("refuses zero installments", async () => {
+    const db = await seeded();
+    await expect(
+      createContract(db, { ...CONTRACT, installment_count: 0 }),
+    ).rejects.toThrow();
+    expect(await listContracts(db)).toHaveLength(0);
+  });
+
+  it("lists contracts with client and car joined", async () => {
+    const db = await seeded();
+    await createContract(db, CONTRACT);
+    const [contract] = await listContracts(db);
+    expect(contract.first_name).toBe("Somchai");
+    expect(contract.brand).toBe("Toyota");
+    expect(contract.status).toBe("active");
+  });
+
+  it("filters contracts by status", async () => {
+    const db = await seeded();
+    await createContract(db, CONTRACT);
+    expect(await listContracts(db, "active")).toHaveLength(1);
+    expect(await listContracts(db, "completed")).toHaveLength(0);
+  });
+
+  it("drops the car out of the available list", async () => {
+    const db = await seeded();
+    expect(await availableCars(db)).toHaveLength(1);
+    await createContract(db, CONTRACT);
+    expect(await availableCars(db)).toHaveLength(0);
   });
 });

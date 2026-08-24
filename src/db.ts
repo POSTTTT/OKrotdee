@@ -8,7 +8,7 @@
 
 import Database from "@tauri-apps/plugin-sql";
 
-import { todayIso } from "./money";
+import { generateSchedule, todayIso } from "./money";
 import { SCHEMA } from "./schema";
 
 export interface Db {
@@ -255,4 +255,79 @@ export async function carContracts(db: Db, carId: number): Promise<ContractRow[]
       " ORDER BY c.created_at DESC",
     [carId],
   );
+}
+
+export interface ContractFields {
+  client_id: number;
+  car_id: number;
+  car_price: number;
+  down_payment: number;
+  installment_amount: number;
+  installment_count: number;
+  due_day: number;
+  first_due_date: string;
+  note: string | null;
+}
+
+export async function availableCars(db: Db): Promise<Car[]> {
+  return db.select<Car>(
+    "SELECT * FROM cars WHERE status = 'available' ORDER BY brand, series",
+  );
+}
+
+export async function listContracts(db: Db, status?: string): Promise<ContractRow[]> {
+  let sql =
+    "SELECT c.*, cl.first_name, cl.last_name, cars.brand, cars.series," +
+    " cars.plate_number FROM contracts c" +
+    " JOIN clients cl ON cl.id = c.client_id" +
+    " JOIN cars ON cars.id = c.car_id";
+  const params: unknown[] = [];
+  if (status) {
+    sql += " WHERE c.status = ?";
+    params.push(status);
+  }
+  return db.select<ContractRow>(sql + " ORDER BY c.created_at DESC", params);
+}
+
+export async function createContract(db: Db, fields: ContractFields): Promise<number> {
+  const car = await getCar(db, fields.car_id);
+  if (!car || car.status !== "available") throw new Error("That car is not available");
+
+  // Validate before writing: the SQL plugin pools connections, so these
+  // statements cannot share one transaction.
+  const dates = generateSchedule(
+    fields.first_due_date,
+    fields.installment_count,
+    fields.due_day,
+  );
+
+  const { lastInsertId } = await db.execute(
+    "INSERT INTO contracts (client_id, car_id, car_price, down_payment," +
+      " installment_amount, installment_count, due_day, first_due_date, note," +
+      " status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)",
+    [
+      fields.client_id,
+      fields.car_id,
+      fields.car_price,
+      fields.down_payment,
+      fields.installment_amount,
+      fields.installment_count,
+      fields.due_day,
+      fields.first_due_date,
+      fields.note,
+      nowIso(),
+    ],
+  );
+
+  for (const [index, dueDate] of dates.entries()) {
+    await db.execute(
+      "INSERT INTO installments (contract_id, seq, due_date, amount_due)" +
+        " VALUES (?, ?, ?, ?)",
+      [lastInsertId, index + 1, dueDate, fields.installment_amount],
+    );
+  }
+
+  await setCarStatus(db, fields.car_id, "on_contract");
+  await addCarEvent(db, fields.car_id, todayIso(), "contract_started", lastInsertId);
+  return lastInsertId;
 }

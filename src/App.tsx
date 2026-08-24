@@ -7,6 +7,8 @@ import Cars from "./pages/Cars";
 import ClientDetail from "./pages/ClientDetail";
 import ClientForm from "./pages/ClientForm";
 import Clients from "./pages/Clients";
+import ContractForm from "./pages/ContractForm";
+import Contracts from "./pages/Contracts";
 import Dashboard from "./pages/Dashboard";
 
 export default function App() {
@@ -40,6 +42,8 @@ export default function App() {
           <Route path="/cars/new" element={<CarForm />} />
           <Route path="/cars/:id" element={<CarDetail />} />
           <Route path="/cars/:id/edit" element={<CarForm />} />
+          <Route path="/contracts" element={<Contracts />} />
+          <Route path="/contracts/new" element={<ContractForm />} />
         </Routes>
       </main>
     </>
