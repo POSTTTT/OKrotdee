@@ -48,7 +48,7 @@ export function nowIso(): string {
 
 /** Open the application database, enable foreign keys, and apply the schema. */
 export async function openDatabase(): Promise<Db> {
-  const database = await Database.load("sqlite:okroddee.db");
+  const database = await Database.load("sqlite:okrotdee.db");
 
   const db: Db = {
     async select<T>(sql: string, params: unknown[] = []): Promise<T[]> {

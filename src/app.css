@@ -1,4 +1,4 @@
-/* OKroddee — a counter-side ledger, not a dashboard.
+/* OKrotdee — a counter-side ledger, not a dashboard.
    Offline by design: system fonts only, no network assets. */
 
 :root {
@@ -59,6 +59,9 @@ body { font-variant-numeric: tabular-nums; }
 /* ---------- Header ---------- */
 
 header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   gap: 1.75rem;
@@ -69,6 +72,7 @@ header {
 }
 header a { color: #fff; text-decoration: none; }
 header .brand {
+  flex: 1;
   font-weight: 600;
   font-size: 1.05rem;
   letter-spacing: -0.01em;
@@ -89,7 +93,7 @@ header nav a.on {
   color: #fff;
   border-bottom-color: #ffffff;
 }
-header .lang { margin-left: auto; display: flex; gap: 0.35rem; }
+header .lang { flex: 1; display: flex; justify-content: flex-end; gap: 0.35rem; }
 header .lang button {
   background: transparent;
   border: 1px solid #ffffff40;
@@ -142,6 +146,15 @@ h1 .right { margin-left: auto; display: flex; gap: 0.5rem; }
 
 /* Tags never sit flush against each other or against text. */
 .tags { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; }
+
+/* A heading that carries the way to add one of the things it names. */
+h2.with-action { display: flex; align-items: center; gap: 0.6rem; }
+.button.add {
+  padding: 0.1rem 0.5rem;
+  font-size: 1rem;
+  line-height: 1.4;
+  text-transform: none;
+}
 
 h2 {
   font-size: 0.82rem;

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "OKroddee",
+  "productName": "OKrotdee",
   "version": "0.1.0",
-  "identifier": "com.okroddee.manager",
+  "identifier": "com.okrotdee.manager",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "OKroddee",
+        "title": "O.K.รถดี",
         "width": 1280,
         "height": 860
       }

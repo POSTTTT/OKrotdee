@@ -17,14 +17,14 @@ const SIDECARS = ["-wal", "-shm"];
 async function paths() {
   const dir = await appConfigDir();
   return {
-    database: await join(dir, "okroddee.db"),
+    database: await join(dir, "okrotdee.db"),
     backups: await join(dir, "backups"),
   };
 }
 
 /**
  * Fold the write-ahead log back into the database file. Without this a copy
- * of okroddee.db can be missing payments recorded minutes ago. Throws if the
+ * of okrotdee.db can be missing payments recorded minutes ago. Throws if the
  * checkpoint fails, so the caller never reports a backup it did not take.
  */
 async function checkpoint(db: Db): Promise<void> {
@@ -43,7 +43,7 @@ export async function startupBackup(db: Db): Promise<void> {
   if (!(await exists(backups))) await mkdir(backups, { recursive: true });
 
   await checkpoint(db);
-  const name = `okroddee-${todayIso()}.db`;
+  const name = `okrotdee-${todayIso()}.db`;
   const target = await join(backups, name);
   await copyFile(database, target);
   // A truncated WAL is empty, but copy it anyway: if the checkpoint could not
@@ -53,7 +53,7 @@ export async function startupBackup(db: Db): Promise<void> {
   }
 
   const entries = (await readDir(backups))
-    .filter((e) => e.name?.startsWith("okroddee-") && e.name.endsWith(".db"))
+    .filter((e) => e.name?.startsWith("okrotdee-") && e.name.endsWith(".db"))
     .map((e) => e.name!)
     .sort();
   for (const old of entries.slice(0, Math.max(0, entries.length - KEEP))) {
@@ -67,7 +67,7 @@ export async function startupBackup(db: Db): Promise<void> {
 /** Copy the database somewhere the staff choose. Returns the path, or null. */
 export async function backupTo(db: Db): Promise<string | null> {
   const { database } = await paths();
-  const target = await save({ defaultPath: `okroddee-${todayIso()}.db` });
+  const target = await save({ defaultPath: `okrotdee-${todayIso()}.db` });
   if (!target) return null;
   // The save dialog grants filesystem access to the chosen path only, so no
   // sidecar can be written next to it. The checkpoint is what makes the one

@@ -1,5 +1,5 @@
 /**
- * The WAL checkpoint is the whole of C2: without it a copy of okroddee.db can
+ * The WAL checkpoint is the whole of C2: without it a copy of okrotdee.db can
  * be missing payments taken minutes ago. These tests stand in for the Tauri
  * filesystem plugin and assert the checkpoint really runs, and runs first.
  */
@@ -7,7 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const calls: string[] = [];
-const files = new Set<string>(["/config/okroddee.db"]);
+const files = new Set<string>(["/config/okrotdee.db"]);
 
 vi.mock("@tauri-apps/api/path", () => ({
   appConfigDir: async () => "/config",
@@ -15,7 +15,7 @@ vi.mock("@tauri-apps/api/path", () => ({
 }));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
-  save: async () => "/usb/okroddee-backup.db",
+  save: async () => "/usb/okrotdee-backup.db",
 }));
 
 vi.mock("@tauri-apps/plugin-fs", () => ({
@@ -50,19 +50,19 @@ function recordingDb(options: { fail?: boolean; busy?: number } = {}) {
 beforeEach(() => {
   calls.length = 0;
   files.clear();
-  files.add("/config/okroddee.db");
+  files.add("/config/okrotdee.db");
 });
 
 describe("startupBackup", () => {
   it("checkpoints the WAL before copying, so the copy has the newest payments", async () => {
     await startupBackup(recordingDb());
     expect(calls[0]).toBe("sql PRAGMA wal_checkpoint(TRUNCATE)");
-    expect(calls[1]).toMatch(/^copy \/config\/okroddee\.db -> \/config\/backups\/okroddee-/);
+    expect(calls[1]).toMatch(/^copy \/config\/okrotdee\.db -> \/config\/backups\/okrotdee-/);
   });
 
   it("copies the WAL sidecars when they survive the checkpoint", async () => {
-    files.add("/config/okroddee.db-wal");
-    files.add("/config/okroddee.db-shm");
+    files.add("/config/okrotdee.db-wal");
+    files.add("/config/okrotdee.db-shm");
     await startupBackup(recordingDb());
     expect(calls.filter((c) => c.endsWith("-wal")).length).toBe(1);
     expect(calls.filter((c) => c.endsWith("-shm")).length).toBe(1);
@@ -90,10 +90,10 @@ describe("startupBackup", () => {
 
 describe("backupTo", () => {
   it("checkpoints before copying to the chosen path", async () => {
-    expect(await backupTo(recordingDb())).toBe("/usb/okroddee-backup.db");
+    expect(await backupTo(recordingDb())).toBe("/usb/okrotdee-backup.db");
     expect(calls).toEqual([
       "sql PRAGMA wal_checkpoint(TRUNCATE)",
-      "copy /config/okroddee.db -> /usb/okroddee-backup.db",
+      "copy /config/okrotdee.db -> /usb/okrotdee-backup.db",
     ]);
   });
 });

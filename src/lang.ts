@@ -4,7 +4,7 @@ export type LangCode = "th" | "en";
 
 export const LABELS: Record<LangCode, Record<string, string>> = {
   en: {
-    app_name: "OKroddee",
+    app_name: "O.K.รถดี",
     dashboard: "Dashboard",
     clients: "Clients",
     cars: "Cars",
@@ -48,6 +48,7 @@ export const LABELS: Record<LangCode, Record<string, string>> = {
     officer_fee: "Officer fee",
     officer_paid_on: "Officer fee paid on",
     fees: "Fees",
+    insurance_and_officer: "Insurance + officer fee",
     unpaid: "Not paid yet",
     unpaid_hint: "Leave the payment date blank until the client pays.",
     promised_schedule: "Agreed schedule",
@@ -134,7 +135,7 @@ export const LABELS: Record<LangCode, Record<string, string>> = {
     err_backup_failed: "Backup failed — the data was NOT saved. Tell the owner",
   },
   th: {
-    app_name: "OKroddee",
+    app_name: "O.K.รถดี",
     dashboard: "หน้าหลัก",
     clients: "ลูกค้า",
     cars: "รถ",
@@ -178,6 +179,7 @@ export const LABELS: Record<LangCode, Record<string, string>> = {
     officer_fee: "ค่าปรับตำรวจ",
     officer_paid_on: "วันที่ชำระค่าปรับ",
     fees: "ค่าใช้จ่ายนอกงวด",
+    insurance_and_officer: "ค่าประกัน + ค่าปรับตำรวจ",
     unpaid: "ยังไม่ชำระ",
     unpaid_hint: "ถ้ายังไม่ชำระ ให้เว้นวันที่ชำระไว้ว่าง",
     promised_schedule: "ข้อตกลงการผ่อนดาวน์",

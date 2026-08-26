@@ -98,14 +98,6 @@ export default function ContractDetail() {
       <h1>
         {contract.first_name} {contract.last_name} — {contract.brand} {contract.series ?? ""}{" "}
         {contract.plate_number ?? ""}
-        <span className="right">
-          <Link className="button" to={`/contracts/${contract.id}/fees/insurance`}>
-            {t("insurance_fee")}
-          </Link>
-          <Link className="button" to={`/contracts/${contract.id}/fees/down`}>
-            {t("down_fee")}
-          </Link>
-        </span>
       </h1>
       <div className="subhead">
         <span className="tags">
@@ -192,9 +184,18 @@ export default function ContractDetail() {
         )}
       </dl>
 
+      <h2 className="with-action">
+        {t("insurance_and_officer")}
+        <Link
+          className="button add"
+          to={`/contracts/${contract.id}/fees/insurance`}
+          aria-label={t("insurance_fee")}
+        >
+          +
+        </Link>
+      </h2>
       {insuranceFees.length > 0 && (
         <>
-          <h2>{t("fees")}</h2>
           <table>
             <thead>
               <tr>

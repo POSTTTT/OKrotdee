@@ -2676,7 +2676,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "okroddee"
+name = "okrotdee"
 version = "0.1.0"
 dependencies = [
  "serde",

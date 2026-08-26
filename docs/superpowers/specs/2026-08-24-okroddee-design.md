@@ -1,4 +1,4 @@
-# OKroddee — Second-Hand Car Dealership Management System
+# OKrotdee — Second-Hand Car Dealership Management System
 
 **Date:** 2026-08-24
 **Status:** Approved design, ready for implementation planning
@@ -304,7 +304,7 @@ ones that get automated tests.
 The database lives in the platform application-data directory, where staff
 cannot conveniently reach it, so backup is the application's job:
 
-- On every start, the database file is copied to `backups/okroddee-YYYY-MM-DD.db`
+- On every start, the database file is copied to `backups/okrotdee-YYYY-MM-DD.db`
   beside it, and all but the 30 most recent copies are deleted.
 - A "Backup now" control on the dashboard writes a copy to a folder the
   staff choose — a USB stick, a synced folder — using the system file
