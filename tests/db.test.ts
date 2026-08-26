@@ -22,6 +22,7 @@ import {
   getFee,
   deleteCar,
   deleteClient,
+  deleteContract,
   getCar,
   getClient,
   getContract,
@@ -42,6 +43,7 @@ import {
   repossessContract,
   deleteFee,
   saveFee,
+  setCarEventDate,
   setCarStatus,
   setLateFee,
   toDollarPlaceholders,
@@ -264,6 +266,33 @@ async function seeded() {
   await createCar(db, CAR);
   return db;
 }
+
+describe("timeline dates", () => {
+  it("corrects the date on an entry logged under the wrong day", async () => {
+    const db = memoryDb();
+    const carId = await createCar(db, {
+      brand: "Toyota",
+      series: null,
+      model_year: null,
+      color: null,
+      plate_number: null,
+      registration_no: null,
+      chassis_no: null,
+      mileage: null,
+      cost_price: null,
+      asking_price: null,
+      note: null,
+    });
+    await addCarEvent(db, carId, "2026-01-05", "note", null, "wrong day");
+    const [entry] = await carEvents(db, carId);
+
+    await setCarEventDate(db, entry.id, "2026-01-03");
+
+    const [corrected] = await carEvents(db, carId);
+    expect(corrected.event_date).toBe("2026-01-03");
+    expect(corrected.note).toBe("wrong day");
+  });
+});
 
 describe("createContract", () => {
   it("generates the full schedule", async () => {
@@ -606,6 +635,53 @@ describe("delete", () => {
     await expect(deleteClient(db, clientId)).rejects.toThrow("err_client_has_contracts");
     expect(await getCar(db, carId)).toBeDefined();
     expect(await getClient(db, clientId)).toBeDefined();
+  });
+
+  it("takes a contract's payments and fees with it, and frees the car", async () => {
+    const db = memoryDb();
+    const carId = await createCar(db, carFields);
+    const clientId = await createClient(db, clientFields);
+    const contractId = await createContract(db, {
+      client_id: clientId,
+      car_id: carId,
+      car_price: 30000000,
+      down_payment: 0,
+      installment_amount: 500000,
+      installment_count: 2,
+      due_day: 5,
+      first_due_date: "2026-01-05",
+      note: null,
+    });
+    const [first] = await installmentsFor(db, contractId);
+    await addPayment(db, first.id, "2026-01-05", 500000, null, null);
+    await saveFee(db, contractId, {
+      type: "down",
+      due_on: "2026-01-05",
+      paid_on: null,
+      amount: 100000,
+      officer_amount: null,
+      officer_paid_on: null,
+      note: null,
+    });
+    const [fee] = await contractFees(db, contractId);
+    await addFeePayment(db, fee.id, "2026-01-05", 100000);
+    await saveLateFeePayment(db, contractId, "installment", {
+      paid_on: "2026-01-06",
+      amount: 1000,
+      note: null,
+    });
+
+    await deleteContract(db, contractId);
+
+    expect(await getContract(db, contractId)).toBeUndefined();
+    expect(await installmentsFor(db, contractId)).toHaveLength(0);
+    expect(await paymentsFor(db, first.id)).toHaveLength(0);
+    expect(await contractFees(db, contractId)).toHaveLength(0);
+    expect(await feePayments(db, fee.id)).toHaveLength(0);
+    expect(await lateFeePayments(db, contractId, "installment")).toHaveLength(0);
+    expect((await getCar(db, carId))?.status).toBe("available");
+    // The car is free to sell again, not merely unreferenced.
+    expect(await availableCars(db)).toHaveLength(1);
   });
 });
 

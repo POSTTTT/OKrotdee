@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 import RowLink from "../RowLink";
 import { useApp } from "../context";
-import { listContracts, type ContractRow } from "../db";
+import { deleteContract, listContracts, type ContractRow } from "../db";
 import { formatBaht } from "../money";
 
 const STATUSES = ["active", "completed", "repossessed", "cancelled"] as const;
@@ -42,6 +42,7 @@ export default function Contracts() {
             <th className="num">{t("installment_amount")}</th>
             <th className="num">{t("installment_count")}</th>
             <th>{t("status")}</th>
+            <th />
           </tr>
         </thead>
         <tbody>
@@ -61,11 +62,23 @@ export default function Contracts() {
               <td>
                 <span className={`tag ${c.status}`}>{t(c.status)}</span>
               </td>
+              <td className="num">
+                <button
+                  className="danger"
+                  onClick={async () => {
+                    if (!confirm(t("confirm_delete_contract"))) return;
+                    await deleteContract(db, c.id);
+                    setContracts(await listContracts(db, status || undefined));
+                  }}
+                >
+                  {t("delete")}
+                </button>
+              </td>
             </RowLink>
           ))}
           {contracts.length === 0 && (
             <tr>
-              <td colSpan={6}>{t("none_yet")}</td>
+              <td colSpan={7}>{t("none_yet")}</td>
             </tr>
           )}
         </tbody>

@@ -12,6 +12,7 @@ import {
   carEvents,
   deleteCar,
   getCar,
+  setCarEventDate,
   type Car,
   type CarEvent,
   type ContractRow,
@@ -29,6 +30,9 @@ export default function CarDetail() {
   const [events, setEvents] = useState<CarEvent[]>([]);
   const [contracts, setContracts] = useState<ContractRow[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // The timeline entry whose date is open for correction, and the date chosen.
+  const [editing, setEditing] = useState<number | null>(null);
+  const [editDate, setEditDate] = useState("");
 
   const load = useCallback(async () => {
     setCar((await getCar(db, carId)) ?? null);
@@ -71,7 +75,7 @@ export default function CarDetail() {
   return (
     <>
       <BackButton />
-      <h1>
+      <h1 className="record">
         {car.brand} {car.series ?? ""} {car.model_year ?? ""}
       </h1>
       <div className="subhead">
@@ -145,9 +149,53 @@ export default function CarDetail() {
       <ul className="timeline">
         {events.map((e) => (
           <li key={e.id}>
-            {formatDate(e.event_date)} — {t(e.type)}
-            {e.note ? `: ${e.note}` : ""}{" "}
-            {e.contract_id && <Link to={`/contracts/${e.contract_id}`}>#{e.contract_id}</Link>}
+            {editing === e.id ? (
+              <>
+                <DateInput
+                  name="event_date_edit"
+                  defaultValue={e.event_date}
+                  required
+                  onChange={setEditDate}
+                />
+                <button
+                  type="button"
+                  disabled={busy || !editDate}
+                  onClick={async () => {
+                    setBusy(true);
+                    try {
+                      await setCarEventDate(db, e.id, editDate);
+                      setEditing(null);
+                      await load();
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  {t("save")}
+                </button>
+                <button type="button" className="ghost" onClick={() => setEditing(null)}>
+                  {t("cancel")}
+                </button>{" "}
+                {t(e.type)}
+                {e.note ? `: ${e.note}` : ""}
+              </>
+            ) : (
+              <>
+                {formatDate(e.event_date)} — {t(e.type)}
+                {e.note ? `: ${e.note}` : ""}{" "}
+                {e.contract_id && <Link to={`/contracts/${e.contract_id}`}>#{e.contract_id}</Link>}{" "}
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => {
+                    setEditing(e.id);
+                    setEditDate(e.event_date);
+                  }}
+                >
+                  {t("edit")}
+                </button>
+              </>
+            )}
           </li>
         ))}
       </ul>

@@ -95,9 +95,21 @@ export default function ContractDetail() {
   return (
     <>
       <BackButton />
-      <h1>
-        {contract.first_name} {contract.last_name} — {contract.brand} {contract.series ?? ""}{" "}
-        {contract.plate_number ?? ""}
+      {/* A contract is one client tied to one car: show the tie, and let each
+          side be the way through to its own record. */}
+      <h1 className="record pair">
+        <Link className="party" to={`/clients/${contract.client_id}`}>
+          <span className="role">{t("client")}</span>
+          {contract.first_name} {contract.last_name}
+        </Link>
+        <span className="arrow" aria-hidden="true">
+          →
+        </span>
+        <Link className="party" to={`/cars/${contract.car_id}`}>
+          <span className="role">{t("car")}</span>
+          {contract.brand} {contract.series ?? ""}
+          {contract.plate_number && <span className="sub">{contract.plate_number}</span>}
+        </Link>
       </h1>
       <div className="subhead">
         <span className="tags">
@@ -203,7 +215,6 @@ export default function ContractDetail() {
                 <th>{t("type")}</th>
                 <th className="num">{t("amount")}</th>
                 <th className="num">{t("officer_fee")}</th>
-                <th>{t("payment_date")}</th>
                 <th>{t("note")}</th>
                 <th />
               </tr>
@@ -213,7 +224,17 @@ export default function ContractDetail() {
                 <RowLink key={f.id} to={`/contracts/${contract.id}/fees/${f.type}?fee=${f.id}`}>
                   <td>{formatDate(f.due_on)}</td>
                   <td>{feeLabel(f.type)}</td>
-                  <td className="num">{formatBaht(f.amount)}</td>
+                  {/* The date the money came in sits under the sum it paid,
+                      the way the officer fee already reads. */}
+                  <td className="num">
+                    {formatBaht(f.amount)}
+                    <br />
+                    {f.paid_on ? (
+                      <small>{formatDate(f.paid_on)}</small>
+                    ) : (
+                      <span className="tag unpaid">{t("unpaid")}</span>
+                    )}
+                  </td>
                   <td className="num">
                     {f.officer_amount != null && (
                       <>
@@ -225,13 +246,6 @@ export default function ContractDetail() {
                           <span className="tag unpaid">{t("unpaid")}</span>
                         )}
                       </>
-                    )}
-                  </td>
-                  <td>
-                    {f.paid_on ? (
-                      formatDate(f.paid_on)
-                    ) : (
-                      <span className="tag unpaid">{t("unpaid")}</span>
                     )}
                   </td>
                   <td>{f.note ?? ""}</td>

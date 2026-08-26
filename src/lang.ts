@@ -87,6 +87,8 @@ export const LABELS: Record<LangCode, Record<string, string>> = {
     cancel_contract: "Cancel contract",
     confirm_repossess: "Repossess this car and close the contract?",
     confirm_cancel: "Cancel this contract and return the car to available?",
+    confirm_delete_contract:
+      "Delete this contract permanently, with every payment recorded against it?",
     confirm_delete_client: "Delete this client permanently?",
     confirm_delete_car: "Delete this car and its timeline permanently?",
     due_this_month: "Due this month",
@@ -218,6 +220,7 @@ export const LABELS: Record<LangCode, Record<string, string>> = {
     cancel_contract: "ยกเลิกสัญญา",
     confirm_repossess: "ยึดรถคันนี้และปิดสัญญาใช่หรือไม่",
     confirm_cancel: "ยกเลิกสัญญานี้และคืนรถเป็นพร้อมขายใช่หรือไม่",
+    confirm_delete_contract: "ลบสัญญานี้พร้อมรายการชำระทั้งหมดถาวรใช่หรือไม่",
     confirm_delete_client: "ลบลูกค้ารายนี้ถาวรใช่หรือไม่",
     confirm_delete_car: "ลบรถคันนี้พร้อมประวัติถาวรใช่หรือไม่",
     due_this_month: "ครบกำหนดเดือนนี้",

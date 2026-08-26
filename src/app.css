@@ -113,6 +113,7 @@ header .lang button.on {
 /* ---------- Page ---------- */
 
 main {
+  position: relative;
   max-width: 1180px;
   margin: 1.75rem auto 4rem;
   padding: 0 1.5rem;
@@ -144,6 +145,67 @@ h1 .right { margin-left: auto; display: flex; gap: 0.5rem; }
 }
 .subhead .actions { margin-left: auto; display: flex; gap: 0.5rem; }
 
+/* The record pages open on a name — a client, a car, a contract. It is what
+   the staff are looking for when the page loads, so it sits centered and
+   large, with what you can do to it gathered right underneath. */
+h1.record {
+  justify-content: center;
+  text-align: center;
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+/* A contract names two records at once. Two bordered blocks with the tie
+   drawn between them read faster than one run-on line. */
+.pair { display: flex; align-items: stretch; }
+h1.record.pair { gap: 0; font-size: 1.3rem; }
+.pair .party {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 15rem;
+  padding: 0.7rem 1.2rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+  text-align: left;
+}
+a.party:hover { border-color: var(--accent); }
+.pair .role {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  color: var(--ink-faint);
+}
+.pair .sub { font-size: 0.92rem; font-weight: 500; color: var(--ink-soft); }
+.pair .arrow {
+  align-self: center;
+  padding: 0 1rem;
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: var(--ink-faint);
+}
+
+/* The same pairing beside a form's title, where it only has to say which
+   record is being edited: one line, quiet, out of the way of the heading. */
+.pair.inline { gap: 0.4rem; font-size: 0.85rem; font-weight: 400; }
+.pair.inline .party {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.2rem 0.55rem;
+}
+.pair.inline .role { font-size: 0.62rem; letter-spacing: 0.05em; }
+.pair.inline .sub { font-size: 0.85rem; }
+.pair.inline .arrow { padding: 0 0.35rem; font-size: 0.95rem; }
+
+h1.record + .subhead { justify-content: center; }
+/* Edit and delete belong in the corner, out of the way of the name and level
+   with the back button — the same place on every record page. */
+h1.record + .subhead .actions { position: absolute; top: 0; right: 1.5rem; margin: 0; }
+
 /* Tags never sit flush against each other or against text. */
 .tags { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; }
 
@@ -165,6 +227,7 @@ h2 {
   margin: 2.75rem 0 0.85rem;
 }
 p { margin: 0.5rem 0; }
+
 
 /* ---------- Fact strip ---------- */
 

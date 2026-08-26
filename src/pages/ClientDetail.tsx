@@ -28,7 +28,7 @@ export default function ClientDetail() {
   return (
     <>
       <BackButton />
-      <h1>
+      <h1 className="record">
         {client.first_name} {client.last_name}
         {client.nickname ? ` (${client.nickname})` : ""}
       </h1>

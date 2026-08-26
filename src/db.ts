@@ -317,6 +317,11 @@ export async function deleteCar(db: Db, id: number): Promise<void> {
   await db.execute("DELETE FROM cars WHERE id = ?", [id]);
 }
 
+/** Correct the date on a timeline entry recorded under the wrong day. */
+export async function setCarEventDate(db: Db, id: number, eventDate: string): Promise<void> {
+  await db.execute("UPDATE car_events SET event_date = ? WHERE id = ?", [eventDate, id]);
+}
+
 export async function carEvents(db: Db, carId: number): Promise<CarEvent[]> {
   return db.select<CarEvent>(
     "SELECT * FROM car_events WHERE car_id = ? ORDER BY event_date, id",
@@ -589,6 +594,34 @@ export async function cancelContract(db: Db, contractId: number): Promise<void> 
   if (contract.status !== "active") return;
   await db.execute("UPDATE contracts SET status = 'cancelled' WHERE id = ?", [contractId]);
   await setCarStatus(db, contract.car_id, "available");
+}
+
+/**
+ * Delete a contract entered in error, along with everything recorded against
+ * it: its schedule, its payments, its fees and their parts. The car goes back
+ * on the lot if this contract was the one holding it.
+ */
+export async function deleteContract(db: Db, contractId: number): Promise<void> {
+  const contract = await getContract(db, contractId);
+  if (!contract) throw new Error("err_no_such_contract");
+  await db.execute(
+    "DELETE FROM payments WHERE installment_id IN (SELECT id FROM installments WHERE contract_id = ?)",
+    [contractId],
+  );
+  await db.execute("DELETE FROM installments WHERE contract_id = ?", [contractId]);
+  await db.execute(
+    "DELETE FROM fee_payments WHERE fee_id IN (SELECT id FROM fees WHERE contract_id = ?)",
+    [contractId],
+  );
+  await db.execute(
+    "DELETE FROM fee_schedule WHERE fee_id IN (SELECT id FROM fees WHERE contract_id = ?)",
+    [contractId],
+  );
+  await db.execute("DELETE FROM fees WHERE contract_id = ?", [contractId]);
+  await db.execute("DELETE FROM late_fee_payments WHERE contract_id = ?", [contractId]);
+  await db.execute("DELETE FROM car_events WHERE contract_id = ?", [contractId]);
+  await db.execute("DELETE FROM contracts WHERE id = ?", [contractId]);
+  if (contract.status === "active") await setCarStatus(db, contract.car_id, "available");
 }
 
 export type FeeType = "down" | "insurance";

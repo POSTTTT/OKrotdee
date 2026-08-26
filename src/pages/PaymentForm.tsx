@@ -101,11 +101,21 @@ export default function PaymentForm() {
       <BackButton />
       <h1>
         {t("record_payment")} — {t("seq")} {installment.seq}
+        <span className="pair inline">
+          <span className="party">
+            <span className="role">{t("client")}</span>
+            {contract.first_name} {contract.last_name}
+          </span>
+          <span className="party">
+            <span className="role">{t("due_date")}</span>
+            {formatDate(installment.due_date)}
+          </span>
+          <span className="party">
+            <span className="role">{t("balance")}</span>
+            {formatBaht(balance)}
+          </span>
+        </span>
       </h1>
-      <p>
-        {t("client")}: {contract.first_name} {contract.last_name} &middot; {t("due_date")}:{" "}
-        {formatDate(installment.due_date)} &middot; {t("balance")}: {formatBaht(balance)}
-      </p>
       {error && <p className="flash">{error}</p>}
 
       {payments.length > 0 && (
