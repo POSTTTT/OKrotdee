@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import {
   contractFlag,
-  daysLate,
   formatBaht,
   generateSchedule,
   installmentState,
+  lateCount,
+  lateFee,
   outstanding,
   overdueCount,
+  scheduleStrikes,
+  settledOn,
   toSatang,
 } from "../src/money";
 
@@ -150,13 +153,181 @@ describe("contractFlag", () => {
   });
 });
 
-describe("daysLate", () => {
-  it("counts days after the due date", () =>
-    expect(daysLate("2026-09-15", "2026-09-20")).toBe(5));
-  it("is zero when paid on time", () =>
-    expect(daysLate("2026-09-15", "2026-09-15")).toBe(0));
-  it("is zero when paid early", () =>
-    expect(daysLate("2026-09-15", "2026-09-10")).toBe(0));
-  it("counts across a month boundary", () =>
-    expect(daysLate("2026-09-15", "2026-10-01")).toBe(16));
+describe("lateCount", () => {
+  const due = "2025-02-15";
+
+  it("counts nothing inside the grace period", () => {
+    expect(lateCount(due, "2025-02-15")).toBe(0);
+    expect(lateCount(due, "2025-02-18")).toBe(0);
+    // Paying early is never late.
+    expect(lateCount(due, "2025-02-01")).toBe(0);
+  });
+
+  it("counts one strike from the day after the grace period", () => {
+    expect(lateCount(due, "2025-02-19")).toBe(1);
+    expect(lateCount(due, "2025-03-18")).toBe(1);
+  });
+
+  it("adds a strike for every further month that passes", () => {
+    expect(lateCount(due, "2025-03-19")).toBe(2);
+    expect(lateCount(due, "2025-04-18")).toBe(2);
+    expect(lateCount(due, "2025-04-19")).toBe(3);
+  });
+
+  it("clamps to the end of a short month", () => {
+    // Due 31 January: the next strike lands on 28 February plus grace.
+    expect(lateCount("2025-01-31", "2025-02-03")).toBe(0);
+    expect(lateCount("2025-01-31", "2025-02-04")).toBe(1);
+    expect(lateCount("2025-01-31", "2025-03-03")).toBe(1);
+    expect(lateCount("2025-01-31", "2025-03-04")).toBe(2);
+  });
+
+  it("crosses a year end", () => {
+    expect(lateCount("2025-12-15", "2025-12-18")).toBe(0);
+    expect(lateCount("2025-12-15", "2025-12-19")).toBe(1);
+    expect(lateCount("2025-12-15", "2026-01-19")).toBe(2);
+  });
+});
+
+describe("lateFee", () => {
+  it("charges 15% of the installment for each time it is late", () => {
+    // 15,400.00 baht, in satang.
+    expect(lateFee(1_540_000, 1)).toBe(231_000);
+    // The whole contract in the shop's own example: 24 strikes.
+    expect(lateFee(1_540_000, 24)).toBe(5_544_000);
+  });
+
+  it("charges nothing when the installment was paid on time", () => {
+    expect(lateFee(1_540_000, 0)).toBe(0);
+  });
+
+  it("rounds once per strike, not once at the end", () => {
+    // 15% of 100.03 is 15.0045 satang short of a round satang.
+    expect(lateFee(10_003, 1)).toBe(1_500);
+    expect(lateFee(10_003, 3)).toBe(4_500);
+  });
+});
+
+describe("settledOn", () => {
+  it("reports the day the last part arrived", () => {
+    // 20,000 due: half on the due date, the rest four days later.
+    expect(
+      settledOn(2_000_000, [
+        { paid_on: "2025-02-15", amount: 1_000_000 },
+        { paid_on: "2025-02-19", amount: 1_000_000 },
+      ]),
+    ).toBe("2025-02-19");
+  });
+
+  it("reports nothing while any of it is still owed", () => {
+    expect(settledOn(2_000_000, [{ paid_on: "2025-02-15", amount: 1_000_000 }])).toBeNull();
+    expect(settledOn(2_000_000, [])).toBeNull();
+  });
+
+  it("ignores the order the payments were entered in", () => {
+    expect(
+      settledOn(2_000_000, [
+        { paid_on: "2025-02-19", amount: 1_000_000 },
+        { paid_on: "2025-02-15", amount: 1_000_000 },
+      ]),
+    ).toBe("2025-02-19");
+  });
+
+  it("settles on the payment that covers it, not a later extra", () => {
+    expect(
+      settledOn(2_000_000, [
+        { paid_on: "2025-02-15", amount: 2_500_000 },
+        { paid_on: "2025-03-01", amount: 100_000 },
+      ]),
+    ).toBe("2025-02-15");
+  });
+});
+
+describe("the shop's down payment case", () => {
+  it("charges 15% of the whole down payment when the rest arrives late", () => {
+    const due = "2025-02-15";
+    const charged = 2_000_000; // 20,000.00
+
+    // Half on the due date, the rest on the 19th: one strike.
+    const settled = settledOn(charged, [
+      { paid_on: due, amount: 1_000_000 },
+      { paid_on: "2025-02-19", amount: 1_000_000 },
+    ]);
+    expect(settled).toBe("2025-02-19");
+    expect(lateFee(charged, lateCount(due, settled!))).toBe(300_000); // 3,000.00
+
+    // The same halves, but the rest lands inside the grace period.
+    const onTime = settledOn(charged, [
+      { paid_on: due, amount: 1_000_000 },
+      { paid_on: "2025-02-18", amount: 1_000_000 },
+    ]);
+    expect(lateFee(charged, lateCount(due, onTime!))).toBe(0);
+  });
+});
+
+describe("scheduleStrikes", () => {
+  const today = "2025-06-01";
+
+  it("collects nothing when the client keeps to the arrangement", () => {
+    // 20,000 agreed as two parts: 10,000 on the 15th, 10,000 on the 19th.
+    const promised = [
+      { due_on: "2025-02-15", amount: 1_000_000 },
+      { due_on: "2025-02-19", amount: 1_000_000 },
+    ];
+    const payments = [
+      { paid_on: "2025-02-15", amount: 1_000_000 },
+      { paid_on: "2025-02-19", amount: 1_000_000 },
+    ];
+    expect(scheduleStrikes(promised, payments, today)).toBe(0);
+    expect(lateFee(2_000_000, scheduleStrikes(promised, payments, today))).toBe(0);
+  });
+
+  it("still charges when the whole sum was due at once", () => {
+    // No arrangement: all 20,000 due on the 15th, half of it arrives on the 19th.
+    const promised = [{ due_on: "2025-02-15", amount: 2_000_000 }];
+    const payments = [
+      { paid_on: "2025-02-15", amount: 1_000_000 },
+      { paid_on: "2025-02-19", amount: 1_000_000 },
+    ];
+    expect(scheduleStrikes(promised, payments, today)).toBe(1);
+    expect(lateFee(2_000_000, scheduleStrikes(promised, payments, today))).toBe(300_000);
+  });
+
+  it("charges only the part that was missed", () => {
+    const promised = [
+      { due_on: "2025-02-15", amount: 1_000_000 },
+      { due_on: "2025-02-19", amount: 1_000_000 },
+    ];
+    // The first part on time, the second a month and a half late.
+    const payments = [
+      { paid_on: "2025-02-15", amount: 1_000_000 },
+      { paid_on: "2025-03-25", amount: 1_000_000 },
+    ];
+    expect(scheduleStrikes(promised, payments, today)).toBe(2);
+  });
+
+  it("keeps counting a promised part that has not arrived", () => {
+    const promised = [
+      { due_on: "2025-02-15", amount: 1_000_000 },
+      { due_on: "2025-02-19", amount: 1_000_000 },
+    ];
+    const payments = [{ paid_on: "2025-02-15", amount: 1_000_000 }];
+    // Nothing since. The second part was promised on the 19th, so its strikes
+    // land on 23 February, 23 March and 23 April: three by 19 May.
+    expect(scheduleStrikes(promised, payments, "2025-05-19")).toBe(3);
+    // The fourth arrives on 23 May.
+    expect(scheduleStrikes(promised, payments, "2025-05-23")).toBe(4);
+  });
+
+  it("reads the parts in date order however they were entered", () => {
+    const promised = [
+      { due_on: "2025-02-19", amount: 1_000_000 },
+      { due_on: "2025-02-15", amount: 1_000_000 },
+    ];
+    const payments = [
+      { paid_on: "2025-02-15", amount: 1_000_000 },
+      { paid_on: "2025-02-19", amount: 1_000_000 },
+    ];
+    expect(scheduleStrikes(promised, payments, today)).toBe(0);
+  });
 });

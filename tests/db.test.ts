@@ -14,17 +14,34 @@ import {
   createCar,
   createClient,
   createContract,
+  addFeePayment,
+  addFeeSchedulePart,
+  contractFees,
+  downFeeFine,
+  feePayments,
+  getFee,
+  deleteCar,
+  deleteClient,
   getCar,
   getClient,
   getContract,
   getInstallment,
+  deleteFeePayment,
+  deleteLateFeePayment,
   installmentsFor,
+  lateFeePayments,
+  saveLateFeePayment,
   listCars,
   listClients,
   listContracts,
   overdueRow,
+  deletePayment,
   paymentsFor,
+  syncContractStatus,
+  updatePayment,
   repossessContract,
+  deleteFee,
+  saveFee,
   setCarStatus,
   setLateFee,
   toDollarPlaceholders,
@@ -67,9 +84,11 @@ describe("memoryDb", () => {
 const CLIENT = {
   first_name: "Somchai",
   last_name: "Jaidee",
+  nickname: "Chai",
   thai_id: "1101700207269",
   phone: "0812345678",
   address: "Bangkok",
+  lo_work: "Silom",
   note: null,
 };
 
@@ -80,6 +99,8 @@ describe("clients", () => {
     const client = await getClient(db, id);
     expect(client?.first_name).toBe("Somchai");
     expect(client?.thai_id).toBe("1101700207269");
+    expect(client?.nickname).toBe("Chai");
+    expect(client?.lo_work).toBe("Silom");
   });
 
   it("stores a missing Thai ID as null", async () => {
@@ -114,6 +135,15 @@ describe("clients", () => {
     const found = await listClients(db, "0812");
     expect(found).toHaveLength(1);
     expect(found[0].first_name).toBe("Somchai");
+  });
+
+  it("searches by nickname", async () => {
+    const db = memoryDb();
+    await createClient(db, { ...CLIENT, thai_id: null });
+    await createClient(db, { ...CLIENT, first_name: "Malee", nickname: "Lek", thai_id: null });
+    const found = await listClients(db, "Lek");
+    expect(found).toHaveLength(1);
+    expect(found[0].first_name).toBe("Malee");
   });
 
   it("searches by name and Thai ID", async () => {
@@ -515,5 +545,361 @@ describe("dashboard queries", () => {
   it("returns zero when nothing was collected", async () => {
     const { db } = await contracted();
     expect(await collectedBetween(db, "2026-09-01", "2026-09-30")).toBe(0);
+  });
+});
+
+describe("delete", () => {
+  const carFields = {
+    brand: "Toyota",
+    series: null,
+    model_year: null,
+    color: null,
+    plate_number: null,
+    registration_no: null,
+    chassis_no: null,
+    mileage: null,
+    cost_price: null,
+    asking_price: null,
+    note: null,
+  };
+  const clientFields = {
+    first_name: "A",
+    last_name: "B",
+    nickname: null,
+    thai_id: null,
+    phone: null,
+    address: null,
+    lo_work: null,
+    note: null,
+  };
+
+  it("removes an unused car with its timeline, and an unused client", async () => {
+    const db = memoryDb();
+    const carId = await createCar(db, carFields);
+    const clientId = await createClient(db, clientFields);
+
+    await deleteCar(db, carId);
+    await deleteClient(db, clientId);
+
+    expect(await getCar(db, carId)).toBeUndefined();
+    expect(await carEvents(db, carId)).toHaveLength(0);
+    expect(await getClient(db, clientId)).toBeUndefined();
+  });
+
+  it("refuses once a contract references them", async () => {
+    const db = memoryDb();
+    const carId = await createCar(db, carFields);
+    const clientId = await createClient(db, clientFields);
+    await createContract(db, {
+      client_id: clientId,
+      car_id: carId,
+      car_price: 30000000,
+      down_payment: 0,
+      installment_amount: 500000,
+      installment_count: 2,
+      due_day: 5,
+      first_due_date: "2026-01-05",
+      note: null,
+    });
+
+    await expect(deleteCar(db, carId)).rejects.toThrow("err_car_has_contracts");
+    await expect(deleteClient(db, clientId)).rejects.toThrow("err_client_has_contracts");
+    expect(await getCar(db, carId)).toBeDefined();
+    expect(await getClient(db, clientId)).toBeDefined();
+  });
+});
+
+describe("fees", () => {
+  const insurance = (
+    dueOn: string,
+    amount: number,
+    officer: number | null,
+    paidOn: string | null = dueOn,
+  ) => ({
+    type: "insurance" as const,
+    due_on: dueOn,
+    paid_on: paidOn,
+    amount,
+    officer_amount: officer,
+    officer_paid_on: null,
+    note: null,
+  });
+
+  it("keeps one row per yearly insurance payment", async () => {
+    const db = await seeded();
+    const contractId = await createContract(db, CONTRACT);
+
+    await saveFee(db, contractId, insurance("2026-09-02", 500000, 30000));
+    await saveFee(db, contractId, insurance("2027-09-20", 520000, null));
+
+    const rows = await contractFees(db, contractId);
+    expect(rows.map((f) => f.due_on)).toEqual(["2026-09-02", "2027-09-20"]);
+    expect(rows[0].officer_amount).toBe(30000);
+    expect(rows[1].officer_amount).toBeNull();
+  });
+
+  it("keeps the police fine on its own payment date", async () => {
+    const db = await seeded();
+    const contractId = await createContract(db, CONTRACT);
+
+    // The insurance is settled on the 2nd, the fine only two weeks later.
+    await saveFee(db, contractId, {
+      ...insurance("2026-09-01", 500000, 30000, "2026-09-02"),
+      officer_paid_on: "2026-09-16",
+    });
+
+    const [row] = await contractFees(db, contractId);
+    expect(row.paid_on).toBe("2026-09-02");
+    expect(row.officer_paid_on).toBe("2026-09-16");
+  });
+
+  it("records a fee the client has not paid yet, then marks it paid", async () => {
+    const db = await seeded();
+    const contractId = await createContract(db, CONTRACT);
+
+    await saveFee(db, contractId, insurance("2027-09-01", 520000, null, null));
+    const owed = (await contractFees(db, contractId))[0];
+    expect(owed.paid_on).toBeNull();
+
+    await saveFee(
+      db,
+      contractId,
+      insurance("2027-09-01", 520000, null, "2027-09-14"),
+      owed.id,
+    );
+    expect((await getFee(db, owed.id))?.paid_on).toBe("2027-09-14");
+  });
+
+  it("corrects a fee in place and deletes one", async () => {
+    const db = await seeded();
+    const contractId = await createContract(db, CONTRACT);
+    await saveFee(db, contractId, {
+      type: "down",
+      due_on: "2026-09-01",
+      paid_on: "2026-09-01",
+      amount: 2000000,
+      officer_amount: null,
+      officer_paid_on: null,
+      note: null,
+    });
+    const down = (await contractFees(db, contractId))[0];
+
+    await saveFee(
+      db,
+      contractId,
+      { ...insurance("2026-09-03", 2500000, null), type: "down" },
+      down.id,
+    );
+    const corrected = await getFee(db, down.id);
+    expect(corrected?.amount).toBe(2500000);
+    expect(await contractFees(db, contractId)).toHaveLength(1);
+
+    await deleteFee(db, down.id);
+    expect(await contractFees(db, contractId)).toHaveLength(0);
+  });
+});
+
+describe("last payment date", () => {
+  it("reports the most recent payment on the installment, and null before any", async () => {
+    const db = await seeded();
+    const contractId = await createContract(db, CONTRACT);
+    const [first, second] = await installmentsFor(db, contractId);
+
+    await addPayment(db, first.id, "2026-09-14", 500000, "cash", null);
+    await addPayment(db, first.id, "2026-09-20", 500000, "cash", null);
+
+    const rows = await installmentsFor(db, contractId);
+    expect(rows[0].last_paid_on).toBe("2026-09-20");
+    expect(rows[1].last_paid_on).toBeNull();
+    expect((await getInstallment(db, second.id))?.last_paid_on).toBeNull();
+  });
+});
+
+describe("correcting a payment", () => {
+  /** A contract with one installment, paid in full and therefore closed. */
+  async function closedContract() {
+    const db = await seeded();
+    const contractId = await createContract(db, { ...CONTRACT, installment_count: 1 });
+    const [installment] = await installmentsFor(db, contractId);
+    await addPayment(db, installment.id, "2026-09-15", CONTRACT.installment_amount, "cash", null);
+    await syncContractStatus(db, contractId);
+    return { db, contractId, installmentId: installment.id };
+  }
+
+  it("closes the contract and sells the car once the money is in", async () => {
+    const { db, contractId } = await closedContract();
+    expect((await getContract(db, contractId))?.status).toBe("completed");
+    expect((await getCar(db, CONTRACT.car_id))?.status).toBe("sold");
+  });
+
+  it("reopens the contract when a payment is corrected downwards", async () => {
+    const { db, contractId, installmentId } = await closedContract();
+    const [payment] = await paymentsFor(db, installmentId);
+
+    await updatePayment(db, payment.id, "2026-09-15", 100000, "cash", "was mistyped");
+    await syncContractStatus(db, contractId);
+
+    expect((await getContract(db, contractId))?.status).toBe("active");
+    expect((await getCar(db, CONTRACT.car_id))?.status).toBe("on_contract");
+    expect((await getInstallment(db, installmentId))?.paid_total).toBe(100000);
+  });
+
+  it("reopens the contract when a payment is deleted", async () => {
+    const { db, contractId, installmentId } = await closedContract();
+    const [payment] = await paymentsFor(db, installmentId);
+
+    await deletePayment(db, payment.id);
+    await syncContractStatus(db, contractId);
+
+    expect((await getContract(db, contractId))?.status).toBe("active");
+    expect(await paymentsFor(db, installmentId)).toHaveLength(0);
+  });
+
+  it("leaves a repossessed contract alone", async () => {
+    const { db, contractId, installmentId } = await closedContract();
+    await db.execute("UPDATE contracts SET status = 'repossessed' WHERE id = ?", [contractId]);
+    const [payment] = await paymentsFor(db, installmentId);
+
+    await deletePayment(db, payment.id);
+    await syncContractStatus(db, contractId);
+
+    expect((await getContract(db, contractId))?.status).toBe("repossessed");
+  });
+});
+
+describe("late fee payments", () => {
+  it("records what the client pays against the late fee, and corrects it", async () => {
+    const db = await seeded();
+    const contractId = await createContract(db, CONTRACT);
+
+    await saveLateFeePayment(db, contractId, "installment", {
+      paid_on: "2026-10-01",
+      amount: 231000,
+      note: null,
+    });
+    await saveLateFeePayment(db, contractId, "installment", {
+      paid_on: "2026-11-02",
+      amount: 231000,
+      note: "second",
+    });
+
+    let rows = await lateFeePayments(db, contractId, "installment");
+    expect(rows.map((r) => r.paid_on)).toEqual(["2026-10-01", "2026-11-02"]);
+    expect(rows.reduce((sum, r) => sum + r.amount, 0)).toBe(462000);
+
+    await saveLateFeePayment(
+      db,
+      contractId,
+      "installment",
+      { paid_on: "2026-11-02", amount: 100000, note: "was mistyped" },
+      rows[1].id,
+    );
+    rows = await lateFeePayments(db, contractId, "installment");
+    expect(rows[1].amount).toBe(100000);
+    expect(rows).toHaveLength(2);
+
+    await deleteLateFeePayment(db, rows[0].id);
+    expect(await lateFeePayments(db, contractId, "installment")).toHaveLength(1);
+  });
+
+  it("keeps the two late fees in separate pots", async () => {
+    const db = await seeded();
+    const contractId = await createContract(db, CONTRACT);
+
+    await saveLateFeePayment(db, contractId, "installment", {
+      paid_on: "2026-10-01",
+      amount: 231000,
+      note: null,
+    });
+    await saveLateFeePayment(db, contractId, "down", {
+      paid_on: "2026-10-01",
+      amount: 300000,
+      note: null,
+    });
+
+    const onInstallments = await lateFeePayments(db, contractId, "installment");
+    const onDown = await lateFeePayments(db, contractId, "down");
+    expect(onInstallments).toHaveLength(1);
+    expect(onInstallments[0].amount).toBe(231000);
+    expect(onDown).toHaveLength(1);
+    expect(onDown[0].amount).toBe(300000);
+  });
+});
+
+describe("the down payment's late fee", () => {
+  /** A contract with a 20,000.00 down payment due on 15 February. */
+  async function withDownFee() {
+    const db = await seeded();
+    const contractId = await createContract(db, CONTRACT);
+    await saveFee(db, contractId, {
+      type: "down",
+      due_on: "2025-02-15",
+      paid_on: null,
+      amount: 2_000_000,
+      officer_amount: null,
+      officer_paid_on: null,
+      note: null,
+    });
+    const fee = (await contractFees(db, contractId)).find((f) => f.type === "down")!;
+    return { db, contractId, feeId: fee.id };
+  }
+
+  it("charges nothing when the whole down payment lands inside the grace period", async () => {
+    const { db, contractId, feeId } = await withDownFee();
+    await addFeePayment(db, feeId, "2025-02-15", 1_000_000);
+    await addFeePayment(db, feeId, "2025-02-18", 1_000_000);
+    expect(await downFeeFine(db, contractId, "2025-06-01")).toBe(0);
+  });
+
+  it("charges 15% of the whole down payment when the rest arrives late", async () => {
+    const { db, contractId, feeId } = await withDownFee();
+    await addFeePayment(db, feeId, "2025-02-15", 1_000_000);
+    await addFeePayment(db, feeId, "2025-02-19", 1_000_000);
+    // 15% of 20,000.00, not of the 10,000.00 that was still owed.
+    expect(await downFeeFine(db, contractId, "2025-06-01")).toBe(300_000);
+  });
+
+  it("charges nothing when the client keeps to an agreed split", async () => {
+    const { db, contractId, feeId } = await withDownFee();
+    // 20,000 agreed as 10,000 on the 15th and 10,000 on the 19th.
+    await addFeeSchedulePart(db, feeId, "2025-02-15", 1_000_000);
+    await addFeeSchedulePart(db, feeId, "2025-02-19", 1_000_000);
+    await addFeePayment(db, feeId, "2025-02-15", 1_000_000);
+    await addFeePayment(db, feeId, "2025-02-19", 1_000_000);
+
+    expect(await downFeeFine(db, contractId, "2025-06-01")).toBe(0);
+  });
+
+  it("charges when an agreed part is missed", async () => {
+    const { db, contractId, feeId } = await withDownFee();
+    await addFeeSchedulePart(db, feeId, "2025-02-15", 1_000_000);
+    await addFeeSchedulePart(db, feeId, "2025-02-19", 1_000_000);
+    // The first part on time, the second three weeks after it was promised.
+    await addFeePayment(db, feeId, "2025-02-15", 1_000_000);
+    await addFeePayment(db, feeId, "2025-03-12", 1_000_000);
+
+    expect(await downFeeFine(db, contractId, "2025-06-01")).toBe(300_000);
+  });
+
+  it("keeps counting while any of it is still owed", async () => {
+    const { db, contractId, feeId } = await withDownFee();
+    await addFeePayment(db, feeId, "2025-02-15", 1_000_000);
+    // Nothing since, and it is now well past the second strike on 19 March.
+    expect(await downFeeFine(db, contractId, "2025-03-19")).toBe(600_000);
+  });
+
+  it("charges nothing on a contract with no down payment recorded", async () => {
+    const db = await seeded();
+    const contractId = await createContract(db, CONTRACT);
+    expect(await downFeeFine(db, contractId, "2025-06-01")).toBe(0);
+  });
+
+  it("removes a part that was entered by mistake", async () => {
+    const { db, feeId } = await withDownFee();
+    await addFeePayment(db, feeId, "2025-02-15", 1_000_000, "cash");
+    const [part] = await feePayments(db, feeId);
+    expect(part.note).toBe("cash");
+    await deleteFeePayment(db, part.id);
+    expect(await feePayments(db, feeId)).toHaveLength(0);
   });
 });

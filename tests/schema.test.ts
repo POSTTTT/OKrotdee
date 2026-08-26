@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { statements } from "../src/db";
 import { SCHEMA } from "../src/schema";
 
 let db: Database.Database;
@@ -9,6 +10,39 @@ beforeEach(() => {
   db = new Database(":memory:");
   db.pragma("foreign_keys = ON");
   db.exec(SCHEMA);
+});
+
+describe("applying the schema the way the app does", () => {
+  /**
+   * openDatabase cannot send the whole script at once: the SQL plugin takes
+   * one statement per call, so it strips comments and splits on ";". A
+   * semicolon inside a comment used to cut a statement in half, which only
+   * showed up in the running app because these tests used exec() on the whole
+   * script.
+   */
+  it("runs statement by statement, comments and all", () => {
+    const fresh = new Database(":memory:");
+    for (const statement of statements(SCHEMA)) fresh.exec(statement);
+    const tables = (
+      fresh.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as {
+        name: string;
+      }[]
+    ).map((t) => t.name);
+    expect(tables).toEqual(
+      expect.arrayContaining([
+        "clients",
+        "cars",
+        "contracts",
+        "installments",
+        "payments",
+        "car_events",
+        "fees",
+        "fee_schedule",
+        "fee_payments",
+        "late_fee_payments",
+      ]),
+    );
+  });
 });
 
 const insertClient = () =>

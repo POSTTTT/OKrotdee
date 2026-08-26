@@ -1,7 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
+import BackButton from "../BackButton";
 import { useApp } from "../context";
+import { formatDate } from "../dates";
+import DateInput from "../DateInput";
 import {
   availableCars,
   createContract,
@@ -31,16 +34,19 @@ export default function ContractForm() {
 
   const readFields = (form: FormData): ContractFields => {
     const text = (key: string) => ((form.get(key) as string) ?? "").trim();
+    const firstDue = text("first_due_date");
+    if (!firstDue) throw new Error("err_choose_first_due_date");
     const fields: ContractFields = {
       client_id: Number(text("client_id")),
       car_id: Number(text("car_id")),
       car_price: toSatang(text("car_price") || "0"),
-      down_payment: toSatang(text("down_payment") || "0"),
       installment_amount: toSatang(text("installment_amount")),
       installment_count: Number(text("installment_count")),
-      due_day: Number(text("due_day")),
-      first_due_date: text("first_due_date"),
-      note: text("note") || null,
+      first_due_date: firstDue,
+      // The client pays on the same day of the month as the first payment.
+      due_day: Number(firstDue.slice(8, 10)),
+      down_payment: toSatang(text("down_payment") || "0"),
+      note: null,
     };
     if (!fields.client_id || !fields.car_id) throw new Error("err_choose_client_car");
     if (fields.installment_count < 1) {
@@ -49,10 +55,6 @@ export default function ContractForm() {
     if (fields.installment_amount <= 0) {
       throw new Error("err_installment_amount_positive");
     }
-    if (fields.due_day < 1 || fields.due_day > 31) {
-      throw new Error("err_due_day_range");
-    }
-    if (!fields.first_due_date) throw new Error("err_choose_first_due_date");
     return fields;
   };
 
@@ -89,6 +91,7 @@ export default function ContractForm() {
 
   return (
     <>
+      <BackButton />
       <h1>{t("create_contract")}</h1>
       {error && <p className="flash">{error}</p>}
       <form className="stack" onSubmit={onSubmit}>
@@ -129,16 +132,8 @@ export default function ContractForm() {
           <input name="installment_count" type="number" required />
         </label>
         <label>
-          {t("due_day")}
-          <input name="due_day" type="number" min={1} max={31} defaultValue={15} required />
-        </label>
-        <label>
           {t("first_due_date")}
-          <input name="first_due_date" type="date" required />
-        </label>
-        <label>
-          {t("note")}
-          <textarea name="note" rows={2} />
+          <DateInput name="first_due_date" required />
         </label>
         <div className="toolbar">
           <button type="submit" name="action" value="preview" disabled={busy}>
@@ -165,7 +160,7 @@ export default function ContractForm() {
               {preview.dates.map((due, index) => (
                 <tr key={due + index}>
                   <td>{index + 1}</td>
-                  <td>{due}</td>
+                  <td>{formatDate(due)}</td>
                   <td className="num">{formatBaht(preview.amount)}</td>
                 </tr>
               ))}

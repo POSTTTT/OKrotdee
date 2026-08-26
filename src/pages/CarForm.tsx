@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import BackButton from "../BackButton";
 import { useApp } from "../context";
 import {
   activeContractForCar,
@@ -12,7 +13,6 @@ import {
   type CarStatus,
 } from "../db";
 import { isErrorKey } from "../lang";
-import { formatBaht, toSatang } from "../money";
 
 const STATUSES: CarStatus[] = ["available", "on_contract", "sold", "repossessed"];
 
@@ -34,32 +34,27 @@ export default function CarForm() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const text = (key: string) => ((form.get(key) as string) ?? "").trim() || null;
-    const number = (key: string) => {
-      const value = text(key);
-      return value === null ? null : Number(value);
-    };
-    const satang = (key: string) => {
-      const value = text(key);
-      return value === null ? null : toSatang(value);
-    };
 
     setError(null);
     setBusy(true);
     try {
       const brand = text("brand");
       if (!brand) throw new Error("err_brand_required");
+      const modelYear = text("model_year");
       const fields = {
         brand,
         series: text("series"),
-        model_year: number("model_year"),
-        color: text("color"),
         plate_number: text("plate_number"),
-        registration_no: text("registration_no"),
-        chassis_no: text("chassis_no"),
-        mileage: number("mileage"),
-        cost_price: satang("cost_price"),
-        asking_price: satang("asking_price"),
-        note: text("note"),
+        model_year: modelYear === null ? null : Number(modelYear),
+        color: text("color"),
+        // Not on the form; carried through so an edit does not erase what an
+        // older version of the form recorded.
+        registration_no: car?.registration_no ?? null,
+        chassis_no: car?.chassis_no ?? null,
+        mileage: car?.mileage ?? null,
+        cost_price: car?.cost_price ?? null,
+        asking_price: car?.asking_price ?? null,
+        note: car?.note ?? null,
       };
       if (carId) {
         // While a contract is running, the contract page owns the car's
@@ -92,6 +87,7 @@ export default function CarForm() {
 
   return (
     <>
+      <BackButton />
       <h1>{t("cars")}</h1>
       {error && <p className="flash">{error}</p>}
       <form className="stack" key={car?.id ?? "new"} onSubmit={onSubmit}>
@@ -104,46 +100,16 @@ export default function CarForm() {
           <input name="series" defaultValue={car?.series ?? ""} />
         </label>
         <label>
+          {t("plate_number")}
+          <input name="plate_number" defaultValue={car?.plate_number ?? ""} />
+        </label>
+        <label>
           {t("model_year")}
           <input name="model_year" type="number" defaultValue={car?.model_year ?? ""} />
         </label>
         <label>
           {t("color")}
           <input name="color" defaultValue={car?.color ?? ""} />
-        </label>
-        <label>
-          {t("plate_number")}
-          <input name="plate_number" defaultValue={car?.plate_number ?? ""} />
-        </label>
-        <label>
-          {t("registration_no")}
-          <input name="registration_no" defaultValue={car?.registration_no ?? ""} />
-        </label>
-        <label>
-          {t("chassis_no")}
-          <input name="chassis_no" defaultValue={car?.chassis_no ?? ""} />
-        </label>
-        <label>
-          {t("mileage")}
-          <input name="mileage" type="number" defaultValue={car?.mileage ?? ""} />
-        </label>
-        <label>
-          {t("cost_price")}
-          <input
-            name="cost_price"
-            defaultValue={car?.cost_price != null ? formatBaht(car.cost_price) : ""}
-          />
-        </label>
-        <label>
-          {t("asking_price")}
-          <input
-            name="asking_price"
-            defaultValue={car?.asking_price != null ? formatBaht(car.asking_price) : ""}
-          />
-        </label>
-        <label>
-          {t("note")}
-          <textarea name="note" rows={2} defaultValue={car?.note ?? ""} />
         </label>
         {car && (
           <label>

@@ -8,8 +8,15 @@
 
 import Database from "@tauri-apps/plugin-sql";
 
-import { generateSchedule, outstanding, todayIso, type OverdueRow } from "./money";
-import { SCHEMA } from "./schema";
+import {
+  generateSchedule,
+  lateFee,
+  outstanding,
+  scheduleStrikes,
+  todayIso,
+  type OverdueRow,
+} from "./money";
+import { MIGRATIONS, REBUILDS, SCHEMA, SCHEMA_VERSION } from "./schema";
 
 export interface Db {
   select<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
@@ -20,6 +27,18 @@ export interface Db {
 export function toDollarPlaceholders(sql: string): string {
   let index = 0;
   return sql.replace(/\?/g, () => `$${++index}`);
+}
+
+/**
+ * Split a SQL script into single statements, which is all the SQL plugin
+ * takes. Comments come out first: the split is on ";", and a semicolon inside
+ * a comment would otherwise cut a statement in half.
+ */
+export function statements(sql: string): string[] {
+  return sql
+    .replace(/--[^\n]*/g, "")
+    .split(";")
+    .filter((statement) => statement.trim());
 }
 
 /** An ISO-8601 timestamp for created_at columns. */
@@ -47,8 +66,30 @@ export async function openDatabase(): Promise<Db> {
   // lifetime. Tests use a single unpooled better-sqlite3 connection (see
   // tests/helpers.ts), where the same pragma is a real guarantee.
   await database.execute("PRAGMA foreign_keys = ON");
-  for (const statement of SCHEMA.split(";")) {
-    if (statement.trim()) await database.execute(statement);
+
+  // A database with no tables yet gets the current schema outright, so the
+  // rebuilds below — which describe tables as they were in older versions —
+  // must not run against it.
+  const fresh =
+    (await db.select("SELECT name FROM sqlite_master WHERE type = 'table' LIMIT 1")).length === 0;
+
+  for (const statement of statements(SCHEMA)) {
+    await database.execute(statement);
+  }
+
+  const [{ user_version }] = await db.select<{ user_version: number }>("PRAGMA user_version");
+  if (!fresh && user_version < SCHEMA_VERSION) {
+    for (const statement of REBUILDS) await database.execute(statement);
+  }
+  if (user_version < SCHEMA_VERSION) {
+    // Not a bound parameter: SQLite does not allow one in a PRAGMA.
+    await database.execute(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+  }
+
+  // Columns added since. Run after the rebuilds, so a rebuilt table gets them
+  // too; already applied on every start after the first.
+  for (const statement of MIGRATIONS) {
+    await database.execute(statement).catch(() => {});
   }
   return db;
 }
@@ -57,9 +98,12 @@ export interface Client {
   id: number;
   first_name: string;
   last_name: string;
+  nickname: string | null;
   thai_id: string | null;
   phone: string | null;
+  /** Where the client lives. */
   address: string | null;
+  lo_work: string | null;
   note: string | null;
   created_at: string;
 }
@@ -91,9 +135,10 @@ export async function listClients(db: Db, q?: string): Promise<Client[]> {
     const like = `%${q}%`;
     return db.select<Client>(
       "SELECT * FROM clients" +
-        " WHERE first_name LIKE ? OR last_name LIKE ? OR phone LIKE ? OR thai_id LIKE ?" +
+        " WHERE first_name LIKE ? OR last_name LIKE ? OR nickname LIKE ?" +
+        " OR phone LIKE ? OR thai_id LIKE ?" +
         " ORDER BY first_name, last_name",
-      [like, like, like, like],
+      [like, like, like, like, like],
     );
   }
   return db.select<Client>("SELECT * FROM clients ORDER BY first_name, last_name");
@@ -105,14 +150,16 @@ export async function getClient(db: Db, id: number): Promise<Client | undefined>
 
 export async function createClient(db: Db, fields: ClientFields): Promise<number> {
   const { lastInsertId } = await db.execute(
-    "INSERT INTO clients (first_name, last_name, thai_id, phone, address, note," +
-      " created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO clients (first_name, last_name, nickname, thai_id, phone," +
+      " address, lo_work, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
     [
       fields.first_name,
       fields.last_name,
+      fields.nickname,
       fields.thai_id,
       fields.phone,
       fields.address,
+      fields.lo_work,
       fields.note,
       nowIso(),
     ],
@@ -122,14 +169,16 @@ export async function createClient(db: Db, fields: ClientFields): Promise<number
 
 export async function updateClient(db: Db, id: number, fields: ClientFields): Promise<void> {
   await db.execute(
-    "UPDATE clients SET first_name = ?, last_name = ?, thai_id = ?, phone = ?," +
-      " address = ?, note = ? WHERE id = ?",
+    "UPDATE clients SET first_name = ?, last_name = ?, nickname = ?, thai_id = ?," +
+      " phone = ?, address = ?, lo_work = ?, note = ? WHERE id = ?",
     [
       fields.first_name,
       fields.last_name,
+      fields.nickname,
       fields.thai_id,
       fields.phone,
       fields.address,
+      fields.lo_work,
       fields.note,
       id,
     ],
@@ -143,6 +192,18 @@ export async function clientContracts(db: Db, clientId: number): Promise<Contrac
       " ORDER BY c.created_at DESC",
     [clientId],
   );
+}
+
+/**
+ * Delete a client who was entered in error. Refused once contracts reference
+ * them: the app's connections do not all have PRAGMA foreign_keys on, so this
+ * check, not the constraint, is what protects the history.
+ */
+export async function deleteClient(db: Db, id: number): Promise<void> {
+  if ((await clientContracts(db, id)).length > 0) {
+    throw new Error("err_client_has_contracts");
+  }
+  await db.execute("DELETE FROM clients WHERE id = ?", [id]);
 }
 
 export type CarStatus = "available" | "on_contract" | "sold" | "repossessed";
@@ -244,6 +305,16 @@ export async function updateCar(db: Db, id: number, fields: CarFields): Promise<
 
 export async function setCarStatus(db: Db, id: number, status: CarStatus): Promise<void> {
   await db.execute("UPDATE cars SET status = ? WHERE id = ?", [status, id]);
+}
+
+/** Delete a car entered in error, along with its timeline. Refused once any
+ * contract references it. */
+export async function deleteCar(db: Db, id: number): Promise<void> {
+  if ((await carContracts(db, id)).length > 0) {
+    throw new Error("err_car_has_contracts");
+  }
+  await db.execute("DELETE FROM car_events WHERE car_id = ?", [id]);
+  await db.execute("DELETE FROM cars WHERE id = ?", [id]);
 }
 
 export async function carEvents(db: Db, carId: number): Promise<CarEvent[]> {
@@ -363,6 +434,8 @@ export interface InstallmentRow {
   amount_due: number;
   late_fee: number;
   paid_total: number;
+  /** The most recent payment date, or null while nothing has been paid. */
+  last_paid_on: string | null;
 }
 
 export interface Payment {
@@ -376,7 +449,8 @@ export interface Payment {
 }
 
 const INSTALLMENTS_SQL = (where: string) =>
-  "SELECT i.*, COALESCE(SUM(p.amount), 0) AS paid_total FROM installments i" +
+  "SELECT i.*, COALESCE(SUM(p.amount), 0) AS paid_total," +
+  " MAX(p.paid_on) AS last_paid_on FROM installments i" +
   " LEFT JOIN payments p ON p.installment_id = i.id" +
   ` WHERE ${where} GROUP BY i.id ORDER BY i.seq`;
 
@@ -439,6 +513,29 @@ export async function addPayment(
   );
 }
 
+export async function getPayment(db: Db, id: number): Promise<Payment | undefined> {
+  return (await db.select<Payment>("SELECT * FROM payments WHERE id = ?", [id]))[0];
+}
+
+/** Correct a payment that was entered wrongly. */
+export async function updatePayment(
+  db: Db,
+  id: number,
+  paidOn: string,
+  amount: number,
+  method: string | null,
+  note: string | null,
+): Promise<void> {
+  await db.execute(
+    "UPDATE payments SET paid_on = ?, amount = ?, method = ?, note = ? WHERE id = ?",
+    [paidOn, amount, method, note, id],
+  );
+}
+
+export async function deletePayment(db: Db, id: number): Promise<void> {
+  await db.execute("DELETE FROM payments WHERE id = ?", [id]);
+}
+
 /** Close the contract and mark the car sold once nothing is outstanding. */
 export async function completeContractIfPaid(db: Db, contractId: number): Promise<boolean> {
   const rows = await installmentsFor(db, contractId);
@@ -452,6 +549,27 @@ export async function completeContractIfPaid(db: Db, contractId: number): Promis
   await setCarStatus(db, contract.car_id, "sold");
   await addCarEvent(db, contract.car_id, todayIso(), "contract_completed", contractId);
   return true;
+}
+
+/**
+ * Bring the contract's status in line with what has been paid, after money is
+ * recorded, corrected, or removed. Repossessed and cancelled are staff
+ * decisions and are never undone here.
+ */
+export async function syncContractStatus(db: Db, contractId: number): Promise<void> {
+  if (await completeContractIfPaid(db, contractId)) return;
+
+  const contract = await getContract(db, contractId);
+  if (!contract || contract.status !== "completed") return;
+
+  const rows = await installmentsFor(db, contractId);
+  const owed = rows.some((r) => outstanding(r.amount_due, r.late_fee, r.paid_total) > 0);
+  if (!owed) return;
+
+  // A payment was corrected downwards or removed, so the contract is running
+  // again and the car is not sold after all.
+  await db.execute("UPDATE contracts SET status = 'active' WHERE id = ?", [contractId]);
+  await setCarStatus(db, contract.car_id, "on_contract");
 }
 
 /** Close the contract and take the car back. Staff-initiated only. */
@@ -473,6 +591,238 @@ export async function cancelContract(db: Db, contractId: number): Promise<void> 
   await setCarStatus(db, contract.car_id, "available");
 }
 
+export type FeeType = "down" | "insurance";
+
+export interface Fee {
+  id: number;
+  contract_id: number;
+  type: FeeType;
+  due_on: string;
+  /** Null until the client has actually paid. */
+  paid_on: string | null;
+  amount: number;
+  /** The police fine taken with an insurance fee. Null on a down payment. */
+  officer_amount: number | null;
+  /** The fine is often paid on its own day, so it keeps its own date. */
+  officer_paid_on: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export type FeeFields = Omit<Fee, "id" | "contract_id" | "created_at">;
+
+/** Every fee recorded against a contract, oldest first. */
+export async function contractFees(db: Db, contractId: number): Promise<Fee[]> {
+  return db.select<Fee>(
+    "SELECT * FROM fees WHERE contract_id = ? ORDER BY due_on, id",
+    [contractId],
+  );
+}
+
+export async function getFee(db: Db, id: number): Promise<Fee | undefined> {
+  return (await db.select<Fee>("SELECT * FROM fees WHERE id = ?", [id]))[0];
+}
+
+/** Record a fee, or correct the one at `id`. */
+export async function saveFee(
+  db: Db,
+  contractId: number,
+  fields: FeeFields,
+  id: number | null = null,
+): Promise<void> {
+  if (id) {
+    await db.execute(
+      "UPDATE fees SET type = ?, due_on = ?, paid_on = ?, amount = ?," +
+        " officer_amount = ?, officer_paid_on = ?, note = ? WHERE id = ?",
+      [
+        fields.type,
+        fields.due_on,
+        fields.paid_on,
+        fields.amount,
+        fields.officer_amount,
+        fields.officer_paid_on,
+        fields.note,
+        id,
+      ],
+    );
+    return;
+  }
+  await db.execute(
+    "INSERT INTO fees (contract_id, type, due_on, paid_on, amount, officer_amount," +
+      " officer_paid_on, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    [
+      contractId,
+      fields.type,
+      fields.due_on,
+      fields.paid_on,
+      fields.amount,
+      fields.officer_amount,
+      fields.officer_paid_on,
+      fields.note,
+      nowIso(),
+    ],
+  );
+}
+
+export async function deleteFee(db: Db, id: number): Promise<void> {
+  await db.execute("DELETE FROM fees WHERE id = ?", [id]);
+}
+
+export interface FeeSchedulePart {
+  id: number;
+  fee_id: number;
+  due_on: string;
+  amount: number;
+  created_at: string;
+}
+
+/** What the client promised to pay against one fee, and when. */
+export async function feeSchedule(db: Db, feeId: number): Promise<FeeSchedulePart[]> {
+  return db.select<FeeSchedulePart>(
+    "SELECT * FROM fee_schedule WHERE fee_id = ? ORDER BY due_on, id",
+    [feeId],
+  );
+}
+
+export async function addFeeSchedulePart(
+  db: Db,
+  feeId: number,
+  dueOn: string,
+  amount: number,
+): Promise<void> {
+  await db.execute(
+    "INSERT INTO fee_schedule (fee_id, due_on, amount, created_at) VALUES (?, ?, ?, ?)",
+    [feeId, dueOn, amount, nowIso()],
+  );
+}
+
+export async function deleteFeeSchedulePart(db: Db, id: number): Promise<void> {
+  await db.execute("DELETE FROM fee_schedule WHERE id = ?", [id]);
+}
+
+export interface FeePayment {
+  id: number;
+  fee_id: number;
+  paid_on: string;
+  amount: number;
+  note: string | null;
+  created_at: string;
+}
+
+/** What has been handed over against one fee, oldest first. */
+export async function feePayments(db: Db, feeId: number): Promise<FeePayment[]> {
+  return db.select<FeePayment>(
+    "SELECT * FROM fee_payments WHERE fee_id = ? ORDER BY paid_on, id",
+    [feeId],
+  );
+}
+
+export async function addFeePayment(
+  db: Db,
+  feeId: number,
+  paidOn: string,
+  amount: number,
+  note: string | null = null,
+): Promise<void> {
+  await db.execute(
+    "INSERT INTO fee_payments (fee_id, paid_on, amount, note, created_at)" +
+      " VALUES (?, ?, ?, ?, ?)",
+    [feeId, paidOn, amount, note, nowIso()],
+  );
+}
+
+export async function deleteFeePayment(db: Db, id: number): Promise<void> {
+  await db.execute("DELETE FROM fee_payments WHERE id = ?", [id]);
+}
+
+/**
+ * The late fee owed on the down payment: 15% of the whole charge for every
+ * strike, counted until the last part of it is in.
+ */
+export async function downFeeFine(
+  db: Db,
+  contractId: number,
+  today: string,
+): Promise<number> {
+  const down = (await contractFees(db, contractId)).find((f) => f.type === "down");
+  if (!down) return 0;
+  const promised = await feeSchedule(db, down.id);
+  return lateFee(
+    down.amount,
+    scheduleStrikes(
+      // With no arrangement on file, the whole down payment is due at once.
+      promised.length > 0 ? promised : [{ due_on: down.due_on, amount: down.amount }],
+      await feePayments(db, down.id),
+      today,
+    ),
+  );
+}
+
+/** Which of a contract's two late fees a payment is against. */
+export type LateFeeKind = "installment" | "down";
+
+export interface LateFeePayment {
+  id: number;
+  contract_id: number;
+  kind: LateFeeKind;
+  paid_on: string;
+  amount: number;
+  note: string | null;
+  created_at: string;
+}
+
+export type LateFeePaymentFields = Omit<
+  LateFeePayment,
+  "id" | "contract_id" | "kind" | "created_at"
+>;
+
+export async function lateFeePayments(
+  db: Db,
+  contractId: number,
+  kind: LateFeeKind,
+): Promise<LateFeePayment[]> {
+  return db.select<LateFeePayment>(
+    "SELECT * FROM late_fee_payments WHERE contract_id = ? AND kind = ?" +
+      " ORDER BY paid_on, id",
+    [contractId, kind],
+  );
+}
+
+export async function getLateFeePayment(
+  db: Db,
+  id: number,
+): Promise<LateFeePayment | undefined> {
+  return (
+    await db.select<LateFeePayment>("SELECT * FROM late_fee_payments WHERE id = ?", [id])
+  )[0];
+}
+
+/** Record money received against the late fee, or correct an earlier entry. */
+export async function saveLateFeePayment(
+  db: Db,
+  contractId: number,
+  kind: LateFeeKind,
+  fields: LateFeePaymentFields,
+  id: number | null = null,
+): Promise<void> {
+  if (id) {
+    await db.execute(
+      "UPDATE late_fee_payments SET paid_on = ?, amount = ?, note = ? WHERE id = ?",
+      [fields.paid_on, fields.amount, fields.note, id],
+    );
+    return;
+  }
+  await db.execute(
+    "INSERT INTO late_fee_payments (contract_id, kind, paid_on, amount, note," +
+      " created_at) VALUES (?, ?, ?, ?, ?, ?)",
+    [contractId, kind, fields.paid_on, fields.amount, fields.note, nowIso()],
+  );
+}
+
+export async function deleteLateFeePayment(db: Db, id: number): Promise<void> {
+  await db.execute("DELETE FROM late_fee_payments WHERE id = ?", [id]);
+}
+
 export interface DashboardRow extends InstallmentRow {
   first_name: string;
   last_name: string;
@@ -485,6 +835,7 @@ export interface DashboardRow extends InstallmentRow {
 export async function activeInstallments(db: Db): Promise<DashboardRow[]> {
   return db.select<DashboardRow>(
     "SELECT i.*, COALESCE(SUM(p.amount), 0) AS paid_total," +
+      " MAX(p.paid_on) AS last_paid_on," +
       " cl.first_name, cl.last_name, cars.brand, cars.series, cars.plate_number" +
       " FROM installments i" +
       " JOIN contracts c ON c.id = i.contract_id" +

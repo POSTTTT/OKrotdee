@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import BackButton from "../BackButton";
 import { useApp } from "../context";
 import { createClient, getClient, updateClient, type Client } from "../db";
-import { thaiId, ValidationError } from "../validate";
+import { ValidationError } from "../validate";
 
 export default function ClientForm() {
   const { db, t } = useApp();
@@ -31,14 +32,17 @@ export default function ClientForm() {
       if (!first_name || !last_name) {
         throw new ValidationError("err_name_required");
       }
-      const rawId = value("thai_id");
       const fields = {
         first_name,
         last_name,
-        thai_id: rawId ? thaiId(rawId) : null,
+        nickname: value("nickname"),
         phone: value("phone"),
         address: value("address"),
-        note: value("note"),
+        lo_work: value("lo_work"),
+        // Not on the form; carried through so an edit does not erase what an
+        // older version of the form recorded.
+        thai_id: client?.thai_id ?? null,
+        note: client?.note ?? null,
       };
       if (clientId) {
         await updateClient(db, clientId, fields);
@@ -48,13 +52,7 @@ export default function ClientForm() {
         navigate(`/clients/${newId}`);
       }
     } catch (e) {
-      setError(
-        e instanceof ValidationError
-          ? t(e.message)
-          : String(e).includes("UNIQUE")
-            ? t("err_thai_id_taken")
-            : String(e),
-      );
+      setError(e instanceof ValidationError ? t(e.message) : String(e));
     } finally {
       setBusy(false);
     }
@@ -62,6 +60,7 @@ export default function ClientForm() {
 
   return (
     <>
+      <BackButton />
       <h1>{t("clients")}</h1>
       {error && <p className="flash">{error}</p>}
       <form className="stack" key={client?.id ?? "new"} onSubmit={onSubmit}>
@@ -74,8 +73,8 @@ export default function ClientForm() {
           <input name="last_name" defaultValue={client?.last_name ?? ""} required />
         </label>
         <label>
-          {t("thai_id")}
-          <input name="thai_id" defaultValue={client?.thai_id ?? ""} />
+          {t("nickname")}
+          <input name="nickname" defaultValue={client?.nickname ?? ""} />
         </label>
         <label>
           {t("phone")}
@@ -86,8 +85,8 @@ export default function ClientForm() {
           <textarea name="address" rows={3} defaultValue={client?.address ?? ""} />
         </label>
         <label>
-          {t("note")}
-          <textarea name="note" rows={2} defaultValue={client?.note ?? ""} />
+          {t("lo_work")}
+          <textarea name="lo_work" rows={3} defaultValue={client?.lo_work ?? ""} />
         </label>
         <div>
           <button type="submit" disabled={busy}>

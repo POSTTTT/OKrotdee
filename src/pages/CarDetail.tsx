@@ -1,26 +1,34 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
+import BackButton from "../BackButton";
+import RowLink from "../RowLink";
 import { useApp } from "../context";
+import { formatDate } from "../dates";
+import DateInput from "../DateInput";
 import {
   addCarEvent,
   carContracts,
   carEvents,
+  deleteCar,
   getCar,
   type Car,
   type CarEvent,
   type ContractRow,
 } from "../db";
+import { isErrorKey } from "../lang";
 import { formatBaht, todayIso } from "../money";
 
 export default function CarDetail() {
   const { db, t } = useApp();
+  const navigate = useNavigate();
   const carId = Number(useParams().id);
   // undefined while loading, null when there is no such car.
   const [car, setCar] = useState<Car | null | undefined>();
   const [busy, setBusy] = useState(false);
   const [events, setEvents] = useState<CarEvent[]>([]);
   const [contracts, setContracts] = useState<ContractRow[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setCar((await getCar(db, carId)) ?? null);
@@ -62,21 +70,45 @@ export default function CarDetail() {
 
   return (
     <>
+      <BackButton />
       <h1>
-        {car.brand} {car.series ?? ""} {car.model_year ?? ""}{" "}
-        <span className={`tag ${car.status}`}>{t(car.status)}</span>{" "}
-        <Link className="button" to={`/cars/${car.id}/edit`}>
-          {t("edit")}
-        </Link>
+        {car.brand} {car.series ?? ""} {car.model_year ?? ""}
       </h1>
-      <p>
-        {t("plate_number")}: {car.plate_number ?? "-"} &middot; {t("color")}:{" "}
-        {car.color ?? "-"} &middot; {t("mileage")}: {car.mileage ?? "-"}
-      </p>
-      <p>
-        {t("cost_price")}: {car.cost_price != null ? formatBaht(car.cost_price) : "-"} &middot;{" "}
-        {t("asking_price")}: {car.asking_price != null ? formatBaht(car.asking_price) : "-"}
-      </p>
+      <div className="subhead">
+        <span className="tags">
+          <span className={`tag ${car.status}`}>{t(car.status)}</span>
+        </span>
+        <span className="actions">
+          <Link className="button" to={`/cars/${car.id}/edit`}>
+            {t("edit")}
+          </Link>
+          <button
+            className="danger"
+            onClick={async () => {
+              if (!confirm(t("confirm_delete_car"))) return;
+              try {
+                await deleteCar(db, car.id);
+                navigate("/cars");
+              } catch (e) {
+                setError(e instanceof Error && isErrorKey(e.message) ? t(e.message) : String(e));
+              }
+            }}
+          >
+            {t("delete")}
+          </button>
+        </span>
+      </div>
+      {error && <p className="flash">{error}</p>}
+      <dl className="facts">
+        <div>
+          <dt>{t("plate_number")}</dt>
+          <dd>{car.plate_number ?? "-"}</dd>
+        </div>
+        <div>
+          <dt>{t("color")}</dt>
+          <dd className="text">{car.color ?? "-"}</dd>
+        </div>
+      </dl>
 
       <h2>{t("contracts")}</h2>
       <table>
@@ -89,7 +121,7 @@ export default function CarDetail() {
         </thead>
         <tbody>
           {contracts.map((c) => (
-            <tr key={c.id}>
+            <RowLink key={c.id} to={`/contracts/${c.id}`}>
               <td>
                 <Link to={`/contracts/${c.id}`}>
                   {c.first_name} {c.last_name}
@@ -99,7 +131,7 @@ export default function CarDetail() {
               <td>
                 <span className={`tag ${c.status}`}>{t(c.status)}</span>
               </td>
-            </tr>
+            </RowLink>
           ))}
           {contracts.length === 0 && (
             <tr>
@@ -113,14 +145,14 @@ export default function CarDetail() {
       <ul className="timeline">
         {events.map((e) => (
           <li key={e.id}>
-            {e.event_date} — {t(e.type)}
+            {formatDate(e.event_date)} — {t(e.type)}
             {e.note ? `: ${e.note}` : ""}{" "}
             {e.contract_id && <Link to={`/contracts/${e.contract_id}`}>#{e.contract_id}</Link>}
           </li>
         ))}
       </ul>
       <form className="toolbar" onSubmit={addNote}>
-        <input type="date" name="event_date" defaultValue={todayIso()} />
+        <DateInput name="event_date" defaultValue={todayIso()} required />
         <input name="note" placeholder={t("add_note")} required />
         <button type="submit" disabled={busy}>
           {t("add_note")}

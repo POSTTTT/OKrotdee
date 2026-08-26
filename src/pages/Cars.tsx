@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+import RowLink from "../RowLink";
 import { useApp } from "../context";
 import { listCars, type Car } from "../db";
-import { formatBaht } from "../money";
 
 const STATUSES = ["available", "on_contract", "sold", "repossessed"] as const;
 
@@ -43,26 +43,26 @@ export default function Cars() {
           <tr>
             <th>{t("brand")}</th>
             <th>{t("series")}</th>
+            <th>{t("color")}</th>
             <th>{t("model_year")}</th>
             <th>{t("plate_number")}</th>
-            <th className="num">{t("asking_price")}</th>
             <th>{t("status")}</th>
           </tr>
         </thead>
         <tbody>
           {cars.map((c) => (
-            <tr key={c.id}>
+            <RowLink key={c.id} to={`/cars/${c.id}`}>
               <td>
                 <Link to={`/cars/${c.id}`}>{c.brand}</Link>
               </td>
               <td>{c.series ?? ""}</td>
+              <td>{c.color ?? ""}</td>
               <td>{c.model_year ?? ""}</td>
               <td>{c.plate_number ?? ""}</td>
-              <td className="num">{c.asking_price ? formatBaht(c.asking_price) : ""}</td>
               <td>
                 <span className={`tag ${c.status}`}>{t(c.status)}</span>
               </td>
-            </tr>
+            </RowLink>
           ))}
           {cars.length === 0 && (
             <tr>

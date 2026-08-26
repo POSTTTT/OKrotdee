@@ -1,18 +1,26 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
+import BackButton from "../BackButton";
+import RowLink from "../RowLink";
 import { useApp } from "../context";
+import { formatDate } from "../dates";
+import DateInput from "../DateInput";
 import {
   addPayment,
-  completeContractIfPaid,
+  deletePayment,
   getContract,
   getInstallment,
-  setLateFee,
+  getPayment,
+  paymentsFor,
+  syncContractStatus,
+  updatePayment,
+  type Payment,
   type ContractRow,
   type InstallmentRow,
 } from "../db";
 import { isErrorKey } from "../lang";
-import { daysLate, formatBaht, outstanding, toSatang, todayIso } from "../money";
+import { formatBaht, outstanding, toSatang, todayIso } from "../money";
 import { payment as validatePayment } from "../validate";
 
 export default function PaymentForm() {
@@ -27,13 +35,26 @@ export default function PaymentForm() {
   // record the money twice.
   const [busy, setBusy] = useState(false);
   const [paidOn, setPaidOn] = useState(todayIso());
+  const [payments, setPayments] = useState<Payment[]>([]);
+  // Set when correcting a payment already recorded, from ?payment=<id>.
+  const editingId = Number(useSearchParams()[0].get("payment")) || null;
+  const [editing, setEditing] = useState<Payment | null>(null);
 
   useEffect(() => {
     getInstallment(db, installmentId).then(async (row) => {
       setInstallment(row ?? null);
       setContract(row ? ((await getContract(db, row.contract_id)) ?? null) : null);
     });
-  }, [db, installmentId]);
+    paymentsFor(db, installmentId).then(setPayments);
+    if (editingId) {
+      getPayment(db, editingId).then((p) => {
+        setEditing(p ?? null);
+        if (p) setPaidOn(p.paid_on);
+      });
+    } else {
+      setEditing(null);
+    }
+  }, [db, installmentId, editingId]);
 
   if (installment === undefined || contract === undefined) return <p>{t("loading")}</p>;
   if (!installment || !contract) return <p>{t("not_found")}</p>;
@@ -43,7 +64,6 @@ export default function PaymentForm() {
     installment.late_fee,
     installment.paid_total,
   );
-  const late = daysLate(installment.due_date, paidOn);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -53,13 +73,15 @@ export default function PaymentForm() {
     setBusy(true);
     try {
       const amount = toSatang(text("amount"));
-      const lateFee = toSatang(text("late_fee") || "0");
       validatePayment(amount, paidOn, todayIso());
 
-      if (lateFee !== installment.late_fee) await setLateFee(db, installment.id, lateFee);
-      await addPayment(db, installment.id, paidOn, amount, text("method") || null,
-        text("note") || null);
-      await completeContractIfPaid(db, installment.contract_id);
+      const note = text("note") || null;
+      if (editing) {
+        await updatePayment(db, editing.id, paidOn, amount, null, note);
+      } else {
+        await addPayment(db, installment.id, paidOn, amount, null, note);
+      }
+      await syncContractStatus(db, installment.contract_id);
       navigate(`/contracts/${installment.contract_id}`);
     } catch (e) {
       setError(
@@ -76,53 +98,98 @@ export default function PaymentForm() {
 
   return (
     <>
+      <BackButton />
       <h1>
         {t("record_payment")} — {t("seq")} {installment.seq}
       </h1>
       <p>
         {t("client")}: {contract.first_name} {contract.last_name} &middot; {t("due_date")}:{" "}
-        {installment.due_date} &middot; {t("balance")}: {formatBaht(balance)}
+        {formatDate(installment.due_date)} &middot; {t("balance")}: {formatBaht(balance)}
       </p>
-      {late > 0 && (
-        <p className="flash">
-          {late} {t("days_late")}
-        </p>
-      )}
       {error && <p className="flash">{error}</p>}
-      <form className="stack" onSubmit={onSubmit}>
+
+      {payments.length > 0 && (
+        <>
+          <h2>{t("payments")}</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>{t("payment_date")}</th>
+                <th className="num">{t("amount")}</th>
+                <th>{t("note")}</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {payments.map((p) => (
+                <RowLink key={p.id} to={`/installments/${installment.id}/pay?payment=${p.id}`}>
+                  <td>{formatDate(p.paid_on)}</td>
+                  <td className="num">{formatBaht(p.amount)}</td>
+                  <td>{p.note ?? ""}</td>
+                  <td className="num">
+                    <Link className="button" to={`/installments/${installment.id}/pay?payment=${p.id}`}>
+                      {t("edit")}
+                    </Link>{" "}
+                    <button
+                      className="danger"
+                      disabled={busy}
+                      onClick={async () => {
+                        if (!confirm(t("confirm_delete_payment"))) return;
+                        setBusy(true);
+                        try {
+                          await deletePayment(db, p.id);
+                          await syncContractStatus(db, installment.contract_id);
+                          navigate(`/contracts/${installment.contract_id}`);
+                        } finally {
+                          setBusy(false);
+                        }
+                      }}
+                    >
+                      {t("delete")}
+                    </button>
+                  </td>
+                </RowLink>
+              ))}
+              <tr>
+                <td>{t("paid")}</td>
+                <td className="num">{formatBaht(installment.paid_total)}</td>
+                <td colSpan={2} />
+              </tr>
+            </tbody>
+          </table>
+        </>
+      )}
+
+      <h2>{editing ? t("edit") : t("record_payment")}</h2>
+      <form className="stack" key={editing?.id ?? "new"} onSubmit={onSubmit}>
         <label>
           {t("payment_date")}
+          <DateInput name="paid_on" defaultValue={paidOn} onChange={setPaidOn} required />
+        </label>
+        <label>
+          {t("amount")}
           <input
-            type="date"
-            name="paid_on"
-            value={paidOn}
-            onChange={(e) => setPaidOn(e.target.value)}
+            name="amount"
+            defaultValue={formatBaht(editing ? editing.amount : balance)}
             required
           />
         </label>
         <label>
-          {t("amount")}
-          <input name="amount" defaultValue={formatBaht(balance)} required />
-        </label>
-        <label>
-          {t("late_fee")}
-          <input name="late_fee" defaultValue={formatBaht(installment.late_fee)} />
-        </label>
-        <label>
-          {t("method")}
-          <select name="method" defaultValue="cash">
-            <option value="cash">{t("cash")}</option>
-            <option value="transfer">{t("transfer")}</option>
-          </select>
-        </label>
-        <label>
           {t("note")}
-          <input name="note" />
+          <input name="note" defaultValue={editing?.note ?? ""} />
         </label>
         <div className="toolbar">
           <button type="submit" disabled={busy}>
             {t("save")}
           </button>
+          {editing && (
+            <button
+              type="button"
+              onClick={() => navigate(`/installments/${installment.id}/pay`)}
+            >
+              {t("cancel")}
+            </button>
+          )}
         </div>
       </form>
     </>

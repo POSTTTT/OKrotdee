@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+import RowLink from "../RowLink";
 import { useApp } from "../context";
 import { listClients, type Client } from "../db";
 
@@ -32,19 +33,19 @@ export default function Clients() {
             <th>{t("first_name")}</th>
             <th>{t("last_name")}</th>
             <th>{t("phone")}</th>
-            <th>{t("thai_id")}</th>
+            <th>{t("nickname")}</th>
           </tr>
         </thead>
         <tbody>
           {clients.map((c) => (
-            <tr key={c.id}>
+            <RowLink key={c.id} to={`/clients/${c.id}`}>
               <td>
                 <Link to={`/clients/${c.id}`}>{c.first_name}</Link>
               </td>
               <td>{c.last_name}</td>
               <td>{c.phone ?? ""}</td>
-              <td>{c.thai_id ?? ""}</td>
-            </tr>
+              <td>{c.nickname ?? ""}</td>
+            </RowLink>
           ))}
           {clients.length === 0 && (
             <tr>

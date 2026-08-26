@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+import RowLink from "../RowLink";
 import { useApp } from "../context";
 import { listContracts, type ContractRow } from "../db";
 import { formatBaht } from "../money";
@@ -45,7 +46,7 @@ export default function Contracts() {
         </thead>
         <tbody>
           {contracts.map((c) => (
-            <tr key={c.id}>
+            <RowLink key={c.id} to={`/contracts/${c.id}`}>
               <td>
                 <Link to={`/contracts/${c.id}`}>
                   {c.first_name} {c.last_name}
@@ -60,7 +61,7 @@ export default function Contracts() {
               <td>
                 <span className={`tag ${c.status}`}>{t(c.status)}</span>
               </td>
-            </tr>
+            </RowLink>
           ))}
           {contracts.length === 0 && (
             <tr>

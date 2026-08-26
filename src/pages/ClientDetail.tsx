@@ -1,16 +1,21 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
+import BackButton from "../BackButton";
+import RowLink from "../RowLink";
 import { useApp } from "../context";
-import { clientContracts, getClient, type Client, type ContractRow } from "../db";
+import { clientContracts, deleteClient, getClient, type Client, type ContractRow } from "../db";
+import { isErrorKey } from "../lang";
 import { formatBaht } from "../money";
 
 export default function ClientDetail() {
   const { db, t } = useApp();
+  const navigate = useNavigate();
   const clientId = Number(useParams().id);
   // undefined while loading, null when there is no such client.
   const [client, setClient] = useState<Client | null | undefined>();
   const [contracts, setContracts] = useState<ContractRow[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     getClient(db, clientId).then((c) => setClient(c ?? null));
@@ -22,23 +27,53 @@ export default function ClientDetail() {
 
   return (
     <>
+      <BackButton />
       <h1>
-        {client.first_name} {client.last_name}{" "}
-        <Link className="button" to={`/clients/${client.id}/edit`}>
-          {t("edit")}
-        </Link>
+        {client.first_name} {client.last_name}
+        {client.nickname ? ` (${client.nickname})` : ""}
       </h1>
-      <p>
-        {t("phone")}: {client.phone ?? "-"} &middot; {t("thai_id")}: {client.thai_id ?? "-"}
-      </p>
-      <p>
-        {t("address")}: {client.address ?? "-"}
-      </p>
-      {client.note && (
-        <p>
-          {t("note")}: {client.note}
-        </p>
-      )}
+      <div className="subhead">
+        <span className="actions">
+          <Link className="button" to={`/clients/${client.id}/edit`}>
+            {t("edit")}
+          </Link>
+          <button
+            className="danger"
+            onClick={async () => {
+              if (!confirm(t("confirm_delete_client"))) return;
+              try {
+                await deleteClient(db, client.id);
+                navigate("/clients");
+              } catch (e) {
+                setError(e instanceof Error && isErrorKey(e.message) ? t(e.message) : String(e));
+              }
+            }}
+          >
+            {t("delete")}
+          </button>
+        </span>
+      </div>
+      {error && <p className="flash">{error}</p>}
+      <dl className="facts">
+        <div>
+          <dt>{t("phone")}</dt>
+          <dd>{client.phone ?? "-"}</dd>
+        </div>
+        <div>
+          <dt>{t("address")}</dt>
+          <dd className="text">{client.address ?? "-"}</dd>
+        </div>
+        <div>
+          <dt>{t("lo_work")}</dt>
+          <dd className="text">{client.lo_work ?? "-"}</dd>
+        </div>
+        {client.note && (
+          <div>
+            <dt>{t("note")}</dt>
+            <dd className="text">{client.note}</dd>
+          </div>
+        )}
+      </dl>
 
       <h2>{t("contracts")}</h2>
       <table>
@@ -52,7 +87,7 @@ export default function ClientDetail() {
         </thead>
         <tbody>
           {contracts.map((c) => (
-            <tr key={c.id}>
+            <RowLink key={c.id} to={`/contracts/${c.id}`}>
               <td>
                 <Link to={`/contracts/${c.id}`}>
                   {c.brand} {c.series ?? ""}
@@ -63,7 +98,7 @@ export default function ClientDetail() {
               <td>
                 <span className={`tag ${c.status}`}>{t(c.status)}</span>
               </td>
-            </tr>
+            </RowLink>
           ))}
           {contracts.length === 0 && (
             <tr>

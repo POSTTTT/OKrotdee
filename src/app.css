@@ -115,24 +115,84 @@ main {
 }
 
 h1 {
-  font-size: 1.45rem;
+  font-size: 1.6rem;
   font-weight: 600;
   letter-spacing: -0.015em;
-  margin: 0 0 1rem;
+  line-height: 1.35;
+  margin: 0 0 0.85rem;
   display: flex;
   align-items: center;
   gap: 0.6rem;
   flex-wrap: wrap;
 }
+h1 .right { margin-left: auto; display: flex; gap: 0.5rem; }
+
+/* The line under the title: what this record *is* on the left, what you can
+   do to it on the right. Keeping them apart stops the head reading as a blob. */
+.subhead {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0 0 1.25rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--line);
+}
+.subhead .actions { margin-left: auto; display: flex; gap: 0.5rem; }
+
+/* Tags never sit flush against each other or against text. */
+.tags { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; }
+
 h2 {
   font-size: 0.82rem;
   font-weight: 600;
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--ink-soft);
-  margin: 2.5rem 0 0.75rem;
+  margin: 2.75rem 0 0.85rem;
 }
 p { margin: 0.5rem 0; }
+
+/* ---------- Fact strip ---------- */
+
+/* The contract figures used to run together in one sentence. One cell per
+   number, ruled apart, so a glance lands on the figure and not the prose. */
+dl.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1px;
+  margin: 0 0 1.5rem;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+dl.facts > div { background: var(--surface); padding: 0.8rem 1.1rem; }
+dl.facts dt {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink-faint);
+}
+dl.facts dd {
+  margin: 0.1rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+/* The down payment reads at a glance: green once it is in, red while it is not. */
+dl.facts > div.settled { background: var(--good-wash); }
+dl.facts > div.owing { background: var(--alarm-wash); }
+dl.facts dd.sub {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+  letter-spacing: 0;
+}
+
+dl.facts dd small { font-size: 0.85rem; font-weight: 500; color: var(--ink-soft); }
+/* A free-text value (address, note) is prose, not a figure. */
+dl.facts dd.text { font-size: 0.95rem; font-weight: 400; letter-spacing: 0; }
 
 /* ---------- Tables ---------- */
 
@@ -146,12 +206,14 @@ table {
   font-size: 0.94rem;
 }
 th, td {
-  padding: 0.6rem 0.75rem;
+  padding: 0.7rem 1rem;
   border-bottom: 1px solid var(--line);
   text-align: left;
 }
 th {
   background: var(--paper);
+  padding-top: 0.6rem;
+  padding-bottom: 0.6rem;
   font-weight: 600;
   font-size: 0.78rem;
   letter-spacing: 0.05em;
@@ -180,6 +242,7 @@ tbody td[colspan] {
 /* ---------- Forms ---------- */
 
 form.stack { display: grid; gap: 0.9rem; max-width: 34rem; }
+form.stack .hint { margin: -0.5rem 0 0; font-size: 0.82rem; color: var(--ink-soft); }
 label {
   display: grid;
   gap: 0.3rem;
@@ -204,6 +267,17 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 3px var(--accent-wash);
 }
 textarea { resize: vertical; }
+
+.date-input { display: flex; gap: 0.4rem; align-items: center; }
+.date-input select { min-width: 4.5rem; }
+.date-input select:nth-of-type(2) { min-width: 6rem; }
+button.ghost {
+  background: transparent;
+  color: var(--ink-soft);
+  border: 1px solid var(--line-strong);
+  padding: 0.4rem 0.6rem;
+}
+button.ghost:hover { background: var(--surface); color: var(--ink); }
 
 /* ---------- Buttons ---------- */
 
@@ -278,7 +352,7 @@ button.danger:disabled:hover { background: var(--alarm); }
 .tag.active {
   background: var(--accent-wash); color: var(--accent); border-color: #c3d3e0;
 }
-.tag.PARTIAL, .tag.OVERDUE {
+.tag.PARTIAL, .tag.OVERDUE, .tag.unpaid {
   background: var(--warn-wash); color: var(--warn); border-color: #e4cf9f;
 }
 /* The loudest thing on the screen, because of what it means. */
@@ -329,6 +403,30 @@ ul.timeline li {
 }
 ul.timeline li:last-child { border-bottom: 0; }
 ul.timeline a { color: var(--accent); }
+
+/* A row's own buttons should not outshout the numbers they sit beside. */
+td .button, td button { padding: 0.32rem 0.7rem; font-size: 0.86rem; }
+td .button {
+  background: transparent;
+  color: var(--accent);
+  border-color: var(--line-strong);
+}
+td .button:hover { background: var(--accent-wash); color: var(--accent-deep); }
+td button.danger {
+  background: transparent;
+  color: var(--alarm);
+  border-color: #e0b3ad;
+}
+td button.danger:hover { background: var(--alarm-wash); }
+td.row-actions { text-align: right; white-space: nowrap; }
+td.row-actions > * + * { margin-left: 0.4rem; }
+/* Secondary date under a figure: present, but clearly the smaller fact. */
+td small { display: block; font-size: 0.82rem; color: var(--ink-faint); }
+
+/* A whole row opens its page, so it wants a pointer and a firmer hover than
+   the plain row highlight above. */
+tbody tr.clickable { cursor: pointer; }
+tbody tr.clickable:hover { background: var(--paper); }
 
 /* ---------- Toolbar ---------- */
 

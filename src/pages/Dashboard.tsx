@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { backupTo, showBackups } from "../backup";
+import RowLink from "../RowLink";
 import { useApp } from "../context";
+import { formatDate } from "../dates";
 import { activeInstallments, collectedBetween, overdueRow, type DashboardRow } from "../db";
 import {
   contractFlag,
@@ -37,8 +39,8 @@ function Rows({ items }: { items: DashboardRow[] }) {
       </thead>
       <tbody>
         {items.map((i) => (
-          <tr key={i.id}>
-            <td>{i.due_date}</td>
+          <RowLink key={i.id} to={`/contracts/${i.contract_id}`}>
+            <td>{formatDate(i.due_date)}</td>
             <td>
               <Link to={`/contracts/${i.contract_id}`}>
                 {i.first_name} {i.last_name}
@@ -63,7 +65,7 @@ function Rows({ items }: { items: DashboardRow[] }) {
                 {t(installmentState(i.amount_due, i.late_fee, i.paid_total, i.due_date, today))}
               </span>
             </td>
-          </tr>
+          </RowLink>
         ))}
         {items.length === 0 && (
           <tr>
