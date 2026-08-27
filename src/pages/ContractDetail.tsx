@@ -210,7 +210,7 @@ export default function ContractDetail() {
         </Link>
       </h2>
       {insuranceFees.length > 0 && (
-        <>
+        <div className="scroll">
           <table>
             <thead>
               <tr>
@@ -269,11 +269,12 @@ export default function ContractDetail() {
               ))}
             </tbody>
           </table>
-        </>
+        </div>
       )}
 
       <h2>{t("schedule")}</h2>
-      <table>
+      <div className="scroll">
+        <table>
         <thead>
           <tr>
             <th>{t("seq")}</th>
@@ -314,8 +315,9 @@ export default function ContractDetail() {
               </tr>
             );
           })}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
 
       {paying !== null && (
         <Modal

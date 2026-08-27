@@ -311,7 +311,7 @@ table {
 th, td {
   padding: var(--s3) var(--s4);
   border-bottom: 1px solid var(--line);
-  text-align: left;
+  text-align: center;
 }
 th {
   background: var(--paper);
@@ -329,10 +329,17 @@ th {
   z-index: 1;
   box-shadow: inset 0 -1px 0 var(--line-strong);
 }
+/* A vertical rule between columns, so a figure belongs to the heading above
+   it and not to the number beside it. */
+th + th, td + td { border-left: 1px solid var(--line); }
 tbody tr:last-child td { border-bottom: 0; }
 tbody tr { transition: background var(--speed); }
 tbody tr:hover { background: #faf8f4; }
+/* Money stays right-aligned: centering it would break the decimal point the
+   eye runs down when comparing one row to the next. */
 td.num, th.num { text-align: right; }
+/* The "nothing here yet" row and free text keep their own alignment. */
+td.row-actions { text-align: right; }
 table a { color: var(--accent); font-weight: 500; text-decoration: none; }
 table a:hover { text-decoration: underline; }
 /* The "nothing here yet" row should read as a state, not as data. */
@@ -342,10 +349,37 @@ tbody td[colspan] {
   text-align: center;
 }
 
+/* A 72-row schedule scrolls in a frame of its own, so what sits under it
+   stays reachable and the column headings stay in view. */
+.scroll {
+  max-height: 26rem;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.scroll table { border: 0; border-radius: 0; }
+
 /* ---------- Forms ---------- */
 
-form.stack { display: grid; gap: var(--s4); max-width: 34rem; }
-form.stack .hint { margin: -0.5rem 0 0; font-size: 0.82rem; color: var(--ink-soft); }
+/* Two or three fields to a row: a form the staff fill at the counter should
+   be one screenful, not a column of boxes with an empty half beside it. */
+form.stack {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: var(--s4) var(--s5);
+  align-items: start;
+  max-width: 58rem;
+  /* Centered under the head that names it, rather than hugging the left edge
+     of a window twice its width. */
+  margin-inline: auto;
+}
+/* Prose and the buttons that end the form take the whole width. */
+form.stack > label.wide,
+form.stack > div,
+form.stack > .hint { grid-column: 1 / -1; }
+form.stack > label:has(textarea) { grid-column: 1 / -1; }
+form.stack .hint { margin: calc(var(--s3) * -1) 0 0; font-size: 0.82rem; color: var(--ink-soft); }
 label {
   display: grid;
   gap: var(--s1);
@@ -566,6 +600,7 @@ dialog.modal {
 }
 dialog.modal .pagehead { padding-bottom: var(--s3); }
 dialog.modal h1 { font-size: 1.25rem; }
+dialog.modal form.stack { grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
 /* The first heading inside the dialog has the head above it already. */
 dialog.modal h2 { margin-top: var(--s5); }
 dialog.modal .close {
