@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  addContractCoClient,
   activeContractForCar,
   activeInstallments,
   addCarEvent,
@@ -14,6 +15,8 @@ import {
   createCar,
   createClient,
   createContract,
+  contractCoClients,
+  removeContractCoClient,
   addFeePayment,
   addFeeSchedulePart,
   contractFees,
@@ -980,5 +983,29 @@ describe("the down payment's late fee", () => {
     expect(part.note).toBe("cash");
     await deleteFeePayment(db, part.id);
     expect(await feePayments(db, feeId)).toHaveLength(0);
+  });
+});
+
+describe("co-signers", () => {
+  it("lists a second signer, finds the contract from their page, and lets go", async () => {
+    const db = await seeded();
+    await createClient(db, { ...CLIENT, first_name: "Sup", thai_id: null });
+    const id = await createContract(db, CONTRACT);
+
+    // The main client cannot sign twice.
+    await expect(addContractCoClient(db, id, 1)).rejects.toThrow(
+      /err_client_already_on_contract/,
+    );
+
+    await addContractCoClient(db, id, 2);
+    await addContractCoClient(db, id, 2);
+    expect(await contractCoClients(db, id)).toHaveLength(1);
+    // The contract shows on the co-signer's page too, so deleting them is refused.
+    expect(await clientContracts(db, 2)).toHaveLength(1);
+    await expect(deleteClient(db, 2)).rejects.toThrow(/err_client_has_contracts/);
+
+    await removeContractCoClient(db, id, 2);
+    expect(await contractCoClients(db, id)).toHaveLength(0);
+    expect(await clientContracts(db, 2)).toHaveLength(0);
   });
 });

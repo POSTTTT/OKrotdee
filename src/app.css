@@ -640,3 +640,129 @@ dialog.modal::backdrop { background: rgba(35, 32, 28, 0.34); }
 }
 .toolbar input, .toolbar select { height: 36px; }
 .toolbar input[name="q"] { min-width: 16rem; }
+
+/* The people signing alongside the main client, read in a dialog: one per
+   line, their details under the name, the way out beside them. */
+ul.parties {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+ul.parties li {
+  display: flex;
+  gap: var(--s3);
+  align-items: center;
+  justify-content: space-between;
+}
+ul.parties a {
+  display: grid;
+  gap: 0.1rem;
+  text-decoration: none;
+}
+ul.parties .name { font-weight: 600; color: var(--ink); }
+ul.parties .sub { font-size: 0.85rem; color: var(--ink-soft); }
+
+/* The tab that opens them, standing to the left of the client it belongs to. */
+.pair .cosign {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.1rem;
+  margin-right: var(--s2);
+  padding: var(--s3);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  text-transform: none;
+  letter-spacing: normal;
+  cursor: pointer;
+}
+.pair .cosign:hover { border-color: var(--accent); color: var(--accent); }
+.pair .cosign .count { font-size: 1.1rem; font-weight: 700; }
+
+/* Who the contract ties together, set apart from the money terms that follow
+   it by a rule across the form. Three columns: client, the arrow between, car.
+   A co-signer takes the client's column, so it is the same size and sits
+   directly under the person it signs with. */
+form.stack > .parties {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: start;
+  gap: var(--s3);
+  padding-bottom: var(--s5);
+  border-bottom: 1px solid var(--line);
+}
+.parties .slot {
+  position: relative;
+  display: flex;
+  grid-column: 1;
+}
+.parties .slot .party { flex: 1; min-width: 0; }
+.parties > button.ghost { grid-column: 1 / -1; justify-self: start; }
+.slot .drop {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  padding: 0 var(--s2);
+  border: 0;
+  background: transparent;
+  color: var(--ink-faint);
+  font-size: 1.1rem;
+  line-height: 1.5;
+}
+.slot .drop:hover { color: var(--alarm); }
+
+/* The same pair as the contract page, but each half opens a list to choose
+   from. The card itself is the button. */
+form.stack > .pair.picker { grid-column: 1 / -1; }
+.pair.picker .party { flex: 1; min-width: 0; }
+button.party.pick {
+  align-items: flex-start;
+  cursor: pointer;
+  font: inherit;
+  text-transform: none;
+  letter-spacing: normal;
+}
+button.party.pick:hover { border-color: var(--accent); }
+.party.pick .name { font-size: 1.15rem; font-weight: 600; }
+.party.pick .name.empty { color: var(--ink-faint); font-weight: 400; }
+
+/* Choosing out of a list: the search box first, then the rows, scrolling on
+   their own so the dialog stays put. */
+.modal .search { width: 100%; margin-bottom: var(--s3); }
+.picklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 22rem;
+  overflow-y: auto;
+  display: grid;
+  gap: var(--s1);
+}
+.picklist button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  width: 100%;
+  padding: var(--s2) var(--s3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-transform: none;
+  letter-spacing: normal;
+  cursor: pointer;
+}
+.picklist button:hover { background: var(--accent-wash); }
+.picklist button.chosen { border-color: var(--accent); }
+.picklist .name { font-weight: 600; }
+.picklist .sub { font-size: 0.85rem; color: var(--ink-soft); }
+.picklist .none { padding: var(--s3); color: var(--ink-soft); }

@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import BackButton from "../BackButton";
 import RowLink from "../RowLink";
 import { useApp } from "../context";
+import { phoneList } from "../phone";
 import { clientContracts, deleteClient, getClient, type Client, type ContractRow } from "../db";
 import { isErrorKey } from "../lang";
 import { formatBaht } from "../money";
@@ -58,9 +59,10 @@ export default function ClientDetail() {
         <div>
           <dt>{t("phone")}</dt>
           <dd>
-            {client.phone
-              ? client.phone.split("\n").map((phone) => <div key={phone}>{phone}</div>)
-              : "-"}
+            {phoneList(client.phone).map((phone) => (
+              <div key={phone}>{phone}</div>
+            ))}
+            {!client.phone && "-"}
           </dd>
         </div>
         <div>

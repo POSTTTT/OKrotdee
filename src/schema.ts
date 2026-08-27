@@ -51,6 +51,17 @@ CREATE TABLE IF NOT EXISTS contracts (
   created_at         TEXT NOT NULL
 );
 
+-- A contract is often signed by more than one person. The main client stays
+-- on contracts.client_id; everyone else signing alongside them is listed here,
+-- as many as the paperwork names.
+CREATE TABLE IF NOT EXISTS contract_clients (
+  contract_id INTEGER NOT NULL REFERENCES contracts(id),
+  client_id   INTEGER NOT NULL REFERENCES clients(id),
+  role        TEXT NOT NULL DEFAULT 'sup',
+  created_at  TEXT NOT NULL,
+  PRIMARY KEY (contract_id, client_id)
+);
+
 CREATE TABLE IF NOT EXISTS installments (
   id          INTEGER PRIMARY KEY,
   contract_id INTEGER NOT NULL REFERENCES contracts(id),
@@ -155,6 +166,7 @@ CREATE INDEX IF NOT EXISTS idx_installments_contract ON installments(contract_id
 CREATE INDEX IF NOT EXISTS idx_payments_installment  ON payments(installment_id);
 CREATE INDEX IF NOT EXISTS idx_car_events_car        ON car_events(car_id);
 CREATE INDEX IF NOT EXISTS idx_contracts_client      ON contracts(client_id);
+CREATE INDEX IF NOT EXISTS idx_contract_clients_client ON contract_clients(client_id);
 CREATE INDEX IF NOT EXISTS idx_contracts_car         ON contracts(car_id);
 `;
 

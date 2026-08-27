@@ -185,12 +185,51 @@ export async function updateClient(db: Db, id: number, fields: ClientFields): Pr
   );
 }
 
+/** Every contract this client signed, as the main client or alongside one. */
 export async function clientContracts(db: Db, clientId: number): Promise<ContractRow[]> {
   return db.select<ContractRow>(
     "SELECT c.*, cars.brand, cars.series, cars.plate_number FROM contracts c" +
       " JOIN cars ON cars.id = c.car_id WHERE c.client_id = ?" +
+      " OR c.id IN (SELECT contract_id FROM contract_clients WHERE client_id = ?)" +
       " ORDER BY c.created_at DESC",
-    [clientId],
+    [clientId, clientId],
+  );
+}
+
+/** The people signing alongside the main client, who stays on the contract row. */
+export async function contractCoClients(db: Db, contractId: number): Promise<Client[]> {
+  return db.select<Client>(
+    "SELECT cl.* FROM contract_clients cc JOIN clients cl ON cl.id = cc.client_id" +
+      " WHERE cc.contract_id = ? ORDER BY cl.first_name, cl.last_name",
+    [contractId],
+  );
+}
+
+export async function addContractCoClient(
+  db: Db,
+  contractId: number,
+  clientId: number,
+): Promise<void> {
+  const contract = await getContract(db, contractId);
+  if (!contract) throw new Error("err_no_such_contract");
+  // The main client is already on the contract; listing them again would show
+  // the same person twice.
+  if (contract.client_id === clientId) throw new Error("err_client_already_on_contract");
+  await db.execute(
+    "INSERT OR IGNORE INTO contract_clients (contract_id, client_id, created_at)" +
+      " VALUES (?, ?, ?)",
+    [contractId, clientId, nowIso()],
+  );
+}
+
+export async function removeContractCoClient(
+  db: Db,
+  contractId: number,
+  clientId: number,
+): Promise<void> {
+  await db.execute(
+    "DELETE FROM contract_clients WHERE contract_id = ? AND client_id = ?",
+    [contractId, clientId],
   );
 }
 

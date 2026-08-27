@@ -5,10 +5,12 @@ import BackButton from "../BackButton";
 import Modal from "../Modal";
 import PaymentForm from "./PaymentForm";
 import RowLink from "../RowLink";
+import { phoneList } from "../phone";
 import { useApp } from "../context";
 import { formatDate } from "../dates";
 import {
   cancelContract,
+  contractCoClients,
   contractFees,
   deleteFee,
   downFeeFine,
@@ -16,8 +18,10 @@ import {
   getContract,
   installmentsFor,
   lateFeePayments,
+  removeContractCoClient,
   overdueRow,
   repossessContract,
+  type Client,
   type Fee,
   type ContractRow,
   type InstallmentRow,
@@ -48,6 +52,9 @@ export default function ContractDetail() {
   const [downFinePaid, setDownFinePaid] = useState(0);
   const [downFine, setDownFine] = useState(0);
   const [downPaid, setDownPaid] = useState(0);
+  // Everyone signing alongside the main client, and the pool to add from.
+  const [coClients, setCoClients] = useState<Client[]>([]);
+  const [showCo, setShowCo] = useState(false);
 
   const load = useCallback(async () => {
     setContract((await getContract(db, contractId)) ?? null);
@@ -62,6 +69,7 @@ export default function ContractDetail() {
     setLateFeePaid(total(await lateFeePayments(db, contractId, "installment")));
     setDownFinePaid(total(await lateFeePayments(db, contractId, "down")));
     setDownFine(await downFeeFine(db, contractId, todayIso()));
+    setCoClients(await contractCoClients(db, contractId));
   }, [db, contractId]);
 
   useEffect(() => {
@@ -102,6 +110,14 @@ export default function ContractDetail() {
         {/* A contract is one client tied to one car: show the tie, and let each
             side be the way through to its own record. */}
         <h1 className="pair">
+          {/* Whoever signed alongside the client stands to their left, one
+              press away from their details. */}
+          {coClients.length > 0 && (
+            <button type="button" className="cosign" onClick={() => setShowCo(true)}>
+              <span className="role">{t("co_signers")}</span>
+              <span className="count">{coClients.length}</span>
+            </button>
+          )}
           <Link className="party" to={`/clients/${contract.client_id}`}>
             <span className="role">{t("client")}</span>
             {contract.first_name} {contract.last_name}
@@ -318,6 +334,37 @@ export default function ContractDetail() {
           </tbody>
         </table>
       </div>
+
+      {showCo && (
+        <Modal onClose={() => setShowCo(false)}>
+          <h2>{t("co_signers")}</h2>
+          <ul className="parties">
+            {coClients.map((c) => (
+              <li key={c.id}>
+                <Link to={`/clients/${c.id}`}>
+                  <span className="name">
+                    {c.first_name} {c.last_name}
+                    {c.nickname && <small> ({c.nickname})</small>}
+                  </span>
+                  <span className="sub">
+                    {[...phoneList(c.phone), c.address, c.lo_work].filter(Boolean).join(" · ")}
+                  </span>
+                </Link>
+                <button
+                  className="danger"
+                  onClick={async () => {
+                    await removeContractCoClient(db, contract.id, c.id);
+                    setShowCo(false);
+                    await load();
+                  }}
+                >
+                  {t("delete")}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Modal>
+      )}
 
       {paying !== null && (
         <Modal

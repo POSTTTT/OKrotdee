@@ -5,7 +5,10 @@ import BackButton from "../BackButton";
 import { useApp } from "../context";
 import { formatDate } from "../dates";
 import DateInput from "../DateInput";
+import Picker from "../Picker";
+import { phoneList } from "../phone";
 import {
+  addContractCoClient,
   availableCars,
   createContract,
   listClients,
@@ -23,6 +26,12 @@ export default function ContractForm() {
   const [cars, setCars] = useState<Car[]>([]);
   const [preview, setPreview] = useState<{ dates: string[]; amount: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Nothing is chosen until the staff choose it: a contract written against
+  // whoever happened to be first in the list is worse than an empty field.
+  const [clientId, setClientId] = useState<number | null>(null);
+  const [carId, setCarId] = useState<number | null>(null);
+  // One entry per co-signer on the paperwork, each picked the same way.
+  const [coIds, setCoIds] = useState<(number | null)[]>([]);
   // One contract per click: a second click while the write is in flight would
   // insert a second contract and charge the client twice.
   const [busy, setBusy] = useState(false);
@@ -34,6 +43,7 @@ export default function ContractForm() {
 
   const readFields = (form: FormData): ContractFields => {
     const text = (key: string) => ((form.get(key) as string) ?? "").trim();
+    if (!text("client_id") || !text("car_id")) throw new Error("err_choose_client_car");
     const firstDue = text("first_due_date");
     if (!firstDue) throw new Error("err_choose_first_due_date");
     const fields: ContractFields = {
@@ -75,7 +85,11 @@ export default function ContractForm() {
         setPreview({ dates, amount: fields.installment_amount });
         return;
       }
-      navigate(`/contracts/${await createContract(db, fields)}`);
+      const id = await createContract(db, fields);
+      for (const co of coIds) {
+        if (co) await addContractCoClient(db, id, co);
+      }
+      navigate(`/contracts/${id}`);
     } catch (e) {
       setError(
         e instanceof Error
@@ -97,26 +111,67 @@ export default function ContractForm() {
       </div>
       {error && <p className="flash">{error}</p>}
       <form className="stack" onSubmit={onSubmit}>
-        <label>
-          {t("client")}
-          <select name="client_id" required>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.first_name} {c.last_name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          {t("car")}
-          <select name="car_id" required>
-            {cars.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.brand} {c.series ?? ""} {c.plate_number ?? ""}
-              </option>
-            ))}
-          </select>
-        </label>
+        {/* Who and what the contract ties together, kept apart from the money
+            terms below: the client on the left, the car on the right, and
+            anyone signing alongside them in a card of the same size beneath. */}
+        <div className="pair picker parties">
+          <Picker
+            name="client_id"
+            label={t("client")}
+            value={clientId}
+            onPick={setClientId}
+            items={clients.map((c) => ({
+              id: c.id,
+              text: `${c.first_name} ${c.last_name}`,
+              sub: [c.nickname, ...phoneList(c.phone)].filter(Boolean).join(" · ") || null,
+            }))}
+          />
+          <span className="arrow" aria-hidden="true">
+            &rarr;
+          </span>
+          <Picker
+            name="car_id"
+            label={t("car")}
+            value={carId}
+            onPick={setCarId}
+            items={cars.map((c) => ({
+              id: c.id,
+              text: `${c.brand} ${c.series ?? ""}`.trim(),
+              sub:
+                [c.plate_number, c.color, c.model_year].filter(Boolean).join(" · ") || null,
+            }))}
+          />
+          {coIds.map((id, index) => (
+            <span className="slot" key={index}>
+              <Picker
+                label={t("co_signers")}
+                value={id}
+                onPick={(picked) =>
+                  setCoIds(coIds.map((old, i) => (i === index ? picked : old)))
+                }
+                items={clients
+                  // Nobody signs twice: not the main client, not another row.
+                  .filter((c) => c.id === id || (c.id !== clientId && !coIds.includes(c.id)))
+                  .map((c) => ({
+                    id: c.id,
+                    text: `${c.first_name} ${c.last_name}`,
+                    sub: [c.nickname, ...phoneList(c.phone)].filter(Boolean).join(" · ") || null,
+                  }))}
+              />
+              <button
+                type="button"
+                className="drop"
+                aria-label={t("delete")}
+                onClick={() => setCoIds(coIds.filter((_, i) => i !== index))}
+              >
+                &times;
+              </button>
+            </span>
+          ))}
+          <button type="button" className="ghost" onClick={() => setCoIds([...coIds, null])}>
+            + {t("add_co_signer")}
+          </button>
+        </div>
         <label>
           {t("car_price")}
           <input name="car_price" />

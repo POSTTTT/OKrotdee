@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import RowLink from "../RowLink";
 import { useApp } from "../context";
+import { phoneList } from "../phone";
 import { listClients, type Client } from "../db";
 
 export default function Clients() {
@@ -48,7 +49,7 @@ export default function Clients() {
                 <Link to={`/clients/${c.id}`}>{c.first_name}</Link>
               </td>
               <td>{c.last_name}</td>
-              <td>{c.phone?.split("\n").join(", ") ?? ""}</td>
+              <td>{phoneList(c.phone).join(", ")}</td>
               <td>{c.nickname ?? ""}</td>
             </RowLink>
           ))}
