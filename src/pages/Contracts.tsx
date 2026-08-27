@@ -19,7 +19,14 @@ export default function Contracts() {
 
   return (
     <>
-      <h1>{t("contracts")}</h1>
+      <div className="pagehead">
+        <h1>{t("contracts")}</h1>
+        <span className="actions">
+          <Link className="button" to="/contracts/new">
+            + {t("new")}
+          </Link>
+        </span>
+      </div>
       <div className="toolbar">
         <select value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">{t("status")}</option>
@@ -29,9 +36,6 @@ export default function Contracts() {
             </option>
           ))}
         </select>
-        <Link className="button" to="/contracts/new">
-          + {t("new")}
-        </Link>
       </div>
       <table>
         <thead>

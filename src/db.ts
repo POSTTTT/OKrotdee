@@ -220,6 +220,8 @@ export interface Car {
   mileage: number | null;
   cost_price: number | null;
   asking_price: number | null;
+  /** The day the car's own insurance runs out, when it came with one. */
+  insurance_expires_on: string | null;
   status: CarStatus;
   note: string | null;
   created_at: string;
@@ -247,6 +249,7 @@ const CAR_VALUES = (f: CarFields) => [
   f.mileage,
   f.cost_price,
   f.asking_price,
+  f.insurance_expires_on,
   f.note,
 ];
 
@@ -286,8 +289,9 @@ export async function addCarEvent(
 export async function createCar(db: Db, fields: CarFields): Promise<number> {
   const { lastInsertId } = await db.execute(
     "INSERT INTO cars (brand, series, model_year, color, plate_number," +
-      " registration_no, chassis_no, mileage, cost_price, asking_price, note," +
-      " status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'available', ?)",
+      " registration_no, chassis_no, mileage, cost_price, asking_price," +
+      " insurance_expires_on, note, status, created_at)" +
+      " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'available', ?)",
     [...CAR_VALUES(fields), nowIso()],
   );
   await addCarEvent(db, lastInsertId, todayIso(), "acquired");
@@ -298,7 +302,8 @@ export async function updateCar(db: Db, id: number, fields: CarFields): Promise<
   await db.execute(
     "UPDATE cars SET brand = ?, series = ?, model_year = ?, color = ?," +
       " plate_number = ?, registration_no = ?, chassis_no = ?, mileage = ?," +
-      " cost_price = ?, asking_price = ?, note = ? WHERE id = ?",
+      " cost_price = ?, asking_price = ?, insurance_expires_on = ?, note = ?" +
+      " WHERE id = ?",
     [...CAR_VALUES(fields), id],
   );
 }

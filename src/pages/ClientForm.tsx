@@ -13,11 +13,18 @@ export default function ClientForm() {
   const clientId = id ? Number(id) : null;
 
   const [client, setClient] = useState<Client | null>(null);
+  // A client often answers on two or three numbers. They are kept one per
+  // line in the same column, so search still matches any of them.
+  const [phones, setPhones] = useState<string[]>([""]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (clientId) getClient(db, clientId).then((c) => setClient(c ?? null));
+    if (clientId)
+      getClient(db, clientId).then((c) => {
+        setClient(c ?? null);
+        setPhones(c?.phone ? c.phone.split("\n") : [""]);
+      });
   }, [db, clientId]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -36,7 +43,12 @@ export default function ClientForm() {
         first_name,
         last_name,
         nickname: value("nickname"),
-        phone: value("phone"),
+        phone:
+          form
+            .getAll("phone")
+            .map((p) => String(p).trim())
+            .filter(Boolean)
+            .join("\n") || null,
         address: value("address"),
         lo_work: value("lo_work"),
         // Not on the form; carried through so an edit does not erase what an
@@ -60,8 +72,10 @@ export default function ClientForm() {
 
   return (
     <>
-      <BackButton />
-      <h1>{t("clients")}</h1>
+      <div className="pagehead">
+        <BackButton />
+        <h1>{t("clients")}</h1>
+      </div>
       {error && <p className="flash">{error}</p>}
       <form className="stack" key={client?.id ?? "new"} onSubmit={onSubmit}>
         <label>
@@ -78,7 +92,32 @@ export default function ClientForm() {
         </label>
         <label>
           {t("phone")}
-          <input name="phone" defaultValue={client?.phone ?? ""} />
+          {phones.map((phone, index) => (
+            <span className="repeat" key={index}>
+              <input
+                name="phone"
+                value={phone}
+                onChange={(e) =>
+                  setPhones(phones.map((p, i) => (i === index ? e.target.value : p)))
+                }
+              />
+              {phones.length > 1 && (
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => setPhones(phones.filter((_, i) => i !== index))}
+                  aria-label={t("delete")}
+                >
+                  ×
+                </button>
+              )}
+            </span>
+          ))}
+          <span>
+            <button type="button" className="ghost" onClick={() => setPhones([...phones, ""])}>
+              + {t("phone")}
+            </button>
+          </span>
         </label>
         <label>
           {t("address")}

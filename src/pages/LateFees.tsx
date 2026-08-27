@@ -105,25 +105,26 @@ export default function LateFees() {
 
   return (
     <>
-      <BackButton />
-      <h1>
-        {t(kind === "down" ? "late_fee_down" : "late_fee_installments")}
-        <span className="pair inline">
-          <span className="party">
-            <span className="role">{t("client")}</span>
-            {contract.first_name} {contract.last_name}
+      <div className="pagehead">
+        <BackButton />
+        <h1>
+          {t(kind === "down" ? "late_fee_down" : "late_fee_installments")}
+          <span className="pair inline">
+            <span className="party">
+              <span className="role">{t("client")}</span>
+              {contract.first_name} {contract.last_name}
+            </span>
+            <span className="arrow" aria-hidden="true">
+              →
+            </span>
+            <span className="party">
+              <span className="role">{t("car")}</span>
+              {contract.brand} {contract.series ?? ""}
+              {contract.plate_number && <span className="sub">{contract.plate_number}</span>}
+            </span>
           </span>
-          <span className="arrow" aria-hidden="true">
-            →
-          </span>
-          <span className="party">
-            <span className="role">{t("car")}</span>
-            {contract.brand} {contract.series ?? ""}
-            {contract.plate_number && <span className="sub">{contract.plate_number}</span>}
-          </span>
-        </span>
-      </h1>
-
+        </h1>
+      </div>
       <dl className="facts">
         {kind === "installment" && (
           <div>

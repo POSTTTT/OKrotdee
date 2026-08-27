@@ -1,8 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
-import RowLink from "../RowLink";
 import { useApp } from "../context";
 import { formatDate } from "../dates";
 import DateInput from "../DateInput";
@@ -23,10 +22,22 @@ import { isErrorKey } from "../lang";
 import { formatBaht, outstanding, toSatang, todayIso } from "../money";
 import { payment as validatePayment } from "../validate";
 
-export default function PaymentForm() {
+/**
+ * Recording a payment. Opened as its own page from a link, or handed an
+ * installment and a way out — then it renders as the body of a dialog on the
+ * contract page, and the staff keep their place in the schedule.
+ */
+export default function PaymentForm({
+  installmentId: given,
+  onDone,
+}: {
+  installmentId?: number;
+  onDone?: () => void;
+} = {}) {
   const { db, t } = useApp();
   const navigate = useNavigate();
-  const installmentId = Number(useParams().id);
+  const routeId = Number(useParams().id);
+  const installmentId = given ?? routeId;
   // undefined while loading, null when there is no such installment.
   const [installment, setInstallment] = useState<InstallmentRow | null | undefined>();
   const [contract, setContract] = useState<ContractRow | null | undefined>();
@@ -36,7 +47,8 @@ export default function PaymentForm() {
   const [busy, setBusy] = useState(false);
   const [paidOn, setPaidOn] = useState(todayIso());
   const [payments, setPayments] = useState<Payment[]>([]);
-  // Set when correcting a payment already recorded, from ?payment=<id>.
+  // The payment being corrected, if any. Seeded from ?payment=<id> when this
+  // page is opened by link; set directly by the rows below otherwise.
   const editingId = Number(useSearchParams()[0].get("payment")) || null;
   const [editing, setEditing] = useState<Payment | null>(null);
 
@@ -65,6 +77,9 @@ export default function PaymentForm() {
     installment.paid_total,
   );
 
+  /** Back to wherever this was opened from: the contract page, or the opener. */
+  const done = () => (onDone ? onDone() : navigate(`/contracts/${installment.contract_id}`));
+
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -82,7 +97,7 @@ export default function PaymentForm() {
         await addPayment(db, installment.id, paidOn, amount, null, note);
       }
       await syncContractStatus(db, installment.contract_id);
-      navigate(`/contracts/${installment.contract_id}`);
+      done();
     } catch (e) {
       setError(
         e instanceof Error
@@ -98,24 +113,26 @@ export default function PaymentForm() {
 
   return (
     <>
-      <BackButton />
-      <h1>
-        {t("record_payment")} — {t("seq")} {installment.seq}
-        <span className="pair inline">
-          <span className="party">
-            <span className="role">{t("client")}</span>
-            {contract.first_name} {contract.last_name}
+      <div className="pagehead">
+        {!onDone && <BackButton />}
+        <h1>
+          {t("record_payment")} — {t("seq")} {installment.seq}
+          <span className="pair inline">
+            <span className="party">
+              <span className="role">{t("client")}</span>
+              {contract.first_name} {contract.last_name}
+            </span>
+            <span className="party">
+              <span className="role">{t("due_date")}</span>
+              {formatDate(installment.due_date)}
+            </span>
+            <span className="party">
+              <span className="role">{t("balance")}</span>
+              {formatBaht(balance)}
+            </span>
           </span>
-          <span className="party">
-            <span className="role">{t("due_date")}</span>
-            {formatDate(installment.due_date)}
-          </span>
-          <span className="party">
-            <span className="role">{t("balance")}</span>
-            {formatBaht(balance)}
-          </span>
-        </span>
-      </h1>
+        </h1>
+      </div>
       {error && <p className="flash">{error}</p>}
 
       {payments.length > 0 && (
@@ -132,14 +149,20 @@ export default function PaymentForm() {
             </thead>
             <tbody>
               {payments.map((p) => (
-                <RowLink key={p.id} to={`/installments/${installment.id}/pay?payment=${p.id}`}>
+                <tr key={p.id}>
                   <td>{formatDate(p.paid_on)}</td>
                   <td className="num">{formatBaht(p.amount)}</td>
                   <td>{p.note ?? ""}</td>
-                  <td className="num">
-                    <Link className="button" to={`/installments/${installment.id}/pay?payment=${p.id}`}>
+                  <td className="row-actions">
+                    <button
+                      className="button"
+                      onClick={() => {
+                        setEditing(p);
+                        setPaidOn(p.paid_on);
+                      }}
+                    >
                       {t("edit")}
-                    </Link>{" "}
+                    </button>
                     <button
                       className="danger"
                       disabled={busy}
@@ -149,7 +172,7 @@ export default function PaymentForm() {
                         try {
                           await deletePayment(db, p.id);
                           await syncContractStatus(db, installment.contract_id);
-                          navigate(`/contracts/${installment.contract_id}`);
+                          done();
                         } finally {
                           setBusy(false);
                         }
@@ -158,7 +181,7 @@ export default function PaymentForm() {
                       {t("delete")}
                     </button>
                   </td>
-                </RowLink>
+                </tr>
               ))}
               <tr>
                 <td>{t("paid")}</td>
@@ -193,10 +216,7 @@ export default function PaymentForm() {
             {t("save")}
           </button>
           {editing && (
-            <button
-              type="button"
-              onClick={() => navigate(`/installments/${installment.id}/pay`)}
-            >
+            <button type="button" className="ghost" onClick={() => setEditing(null)}>
               {t("cancel")}
             </button>
           )}

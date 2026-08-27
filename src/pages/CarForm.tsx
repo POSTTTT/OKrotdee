@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
+import DateInput from "../DateInput";
 import { useApp } from "../context";
 import {
   activeContractForCar,
@@ -47,6 +48,7 @@ export default function CarForm() {
         plate_number: text("plate_number"),
         model_year: modelYear === null ? null : Number(modelYear),
         color: text("color"),
+        insurance_expires_on: text("insurance_expires_on"),
         // Not on the form; carried through so an edit does not erase what an
         // older version of the form recorded.
         registration_no: car?.registration_no ?? null,
@@ -87,8 +89,10 @@ export default function CarForm() {
 
   return (
     <>
-      <BackButton />
-      <h1>{t("cars")}</h1>
+      <div className="pagehead">
+        <BackButton />
+        <h1>{t("cars")}</h1>
+      </div>
       {error && <p className="flash">{error}</p>}
       <form className="stack" key={car?.id ?? "new"} onSubmit={onSubmit}>
         <label>
@@ -110,6 +114,10 @@ export default function CarForm() {
         <label>
           {t("color")}
           <input name="color" defaultValue={car?.color ?? ""} />
+        </label>
+        <label>
+          {t("insurance_expires_on")}
+          <DateInput name="insurance_expires_on" defaultValue={car?.insurance_expires_on ?? ""} />
         </label>
         {car && (
           <label>

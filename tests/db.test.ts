@@ -181,6 +181,7 @@ const CAR = {
   mileage: 85000,
   cost_price: 45000000,
   asking_price: 60000000,
+  insurance_expires_on: null,
   note: null,
 };
 
@@ -281,6 +282,7 @@ describe("timeline dates", () => {
       mileage: null,
       cost_price: null,
       asking_price: null,
+      insurance_expires_on: null,
       note: null,
     });
     await addCarEvent(db, carId, "2026-01-05", "note", null, "wrong day");
@@ -589,6 +591,7 @@ describe("delete", () => {
     mileage: null,
     cost_price: null,
     asking_price: null,
+    insurance_expires_on: null,
     note: null,
   };
   const clientFields = {

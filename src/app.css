@@ -25,10 +25,23 @@
   --alarm-wash: #f7e3e0;
   --idle-wash: #eae6df;
 
+  /* One 4px spacing scale. Every gap and margin in the app comes from it, so
+     tight and generous intervals stay deliberate instead of drifting. */
+  --s1: 0.25rem;
+  --s2: 0.5rem;
+  --s3: 0.75rem;
+  --s4: 1rem;
+  --s5: 1.5rem;
+  --s6: 2rem;
+  --s7: 2.75rem;
+  --s8: 4rem;
+
   --radius: 6px;
   --radius-sm: 4px;
   --shadow: 0 1px 2px rgba(35, 32, 28, 0.06), 0 4px 12px rgba(35, 32, 28, 0.04);
   --speed: 150ms;
+  /* Stronger than the built-in curves: movement starts at once, then settles. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 * { box-sizing: border-box; }
@@ -50,6 +63,11 @@ body {
 /* Numbers are the point of this app: never let them shift column to column. */
 body { font-variant-numeric: tabular-nums; }
 
+/* The parts of the window we did not draw still belong to the ledger. */
+::selection { background: var(--accent-wash); color: var(--accent-deep); }
+input, textarea { caret-color: var(--accent); }
+* { scrollbar-color: var(--line-strong) transparent; scrollbar-width: thin; }
+
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -64,8 +82,8 @@ header {
   z-index: 10;
   display: flex;
   align-items: center;
-  gap: 1.75rem;
-  padding: 0 1.5rem;
+  gap: var(--s6);
+  padding: 0 var(--s5);
   height: 52px;
   background: var(--accent-deep);
   color: #fff;
@@ -77,7 +95,7 @@ header .brand {
   font-size: 1.05rem;
   letter-spacing: -0.01em;
 }
-header nav { display: flex; gap: 0.25rem; align-self: stretch; }
+header nav { display: flex; gap: var(--s1); align-self: stretch; }
 header nav a {
   display: flex;
   align-items: center;
@@ -93,7 +111,7 @@ header nav a.on {
   color: #fff;
   border-bottom-color: #ffffff;
 }
-header .lang { flex: 1; display: flex; justify-content: flex-end; gap: 0.35rem; }
+header .lang { flex: 1; display: flex; justify-content: flex-end; gap: var(--s1); }
 header .lang button {
   background: transparent;
   border: 1px solid #ffffff40;
@@ -113,10 +131,9 @@ header .lang button.on {
 /* ---------- Page ---------- */
 
 main {
-  position: relative;
   max-width: 1180px;
-  margin: 1.75rem auto 4rem;
-  padding: 0 1.5rem;
+  margin: var(--s5) auto var(--s8);
+  padding: 0 var(--s5);
 }
 
 h1 {
@@ -124,52 +141,67 @@ h1 {
   font-weight: 600;
   letter-spacing: -0.015em;
   line-height: 1.35;
-  margin: 0 0 0.85rem;
+  margin: 0;
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: var(--s3);
   flex-wrap: wrap;
 }
-h1 .right { margin-left: auto; display: flex; gap: 0.5rem; }
 
-/* The line under the title: what this record *is* on the left, what you can
-   do to it on the right. Keeping them apart stops the head reading as a blob. */
-.subhead {
+/* Every page opens the same way: the way back on the left, what this page is
+   in the middle of that line, and what you can do to it on the right. One
+   row, so nothing floats over anything else. */
+.pagehead {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--s4);
   flex-wrap: wrap;
-  margin: 0 0 1.25rem;
-  padding-bottom: 1.25rem;
+  margin: 0 0 var(--s5);
+  padding-bottom: var(--s4);
   border-bottom: 1px solid var(--line);
 }
-.subhead .actions { margin-left: auto; display: flex; gap: 0.5rem; }
+.pagehead .actions { margin-left: auto; display: flex; gap: var(--s2); }
 
-/* The record pages open on a name — a client, a car, a contract. It is what
-   the staff are looking for when the page loads, so it sits centered and
-   large, with what you can do to it gathered right underneath. */
-h1.record {
-  justify-content: center;
-  text-align: center;
-  font-size: 2rem;
-  margin-bottom: 1rem;
+/* A record page opens on a name — a client, a car, a contract. It is what the
+   staff came to find, so it sits centered between the way back and the two
+   things you can do to it. */
+.pagehead.record {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: var(--s4);
 }
+.pagehead.record .lead { justify-self: start; }
+.pagehead.record h1 { justify-self: center; text-align: center; font-size: 2rem; }
+.pagehead.record .actions { justify-self: end; margin: 0; }
+
+/* Status tags belong under the name they describe, not beside it. The head
+   above them gives up most of its own gap so the two read as one block. */
+.pagehead:has(+ .subhead) { margin-bottom: var(--s3); }
+.subhead {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--s2);
+  flex-wrap: wrap;
+  margin: 0 0 var(--s5);
+}
+
 /* A contract names two records at once. Two bordered blocks with the tie
    drawn between them read faster than one run-on line. */
 .pair { display: flex; align-items: stretch; }
-h1.record.pair { gap: 0; font-size: 1.3rem; }
+.pagehead.record h1.pair { gap: 0; font-size: 1.3rem; }
 .pair .party {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
-  min-width: 15rem;
-  padding: 0.7rem 1.2rem;
+  gap: 0;
+  padding: var(--s3) var(--s4);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--ink);
   text-decoration: none;
   text-align: left;
+  transition: border-color var(--speed) var(--ease-out);
 }
 a.party:hover { border-color: var(--accent); }
 .pair .role {
@@ -181,36 +213,30 @@ a.party:hover { border-color: var(--accent); }
 .pair .sub { font-size: 0.92rem; font-weight: 500; color: var(--ink-soft); }
 .pair .arrow {
   align-self: center;
-  padding: 0 1rem;
-  font-size: 1.5rem;
+  padding: 0 var(--s3);
+  font-size: 1.4rem;
   font-weight: 400;
   color: var(--ink-faint);
 }
 
 /* The same pairing beside a form's title, where it only has to say which
    record is being edited: one line, quiet, out of the way of the heading. */
-.pair.inline { gap: 0.4rem; font-size: 0.85rem; font-weight: 400; }
+.pair.inline { gap: var(--s1); font-size: 0.85rem; font-weight: 400; }
 .pair.inline .party {
   flex-direction: row;
   align-items: baseline;
-  gap: 0.35rem;
-  min-width: 0;
-  padding: 0.2rem 0.55rem;
+  gap: var(--s1);
+  padding: 0.15rem var(--s2);
 }
 .pair.inline .role { font-size: 0.62rem; letter-spacing: 0.05em; }
 .pair.inline .sub { font-size: 0.85rem; }
-.pair.inline .arrow { padding: 0 0.35rem; font-size: 0.95rem; }
-
-h1.record + .subhead { justify-content: center; }
-/* Edit and delete belong in the corner, out of the way of the name and level
-   with the back button — the same place on every record page. */
-h1.record + .subhead .actions { position: absolute; top: 0; right: 1.5rem; margin: 0; }
+.pair.inline .arrow { padding: 0 var(--s1); font-size: 0.95rem; }
 
 /* Tags never sit flush against each other or against text. */
 .tags { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; }
 
 /* A heading that carries the way to add one of the things it names. */
-h2.with-action { display: flex; align-items: center; gap: 0.6rem; }
+h2.with-action { display: flex; align-items: center; gap: var(--s3); }
 .button.add {
   padding: 0.1rem 0.5rem;
   font-size: 1rem;
@@ -224,7 +250,8 @@ h2 {
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--ink-soft);
-  margin: 2.75rem 0 0.85rem;
+  /* More air above a heading than below it: the gap belongs to what it opens. */
+  margin: var(--s7) 0 var(--s3);
 }
 p { margin: 0.5rem 0; }
 
@@ -237,14 +264,14 @@ dl.facts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   gap: 1px;
-  margin: 0 0 1.5rem;
+  margin: 0 0 var(--s5);
   background: var(--line);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   overflow: hidden;
   box-shadow: var(--shadow);
 }
-dl.facts > div { background: var(--surface); padding: 0.8rem 1.1rem; }
+dl.facts > div { background: var(--surface); padding: var(--s3) var(--s4); }
 dl.facts dt {
   font-size: 0.8rem;
   font-weight: 500;
@@ -282,14 +309,14 @@ table {
   font-size: 0.94rem;
 }
 th, td {
-  padding: 0.7rem 1rem;
+  padding: var(--s3) var(--s4);
   border-bottom: 1px solid var(--line);
   text-align: left;
 }
 th {
   background: var(--paper);
-  padding-top: 0.6rem;
-  padding-bottom: 0.6rem;
+  padding-top: var(--s2);
+  padding-bottom: var(--s2);
   font-weight: 600;
   font-size: 0.78rem;
   letter-spacing: 0.05em;
@@ -311,23 +338,23 @@ table a:hover { text-decoration: underline; }
 /* The "nothing here yet" row should read as a state, not as data. */
 tbody td[colspan] {
   color: var(--ink-faint);
-  padding: 1.75rem 0.75rem;
+  padding: var(--s6) var(--s3);
   text-align: center;
 }
 
 /* ---------- Forms ---------- */
 
-form.stack { display: grid; gap: 0.9rem; max-width: 34rem; }
+form.stack { display: grid; gap: var(--s4); max-width: 34rem; }
 form.stack .hint { margin: -0.5rem 0 0; font-size: 0.82rem; color: var(--ink-soft); }
 label {
   display: grid;
-  gap: 0.3rem;
+  gap: var(--s1);
   font-size: 0.85rem;
   font-weight: 500;
   color: var(--ink-soft);
 }
 input, select, textarea {
-  padding: 0.5rem 0.6rem;
+  padding: var(--s2) var(--s3);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -344,14 +371,14 @@ input:focus, select:focus, textarea:focus {
 }
 textarea { resize: vertical; }
 
-.date-input { display: flex; gap: 0.4rem; align-items: center; }
+.date-input { display: flex; gap: var(--s1); align-items: center; }
 .date-input select { min-width: 4.5rem; }
 .date-input select:nth-of-type(2) { min-width: 6rem; }
 button.ghost {
   background: transparent;
   color: var(--ink-soft);
   border: 1px solid var(--line-strong);
-  padding: 0.4rem 0.6rem;
+  padding: 0.4rem var(--s3);
 }
 button.ghost:hover { background: var(--surface); color: var(--ink); }
 
@@ -361,8 +388,8 @@ button, .button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  padding: 0.48rem 0.95rem;
+  gap: var(--s1);
+  padding: 0.45rem var(--s4);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: var(--accent);
@@ -374,10 +401,14 @@ button, .button {
   cursor: pointer;
   text-decoration: none;
   white-space: nowrap;
-  transition: background var(--speed), transform var(--speed), opacity var(--speed);
+  transition:
+    background var(--speed) var(--ease-out),
+    transform 120ms var(--ease-out),
+    opacity var(--speed) var(--ease-out);
 }
 button:hover, .button:hover { background: var(--accent-deep); }
-button:active, .button:active { transform: translateY(1px); }
+/* A press the hand can feel: the control answers before the page does. */
+button:active, .button:active { transform: scale(0.97); }
 button.danger { background: var(--alarm); }
 button.danger:hover { background: #75261d; }
 /* Without this the double-click guard is invisible and staff click again. */
@@ -392,7 +423,8 @@ button.danger:disabled:hover { background: var(--alarm); }
 /* ---------- Messages ---------- */
 
 .flash {
-  padding: 0.7rem 0.9rem;
+  margin: 0 0 var(--s4);
+  padding: var(--s3) var(--s4);
   border-radius: var(--radius-sm);
   background: var(--warn-wash);
   border: 1px solid #e4cf9f;
@@ -442,7 +474,7 @@ button.danger:disabled:hover { background: var(--alarm); }
 ul.counts {
   list-style: none;
   padding: 0;
-  margin: 0 0 0.5rem;
+  margin: 0 0 var(--s2);
   display: flex;
   flex-wrap: wrap;
   background: var(--surface);
@@ -453,7 +485,7 @@ ul.counts {
 }
 ul.counts li {
   flex: 1 1 12rem;
-  padding: 0.9rem 1.25rem;
+  padding: var(--s3) var(--s4);
   border-right: 1px solid var(--line);
   font-size: 0.95rem;
   color: var(--ink-soft);
@@ -473,7 +505,10 @@ ul.timeline {
   border-radius: var(--radius);
 }
 ul.timeline li {
-  padding: 0.6rem 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s2) var(--s4);
   border-bottom: 1px solid var(--line);
   font-size: 0.94rem;
 }
@@ -495,23 +530,78 @@ td button.danger {
 }
 td button.danger:hover { background: var(--alarm-wash); }
 td.row-actions { text-align: right; white-space: nowrap; }
-td.row-actions > * + * { margin-left: 0.4rem; }
+td.row-actions > * + * { margin-left: var(--s1); }
 /* Secondary date under a figure: present, but clearly the smaller fact. */
 td small { display: block; font-size: 0.82rem; color: var(--ink-faint); }
+
+/* A field that takes more than one value: the box, and the way to drop it. */
+.repeat { display: flex; align-items: center; gap: var(--s1); }
+.repeat input { flex: 1; }
+
+/* The installments folded under an overdue contract: quieter than the row
+   that carries them, and set in from it. */
+tr.child td { background: var(--paper); color: var(--ink-soft); font-size: 0.92rem; }
+tr.child td:first-child { padding-left: 2.1rem; }
+.caret { display: inline-block; width: 1.1rem; color: var(--ink-faint); }
 
 /* A whole row opens its page, so it wants a pointer and a firmer hover than
    the plain row highlight above. */
 tbody tr.clickable { cursor: pointer; }
 tbody tr.clickable:hover { background: var(--paper); }
 
+/* ---------- Dialog ---------- */
+
+/* A short task held over the page it belongs to: the schedule stays where it
+   was, and the staff go back to the same row when the money is recorded. */
+dialog.modal {
+  width: min(46rem, calc(100vw - var(--s8)));
+  max-height: min(46rem, calc(100vh - var(--s8)));
+  padding: var(--s5) var(--s7) var(--s6) var(--s6);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 4px 10px rgba(35, 32, 28, 0.1), 0 24px 48px rgba(35, 32, 28, 0.16);
+  overflow: auto;
+}
+dialog.modal .pagehead { padding-bottom: var(--s3); }
+dialog.modal h1 { font-size: 1.25rem; }
+/* The first heading inside the dialog has the head above it already. */
+dialog.modal h2 { margin-top: var(--s5); }
+dialog.modal .close {
+  position: absolute;
+  top: var(--s4);
+  right: var(--s4);
+  padding: 0 var(--s2);
+  border: 0;
+  font-size: 1.2rem;
+  line-height: 1.6;
+}
+/* Its focus ring has to clear the dialog edge, not sit on it. */
+dialog.modal .close:focus-visible { outline-offset: 1px; }
+dialog.modal::backdrop { background: rgba(35, 32, 28, 0.34); }
+
+/* Nothing in the world appears out of nothing: the dialog arrives from a size
+   it already had, fast enough not to be waited on. */
+@media (prefers-reduced-motion: no-preference) {
+  dialog.modal[open] { animation: modal-in 180ms var(--ease-out); }
+  dialog.modal[open]::backdrop { animation: backdrop-in 180ms var(--ease-out); }
+}
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.97); }
+}
+@keyframes backdrop-in {
+  from { opacity: 0; }
+}
+
 /* ---------- Toolbar ---------- */
 
 .toolbar {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--s2);
   align-items: center;
   flex-wrap: wrap;
-  margin-bottom: 1rem;
+  margin: 0 0 var(--s4);
 }
 .toolbar input, .toolbar select { height: 36px; }
 .toolbar input[name="q"] { min-width: 16rem; }

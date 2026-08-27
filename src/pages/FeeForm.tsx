@@ -180,24 +180,26 @@ export default function FeeForm() {
 
   return (
     <>
-      <BackButton />
-      <h1>
-        {t(type === "down" ? "down_fee" : "insurance_fee")}
-        <span className="pair inline">
-          <span className="party">
-            <span className="role">{t("client")}</span>
-            {contract.first_name} {contract.last_name}
+      <div className="pagehead">
+        <BackButton />
+        <h1>
+          {t(type === "down" ? "down_fee" : "insurance_fee")}
+          <span className="pair inline">
+            <span className="party">
+              <span className="role">{t("client")}</span>
+              {contract.first_name} {contract.last_name}
+            </span>
+            <span className="arrow" aria-hidden="true">
+              →
+            </span>
+            <span className="party">
+              <span className="role">{t("car")}</span>
+              {contract.brand} {contract.series ?? ""}
+              {contract.plate_number && <span className="sub">{contract.plate_number}</span>}
+            </span>
           </span>
-          <span className="arrow" aria-hidden="true">
-            →
-          </span>
-          <span className="party">
-            <span className="role">{t("car")}</span>
-            {contract.brand} {contract.series ?? ""}
-            {contract.plate_number && <span className="sub">{contract.plate_number}</span>}
-          </span>
-        </span>
-      </h1>
+        </h1>
+      </div>
       {error && <p className="flash">{error}</p>}
       <form className="stack" key={fee?.id ?? "new"} onSubmit={onSubmit}>
         <label>

@@ -74,14 +74,11 @@ export default function CarDetail() {
 
   return (
     <>
-      <BackButton />
-      <h1 className="record">
-        {car.brand} {car.series ?? ""} {car.model_year ?? ""}
-      </h1>
-      <div className="subhead">
-        <span className="tags">
-          <span className={`tag ${car.status}`}>{t(car.status)}</span>
-        </span>
+      <div className="pagehead record">
+        <BackButton />
+        <h1>
+          {car.brand} {car.series ?? ""} {car.model_year ?? ""}
+        </h1>
         <span className="actions">
           <Link className="button" to={`/cars/${car.id}/edit`}>
             {t("edit")}
@@ -102,6 +99,9 @@ export default function CarDetail() {
           </button>
         </span>
       </div>
+      <div className="subhead">
+        <span className={`tag ${car.status}`}>{t(car.status)}</span>
+      </div>
       {error && <p className="flash">{error}</p>}
       <dl className="facts">
         <div>
@@ -111,6 +111,11 @@ export default function CarDetail() {
         <div>
           <dt>{t("color")}</dt>
           <dd className="text">{car.color ?? "-"}</dd>
+        </div>
+        {/* An insurance that has run out is worth seeing at a glance. */}
+        <div className={car.insurance_expires_on && car.insurance_expires_on < todayIso() ? "owing" : ""}>
+          <dt>{t("insurance_expires_on")}</dt>
+          <dd>{car.insurance_expires_on ? formatDate(car.insurance_expires_on) : "-"}</dd>
         </div>
       </dl>
 

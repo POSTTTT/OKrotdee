@@ -27,12 +27,12 @@ export default function ClientDetail() {
 
   return (
     <>
-      <BackButton />
-      <h1 className="record">
-        {client.first_name} {client.last_name}
-        {client.nickname ? ` (${client.nickname})` : ""}
-      </h1>
-      <div className="subhead">
+      <div className="pagehead record">
+        <BackButton />
+        <h1>
+          {client.first_name} {client.last_name}
+          {client.nickname ? ` (${client.nickname})` : ""}
+        </h1>
         <span className="actions">
           <Link className="button" to={`/clients/${client.id}/edit`}>
             {t("edit")}
@@ -57,7 +57,11 @@ export default function ClientDetail() {
       <dl className="facts">
         <div>
           <dt>{t("phone")}</dt>
-          <dd>{client.phone ?? "-"}</dd>
+          <dd>
+            {client.phone
+              ? client.phone.split("\n").map((phone) => <div key={phone}>{phone}</div>)
+              : "-"}
+          </dd>
         </div>
         <div>
           <dt>{t("address")}</dt>

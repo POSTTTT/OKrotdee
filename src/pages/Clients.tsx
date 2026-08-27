@@ -16,16 +16,21 @@ export default function Clients() {
 
   return (
     <>
-      <h1>{t("clients")}</h1>
+      <div className="pagehead">
+        <h1>{t("clients")}</h1>
+        <span className="actions">
+          <Link className="button" to="/clients/new">
+            + {t("new")}
+          </Link>
+        </span>
+      </div>
       <div className="toolbar">
         <input
+          name="q"
           value={query}
           placeholder={t("search")}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <Link className="button" to="/clients/new">
-          + {t("new")}
-        </Link>
       </div>
       <table>
         <thead>
@@ -43,7 +48,7 @@ export default function Clients() {
                 <Link to={`/clients/${c.id}`}>{c.first_name}</Link>
               </td>
               <td>{c.last_name}</td>
-              <td>{c.phone ?? ""}</td>
+              <td>{c.phone?.split("\n").join(", ") ?? ""}</td>
               <td>{c.nickname ?? ""}</td>
             </RowLink>
           ))}

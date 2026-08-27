@@ -19,9 +19,17 @@ export default function Cars() {
 
   return (
     <>
-      <h1>{t("cars")}</h1>
+      <div className="pagehead">
+        <h1>{t("cars")}</h1>
+        <span className="actions">
+          <Link className="button" to="/cars/new">
+            + {t("new")}
+          </Link>
+        </span>
+      </div>
       <div className="toolbar">
         <input
+          name="q"
           value={query}
           placeholder={t("search")}
           onChange={(e) => setQuery(e.target.value)}
@@ -34,9 +42,6 @@ export default function Cars() {
             </option>
           ))}
         </select>
-        <Link className="button" to="/cars/new">
-          + {t("new")}
-        </Link>
       </div>
       <table>
         <thead>

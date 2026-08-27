@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS cars (
   mileage         INTEGER,
   cost_price      INTEGER,
   asking_price    INTEGER,
+  -- Some cars arrive with insurance already paid for; this is the day it runs out.
+  insurance_expires_on TEXT,
   status          TEXT NOT NULL
                   CHECK (status IN ('available','on_contract','sold','repossessed')),
   note            TEXT,
@@ -178,6 +180,7 @@ export const MIGRATIONS = [
   // Late fees were one pot before the down payment had its own. Everything
   // recorded until now was against the installments.
   "ALTER TABLE late_fee_payments ADD COLUMN kind TEXT NOT NULL DEFAULT 'installment'",
+  "ALTER TABLE cars ADD COLUMN insurance_expires_on TEXT",
 ];
 
 /** Bump whenever REBUILDS grows. Stored in the file as PRAGMA user_version. */

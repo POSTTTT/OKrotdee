@@ -91,8 +91,10 @@ export default function ContractForm() {
 
   return (
     <>
-      <BackButton />
-      <h1>{t("create_contract")}</h1>
+      <div className="pagehead">
+        <BackButton />
+        <h1>{t("create_contract")}</h1>
+      </div>
       {error && <p className="flash">{error}</p>}
       <form className="stack" onSubmit={onSubmit}>
         <label>

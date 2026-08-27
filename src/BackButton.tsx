@@ -2,15 +2,15 @@ import { useNavigate } from "react-router-dom";
 
 import { useApp } from "./context";
 
-/** Returns to whatever page this one was opened from. */
+/** Returns to whatever page this one was opened from. Sits in a page head. */
 export default function BackButton() {
   const { t } = useApp();
   const navigate = useNavigate();
   return (
-    <p className="toolbar">
+    <span className="lead">
       <button className="ghost" onClick={() => navigate(-1)}>
         ← {t("back")}
       </button>
-    </p>
+    </span>
   );
 }

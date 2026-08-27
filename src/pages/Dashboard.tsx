@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { backupTo, showBackups } from "../backup";
@@ -77,6 +77,121 @@ function Rows({ items }: { items: DashboardRow[] }) {
   );
 }
 
+/**
+ * The overdue list, folded by contract. One client behind on six installments
+ * used to fill six rows and bury everyone else; now they are one row that
+ * opens.
+ */
+function GroupedRows({ items }: { items: DashboardRow[] }) {
+  const { t } = useApp();
+  const [open, setOpen] = useState<number[]>([]);
+  const today = todayIso();
+
+  const groups = new Map<number, DashboardRow[]>();
+  for (const row of items) {
+    const list = groups.get(row.contract_id) ?? [];
+    list.push(row);
+    groups.set(row.contract_id, list);
+  }
+
+  const owed = (list: DashboardRow[]) =>
+    list.reduce((sum, i) => sum + outstanding(i.amount_due, i.late_fee, i.paid_total), 0);
+
+  return (
+    <table>
+      <thead>
+        <tr>
+          <th>{t("due_date")}</th>
+          <th>{t("client")}</th>
+          <th>{t("car")}</th>
+          <th className="num">{t("balance")}</th>
+          <th>{t("status")}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {[...groups.values()].map((list) => {
+          const head = list[0];
+          const shown = open.includes(head.contract_id);
+          return (
+            <Fragment key={head.contract_id}>
+              <tr
+                className="clickable"
+                onClick={(event) => {
+                  if ((event.target as HTMLElement).closest("a")) return;
+                  setOpen((ids) =>
+                    shown
+                      ? ids.filter((id) => id !== head.contract_id)
+                      : [...ids, head.contract_id],
+                  );
+                }}
+              >
+                <td>
+                  {list.length > 1 && <span className="caret">{shown ? "▾" : "▸"}</span>}
+                  {formatDate(head.due_date)}
+                </td>
+                <td>
+                  <Link to={`/contracts/${head.contract_id}`}>
+                    {head.first_name} {head.last_name}
+                  </Link>
+                </td>
+                <td>
+                  {head.brand} {head.plate_number ?? ""}
+                </td>
+                <td className="num">{formatBaht(owed(list))}</td>
+                <td>
+                  <span className="tag OVERDUE">
+                    {t("OVERDUE")}
+                    {list.length > 1 ? ` × ${list.length}` : ""}
+                  </span>
+                </td>
+              </tr>
+              {shown &&
+                list.map((i) => (
+                  <tr key={i.id} className="child">
+                    <td>{formatDate(i.due_date)}</td>
+                    <td>
+                      {t("seq")} {i.seq}
+                    </td>
+                    <td />
+                    <td className="num">
+                      {formatBaht(outstanding(i.amount_due, i.late_fee, i.paid_total))}
+                    </td>
+                    <td>
+                      <span
+                        className={`tag ${installmentState(
+                          i.amount_due,
+                          i.late_fee,
+                          i.paid_total,
+                          i.due_date,
+                          today,
+                        )}`}
+                      >
+                        {t(
+                          installmentState(
+                            i.amount_due,
+                            i.late_fee,
+                            i.paid_total,
+                            i.due_date,
+                            today,
+                          ),
+                        )}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+            </Fragment>
+          );
+        })}
+        {items.length === 0 && (
+          <tr>
+            <td colSpan={5}>{t("none_yet")}</td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  );
+}
+
 export default function Dashboard() {
   const { db, t } = useApp();
   const [rows, setRows] = useState<DashboardRow[]>([]);
@@ -124,30 +239,38 @@ export default function Dashboard() {
 
   return (
     <>
-      <h1>{t("dashboard")}</h1>
+      <div className="pagehead">
+        <h1>{t("dashboard")}</h1>
+        {/* Keeping the data safe is upkeep, not the day's work: it belongs in
+            the corner, not above the numbers the staff came to read. */}
+        <span className="actions">
+          <button
+            className="ghost"
+            onClick={async () => {
+              setBackupError(null);
+              try {
+                const target = await backupTo(db);
+                if (target) alert(`${t("backup_done")}: ${target}`);
+              } catch (e) {
+                setBackupError(String(e));
+              }
+            }}
+          >
+            {t("backup_now")}
+          </button>
+          <button
+            className="ghost"
+            onClick={() => showBackups().catch((e) => setBackupError(String(e)))}
+          >
+            {t("show_backups")}
+          </button>
+        </span>
+      </div>
       {backupError && (
         <p className="flash alarm">
           {t("err_backup_failed")}: {backupError}
         </p>
       )}
-      <div className="toolbar">
-        <button
-          onClick={async () => {
-            setBackupError(null);
-            try {
-              const target = await backupTo(db);
-              if (target) alert(`${t("backup_done")}: ${target}`);
-            } catch (e) {
-              setBackupError(String(e));
-            }
-          }}
-        >
-          {t("backup_now")}
-        </button>
-        <button onClick={() => showBackups().catch((e) => setBackupError(String(e)))}>
-          {t("show_backups")}
-        </button>
-      </div>
       <ul className="counts">
         <li>
           <Link to="/clients">
@@ -173,7 +296,7 @@ export default function Dashboard() {
       <Rows items={flagged} />
 
       <h2>{t("overdue")}</h2>
-      <Rows items={overdue} />
+      <GroupedRows items={overdue} />
 
       <h2>{t("due_this_month")}</h2>
       <Rows items={dueThisMonth} />

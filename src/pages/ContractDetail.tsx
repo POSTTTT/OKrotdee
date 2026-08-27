@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
+import Modal from "../Modal";
+import PaymentForm from "./PaymentForm";
 import RowLink from "../RowLink";
 import { useApp } from "../context";
 import { formatDate } from "../dates";
@@ -18,7 +20,6 @@ import {
   repossessContract,
   type Fee,
   type ContractRow,
-  type FeeType,
   type InstallmentRow,
 } from "../db";
 import {
@@ -33,6 +34,9 @@ import {
 } from "../money";
 
 export default function ContractDetail() {
+  // The installment whose payments are open in the dialog, if any. Recording
+  // money should not cost the staff their place in a 72-row schedule.
+  const [paying, setPaying] = useState<number | null>(null);
   const { db, t } = useApp();
   const contractId = Number(useParams().id);
   // undefined while loading, null when there is no such contract.
@@ -77,7 +81,6 @@ export default function ContractDetail() {
 
   const insuranceFees = fees.filter((f) => f.type !== "down");
 
-  const feeLabel = (type: FeeType) => t(type === "down" ? "down_fee" : "insurance_fee");
 
   // A settled installment is judged by the day it was paid; one still owing
   // keeps counting against today, so the number climbs until it is paid.
@@ -94,28 +97,24 @@ export default function ContractDetail() {
 
   return (
     <>
-      <BackButton />
-      {/* A contract is one client tied to one car: show the tie, and let each
-          side be the way through to its own record. */}
-      <h1 className="record pair">
-        <Link className="party" to={`/clients/${contract.client_id}`}>
-          <span className="role">{t("client")}</span>
-          {contract.first_name} {contract.last_name}
-        </Link>
-        <span className="arrow" aria-hidden="true">
-          →
-        </span>
-        <Link className="party" to={`/cars/${contract.car_id}`}>
-          <span className="role">{t("car")}</span>
-          {contract.brand} {contract.series ?? ""}
-          {contract.plate_number && <span className="sub">{contract.plate_number}</span>}
-        </Link>
-      </h1>
-      <div className="subhead">
-        <span className="tags">
-          <span className={`tag ${contract.status}`}>{t(contract.status)}</span>
-          <span className={`tag ${flag}`}>{t(flag)}</span>
-        </span>
+      <div className="pagehead record">
+        <BackButton />
+        {/* A contract is one client tied to one car: show the tie, and let each
+            side be the way through to its own record. */}
+        <h1 className="pair">
+          <Link className="party" to={`/clients/${contract.client_id}`}>
+            <span className="role">{t("client")}</span>
+            {contract.first_name} {contract.last_name}
+          </Link>
+          <span className="arrow" aria-hidden="true">
+            →
+          </span>
+          <Link className="party" to={`/cars/${contract.car_id}`}>
+            <span className="role">{t("car")}</span>
+            {contract.brand} {contract.series ?? ""}
+            {contract.plate_number && <span className="sub">{contract.plate_number}</span>}
+          </Link>
+        </h1>
         {contract.status === "active" && (
           <span className="actions">
             <button
@@ -141,6 +140,10 @@ export default function ContractDetail() {
             </button>
           </span>
         )}
+      </div>
+      <div className="subhead">
+        <span className={`tag ${contract.status}`}>{t(contract.status)}</span>
+        <span className={`tag ${flag}`}>{t(flag)}</span>
       </div>
       <dl className="facts">
         <div>
@@ -212,8 +215,7 @@ export default function ContractDetail() {
             <thead>
               <tr>
                 <th>{t("due_date")}</th>
-                <th>{t("type")}</th>
-                <th className="num">{t("amount")}</th>
+                <th className="num">{t("insurance_fee")}</th>
                 <th className="num">{t("officer_fee")}</th>
                 <th>{t("note")}</th>
                 <th />
@@ -223,7 +225,6 @@ export default function ContractDetail() {
               {insuranceFees.map((f) => (
                 <RowLink key={f.id} to={`/contracts/${contract.id}/fees/${f.type}?fee=${f.id}`}>
                   <td>{formatDate(f.due_on)}</td>
-                  <td>{feeLabel(f.type)}</td>
                   {/* The date the money came in sits under the sum it paid,
                       the way the officer fee already reads. */}
                   <td className="num">
@@ -278,12 +279,9 @@ export default function ContractDetail() {
             <th>{t("seq")}</th>
             <th>{t("due_date")}</th>
             <th className="num">{t("amount_due")}</th>
-            <th className="num">{t("late_fee")}</th>
-            <th className="num">{t("paid")}</th>
             <th>{t("payment_date")}</th>
             <th className="num">{t("balance")}</th>
             <th>{t("status")}</th>
-            <th />
           </tr>
         </thead>
         <tbody>
@@ -297,14 +295,10 @@ export default function ContractDetail() {
               today,
             );
             return (
-              <RowLink key={i.id} to={`/installments/${i.id}/pay`}>
-                <td>
-                  <Link to={`/installments/${i.id}/pay`}>{i.seq}</Link>
-                </td>
+              <tr key={i.id} className="clickable" onClick={() => setPaying(i.id)}>
+                <td>{i.seq}</td>
                 <td>{formatDate(i.due_date)}</td>
                 <td className="num">{formatBaht(i.amount_due)}</td>
-                <td className="num">{formatBaht(i.late_fee)}</td>
-                <td className="num">{formatBaht(i.paid_total)}</td>
                 <td>{i.last_paid_on ? formatDate(i.last_paid_on) : ""}</td>
                 <td className="num">{formatBaht(balance)}</td>
                 <td>
@@ -317,18 +311,28 @@ export default function ContractDetail() {
                     )}
                   </span>
                 </td>
-                <td className="row-actions">
-                  {contract.status === "active" && balance > 0 && (
-                    <Link className="button" to={`/installments/${i.id}/pay`}>
-                      {t("record_payment")}
-                    </Link>
-                  )}
-                </td>
-              </RowLink>
+              </tr>
             );
           })}
         </tbody>
       </table>
+
+      {paying !== null && (
+        <Modal
+          onClose={() => {
+            setPaying(null);
+            load();
+          }}
+        >
+          <PaymentForm
+            installmentId={paying}
+            onDone={() => {
+              setPaying(null);
+              load();
+            }}
+          />
+        </Modal>
+      )}
     </>
   );
 }
