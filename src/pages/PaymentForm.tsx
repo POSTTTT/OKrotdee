@@ -183,13 +183,13 @@ export default function PaymentForm({
                   </td>
                 </tr>
               ))}
-              <tr>
-                <td>{t("paid")}</td>
-                <td className="num">{formatBaht(installment.paid_total)}</td>
-                <td colSpan={2} />
-              </tr>
             </tbody>
           </table>
+          {/* The sum belongs to the table, not in it: it sits under the rows,
+              at the end, where the eye already is after reading the amounts. */}
+          <p className="total">
+            {t("paid")} <strong>{formatBaht(installment.paid_total)}</strong>
+          </p>
         </>
       )}
 

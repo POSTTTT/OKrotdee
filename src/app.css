@@ -379,6 +379,26 @@ form.stack > label.wide,
 form.stack > div,
 form.stack > .hint { grid-column: 1 / -1; }
 form.stack > label:has(textarea) { grid-column: 1 / -1; }
+/* A table's sum, standing under it at the right rather than as a last row. */
+p.total {
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: var(--s2);
+  margin: var(--s3) 0 0;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+p.total strong { color: var(--ink); font-size: 1.05rem; }
+
+/* A fee and the day it was paid belong together: one column each, stacked,
+   the pair sharing the row under the due date. */
+.fees {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: var(--s4) var(--s5);
+}
+.fees > div { display: grid; gap: var(--s4); align-content: start; }
 form.stack .hint { margin: calc(var(--s3) * -1) 0 0; font-size: 0.82rem; color: var(--ink-soft); }
 label {
   display: grid;
@@ -405,9 +425,45 @@ input:focus, select:focus, textarea:focus {
 }
 textarea { resize: vertical; }
 
-.date-input { display: flex; gap: var(--s1); align-items: center; }
-.date-input select { min-width: 4.5rem; }
-.date-input select:nth-of-type(2) { min-width: 6rem; }
+/* One field, the size of any other, with day, month and year divided inside
+   it rather than three separate boxes standing in a row. */
+.date-input {
+  display: flex;
+  align-items: stretch;
+  /* Fill the field's column, like the inputs beside it: WebKit will not
+     stretch this on its own the way it stretches a plain input. */
+  width: 100%;
+  /* A select is drawn a little shorter than an input; the block, not its
+     parts, keeps the height of the fields beside it. */
+  min-height: 2.625rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  overflow: hidden;
+  transition: border-color var(--speed), box-shadow var(--speed);
+}
+.date-input:hover { border-color: var(--ink-faint); }
+/* The whole block takes the focus ring, whichever part of it has the caret. */
+.date-input:has(:focus) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-wash);
+}
+.date-input select {
+  flex: 1;
+  min-width: 3.5rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: center;
+}
+.date-input select:hover, .date-input select:focus { border: 0; box-shadow: none; }
+.date-input select + select { border-left: 1px solid var(--line); }
+.date-input select:last-of-type { flex: 1.3; min-width: 4.5rem; }
+.date-input button.ghost {
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+}
 button.ghost {
   background: transparent;
   color: var(--ink-soft);
@@ -639,6 +695,10 @@ dialog.modal::backdrop { background: rgba(35, 32, 28, 0.34); }
   margin: 0 0 var(--s4);
 }
 .toolbar input, .toolbar select { height: 36px; }
+/* The date block is one field: it stands as tall as the ones beside it, and
+   its parts fill it rather than adding their height to its border. */
+.toolbar .date-input { height: 36px; min-height: 0; width: auto; }
+.toolbar .date-input select { height: 100%; }
 .toolbar input[name="q"] { min-width: 16rem; }
 
 /* The people signing alongside the main client, read in a dialog: one per

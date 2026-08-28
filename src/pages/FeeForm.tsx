@@ -178,6 +178,23 @@ export default function FeeForm() {
     }
   };
 
+  const amountField = (
+    <label>
+      {t("amount")}
+      <input
+        name="amount"
+        defaultValue={
+          fee
+            ? formatBaht(fee.amount)
+            : type === "down"
+              ? formatBaht(contract.down_payment)
+              : ""
+        }
+        required
+      />
+    </label>
+  );
+
   return (
     <>
       <div className="pagehead">
@@ -206,43 +223,34 @@ export default function FeeForm() {
           {t("due_date")}
           <DateInput name="due_on" defaultValue={fee?.due_on ?? todayIso()} required />
         </label>
-        {type === "insurance" && (
-          <>
-            <label>
-              {t("payment_date")}
-              <DateInput name="paid_on" defaultValue={fee?.paid_on ?? ""} />
-            </label>
-            <p className="hint">{t("unpaid_hint")}</p>
-          </>
-        )}
-        <label>
-          {t("amount")}
-          <input
-            name="amount"
-            defaultValue={
-              fee
-                ? formatBaht(fee.amount)
-                : type === "down"
-                  ? formatBaht(contract.down_payment)
-                  : ""
-            }
-            required
-          />
-        </label>
-        {type === "insurance" && (
-          <>
-            <label>
-              {t("officer_fee")}
-              <input
-                name="officer_amount"
-                defaultValue={fee?.officer_amount != null ? formatBaht(fee.officer_amount) : ""}
-              />
-            </label>
-            <label>
-              {t("officer_paid_on")}
-              <DateInput name="officer_paid_on" defaultValue={fee?.officer_paid_on ?? ""} />
-            </label>
-          </>
+        {type === "insurance" ? (
+          /* Two fees paid on their own days: each amount keeps the date it was
+             paid directly under it, and the two stand side by side. */
+          <div className="fees">
+            <div>
+              {amountField}
+              <label>
+                {t("payment_date")}
+                <DateInput name="paid_on" defaultValue={fee?.paid_on ?? ""} />
+              </label>
+              <p className="hint">{t("unpaid_hint")}</p>
+            </div>
+            <div>
+              <label>
+                {t("officer_fee")}
+                <input
+                  name="officer_amount"
+                  defaultValue={fee?.officer_amount != null ? formatBaht(fee.officer_amount) : ""}
+                />
+              </label>
+              <label>
+                {t("officer_paid_on")}
+                <DateInput name="officer_paid_on" defaultValue={fee?.officer_paid_on ?? ""} />
+              </label>
+            </div>
+          </div>
+        ) : (
+          amountField
         )}
         <label>
           {t("note")}
