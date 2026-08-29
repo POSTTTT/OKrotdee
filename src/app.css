@@ -644,7 +644,9 @@ td button.danger {
 }
 td button.danger:hover { background: var(--alarm-wash); }
 td.row-actions { text-align: center; white-space: nowrap; }
-td.row-actions > * + * { margin-left: var(--s1); }
+/* Gaps between the buttons, but not against a dialog one of them opens:
+   a margin there would push the dialog off centre. */
+td.row-actions > * + *:not(dialog) { margin-left: var(--s1); }
 /* Secondary date under a figure: present, but clearly the smaller fact. */
 td small { display: block; font-size: 0.82rem; color: var(--ink-faint); }
 
@@ -668,6 +670,9 @@ tbody tr.clickable:hover { background: var(--paper); }
 /* A short task held over the page it belongs to: the schedule stays where it
    was, and the staff go back to the same row when the money is recorded. */
 dialog.modal {
+  /* Centred on the window, wherever in the page the button that opened it
+     happens to sit. */
+  margin: auto;
   width: min(46rem, calc(100vw - var(--s8)));
   max-height: min(46rem, calc(100vh - var(--s8)));
   padding: var(--s5) var(--s7) var(--s6) var(--s6);
