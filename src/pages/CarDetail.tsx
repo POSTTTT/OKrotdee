@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
 import RowLink from "../RowLink";
+import ConfirmButton from "../ConfirmButton";
 import { useApp } from "../context";
 import { formatDate } from "../dates";
 import DateInput from "../DateInput";
@@ -11,8 +12,9 @@ import {
   carContracts,
   carEvents,
   deleteCar,
+  deleteCarEvent,
   getCar,
-  setCarEventDate,
+  setCarEvent,
   type Car,
   type CarEvent,
   type ContractRow,
@@ -30,9 +32,10 @@ export default function CarDetail() {
   const [events, setEvents] = useState<CarEvent[]>([]);
   const [contracts, setContracts] = useState<ContractRow[]>([]);
   const [error, setError] = useState<string | null>(null);
-  // The timeline entry whose date is open for correction, and the date chosen.
+  // The timeline entry open for correction, and what it is being changed to.
   const [editing, setEditing] = useState<number | null>(null);
   const [editDate, setEditDate] = useState("");
+  const [editNote, setEditNote] = useState("");
 
   const load = useCallback(async () => {
     setCar((await getCar(db, carId)) ?? null);
@@ -83,10 +86,10 @@ export default function CarDetail() {
           <Link className="button" to={`/cars/${car.id}/edit`}>
             {t("edit")}
           </Link>
-          <button
+          <ConfirmButton
+            question={t("confirm_delete_car")}
             className="danger"
-            onClick={async () => {
-              if (!confirm(t("confirm_delete_car"))) return;
+            onConfirm={async () => {
               try {
                 await deleteCar(db, car.id);
                 navigate("/cars");
@@ -96,7 +99,7 @@ export default function CarDetail() {
             }}
           >
             {t("delete")}
-          </button>
+          </ConfirmButton>
         </span>
       </div>
       <div className="subhead">
@@ -162,43 +165,67 @@ export default function CarDetail() {
                   required
                   onChange={setEditDate}
                 />
-                <button
-                  type="button"
-                  disabled={busy || !editDate}
-                  onClick={async () => {
-                    setBusy(true);
-                    try {
-                      await setCarEventDate(db, e.id, editDate);
-                      setEditing(null);
-                      await load();
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                >
-                  {t("save")}
-                </button>
-                <button type="button" className="ghost" onClick={() => setEditing(null)}>
-                  {t("cancel")}
-                </button>{" "}
                 {t(e.type)}
-                {e.note ? `: ${e.note}` : ""}
+                <input
+                  value={editNote}
+                  placeholder={t("note")}
+                  onChange={(event) => setEditNote(event.target.value)}
+                />
+                <span className="row-end">
+                  <button
+                    type="button"
+                    disabled={busy || !editDate}
+                    onClick={async () => {
+                      setBusy(true);
+                      try {
+                        await setCarEvent(db, e.id, editDate, editNote.trim() || null);
+                        setEditing(null);
+                        await load();
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    {t("save")}
+                  </button>
+                  <button type="button" className="ghost" onClick={() => setEditing(null)}>
+                    {t("cancel")}
+                  </button>
+                </span>
               </>
             ) : (
               <>
                 {formatDate(e.event_date)} — {t(e.type)}
                 {e.note ? `: ${e.note}` : ""}{" "}
-                {e.contract_id && <Link to={`/contracts/${e.contract_id}`}>#{e.contract_id}</Link>}{" "}
-                <button
-                  type="button"
-                  className="ghost"
-                  onClick={() => {
-                    setEditing(e.id);
-                    setEditDate(e.event_date);
-                  }}
-                >
-                  {t("edit")}
-                </button>
+                {e.contract_id && <Link to={`/contracts/${e.contract_id}`}>#{e.contract_id}</Link>}
+                <span className="row-end">
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => {
+                      setEditing(e.id);
+                      setEditDate(e.event_date);
+                      setEditNote(e.note ?? "");
+                    }}
+                  >
+                    {t("edit")}
+                  </button>
+                  <ConfirmButton
+                    question={t("confirm_delete_event")}
+                    disabled={busy}
+                    onConfirm={async () => {
+                      setBusy(true);
+                      try {
+                        await deleteCarEvent(db, e.id);
+                        await load();
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    {t("delete")}
+                  </ConfirmButton>
+                </span>
               </>
             )}
           </li>

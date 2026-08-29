@@ -46,7 +46,8 @@ import {
   repossessContract,
   deleteFee,
   saveFee,
-  setCarEventDate,
+  deleteCarEvent,
+  setCarEvent,
   setCarStatus,
   setLateFee,
   toDollarPlaceholders,
@@ -291,11 +292,15 @@ describe("timeline dates", () => {
     await addCarEvent(db, carId, "2026-01-05", "note", null, "wrong day");
     const [entry] = await carEvents(db, carId);
 
-    await setCarEventDate(db, entry.id, "2026-01-03");
+    await setCarEvent(db, entry.id, "2026-01-03", "right day");
 
     const [corrected] = await carEvents(db, carId);
     expect(corrected.event_date).toBe("2026-01-03");
-    expect(corrected.note).toBe("wrong day");
+    expect(corrected.note).toBe("right day");
+
+    // The car keeps the "acquired" entry it was given when it was saved.
+    await deleteCarEvent(db, entry.id);
+    expect((await carEvents(db, carId)).map((x) => x.type)).toEqual(["acquired"]);
   });
 });
 

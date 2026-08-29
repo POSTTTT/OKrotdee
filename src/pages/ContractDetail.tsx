@@ -6,6 +6,7 @@ import Modal from "../Modal";
 import PaymentForm from "./PaymentForm";
 import RowLink from "../RowLink";
 import { phoneList } from "../phone";
+import ConfirmButton from "../ConfirmButton";
 import { useApp } from "../context";
 import { formatDate } from "../dates";
 import {
@@ -133,27 +134,27 @@ export default function ContractDetail() {
         </h1>
         {contract.status === "active" && (
           <span className="actions">
-            <button
+            <ConfirmButton
+              question={t("confirm_repossess")}
               className="danger"
-              onClick={async () => {
-                if (!confirm(t("confirm_repossess"))) return;
+              onConfirm={async () => {
                 await repossessContract(db, contract.id);
                 await load();
               }}
             >
               {t("mark_repossessed")}
-            </button>
+            </ConfirmButton>
             {/* Cancelling is the rarer, quieter of the two endings. */}
-            <button
+            <ConfirmButton
+              question={t("confirm_cancel")}
               className="ghost"
-              onClick={async () => {
-                if (!confirm(t("confirm_cancel"))) return;
+              onConfirm={async () => {
                 await cancelContract(db, contract.id);
                 await load();
               }}
             >
               {t("cancel_contract")}
-            </button>
+            </ConfirmButton>
           </span>
         )}
       </div>
@@ -270,16 +271,16 @@ export default function ContractDetail() {
                     <Link className="button" to={`/contracts/${contract.id}/fees/${f.type}?fee=${f.id}`}>
                       {t("edit")}
                     </Link>
-                    <button
+                    <ConfirmButton
+                      question={t("confirm_delete_fee")}
                       className="danger"
-                      onClick={async () => {
-                        if (!confirm(t("confirm_delete_fee"))) return;
+                      onConfirm={async () => {
                         await deleteFee(db, f.id);
                         await load();
                       }}
                     >
                       {t("delete")}
-                    </button>
+                    </ConfirmButton>
                   </td>
                 </RowLink>
               ))}
@@ -350,16 +351,17 @@ export default function ContractDetail() {
                     {[...phoneList(c.phone), c.address, c.lo_work].filter(Boolean).join(" · ")}
                   </span>
                 </Link>
-                <button
+                <ConfirmButton
+                  question={t("confirm_remove_co_client")}
                   className="danger"
-                  onClick={async () => {
+                  onConfirm={async () => {
                     await removeContractCoClient(db, contract.id, c.id);
                     setShowCo(false);
                     await load();
                   }}
                 >
                   {t("delete")}
-                </button>
+                </ConfirmButton>
               </li>
             ))}
           </ul>

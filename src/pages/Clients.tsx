@@ -33,33 +33,35 @@ export default function Clients() {
           onChange={(e) => setQuery(e.target.value)}
         />
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>{t("first_name")}</th>
-            <th>{t("last_name")}</th>
-            <th>{t("phone")}</th>
-            <th>{t("nickname")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {clients.map((c) => (
-            <RowLink key={c.id} to={`/clients/${c.id}`}>
-              <td>
-                <Link to={`/clients/${c.id}`}>{c.first_name}</Link>
-              </td>
-              <td>{c.last_name}</td>
-              <td>{phoneList(c.phone).join(", ")}</td>
-              <td>{c.nickname ?? ""}</td>
-            </RowLink>
-          ))}
-          {clients.length === 0 && (
+      <div className="scroll page">
+        <table>
+          <thead>
             <tr>
-              <td colSpan={4}>{t("none_yet")}</td>
+              <th>{t("first_name")}</th>
+              <th>{t("last_name")}</th>
+              <th>{t("phone")}</th>
+              <th>{t("nickname")}</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {clients.map((c) => (
+              <RowLink key={c.id} to={`/clients/${c.id}`}>
+                <td>
+                  <Link to={`/clients/${c.id}`}>{c.first_name}</Link>
+                </td>
+                <td>{c.last_name}</td>
+                <td>{phoneList(c.phone).join(", ")}</td>
+                <td>{c.nickname ?? ""}</td>
+              </RowLink>
+            ))}
+            {clients.length === 0 && (
+              <tr>
+                <td colSpan={4}>{t("none_yet")}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </>
   );
 }

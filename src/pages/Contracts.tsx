@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import RowLink from "../RowLink";
+import ConfirmButton from "../ConfirmButton";
 import { useApp } from "../context";
 import { deleteContract, listContracts, type ContractRow } from "../db";
 import { formatBaht } from "../money";
@@ -37,56 +38,58 @@ export default function Contracts() {
           ))}
         </select>
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>{t("client")}</th>
-            <th>{t("car")}</th>
-            <th>{t("plate_number")}</th>
-            <th className="num">{t("installment_amount")}</th>
-            <th className="num">{t("installment_count")}</th>
-            <th>{t("status")}</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {contracts.map((c) => (
-            <RowLink key={c.id} to={`/contracts/${c.id}`}>
-              <td>
-                <Link to={`/contracts/${c.id}`}>
-                  {c.first_name} {c.last_name}
-                </Link>
-              </td>
-              <td>
-                {c.brand} {c.series ?? ""}
-              </td>
-              <td>{c.plate_number ?? ""}</td>
-              <td className="num">{formatBaht(c.installment_amount)}</td>
-              <td className="num">{c.installment_count}</td>
-              <td>
-                <span className={`tag ${c.status}`}>{t(c.status)}</span>
-              </td>
-              <td className="num">
-                <button
-                  className="danger"
-                  onClick={async () => {
-                    if (!confirm(t("confirm_delete_contract"))) return;
-                    await deleteContract(db, c.id);
-                    setContracts(await listContracts(db, status || undefined));
-                  }}
-                >
-                  {t("delete")}
-                </button>
-              </td>
-            </RowLink>
-          ))}
-          {contracts.length === 0 && (
+      <div className="scroll page">
+        <table>
+          <thead>
             <tr>
-              <td colSpan={7}>{t("none_yet")}</td>
+              <th>{t("client")}</th>
+              <th>{t("car")}</th>
+              <th>{t("plate_number")}</th>
+              <th className="num">{t("installment_amount")}</th>
+              <th className="num">{t("installment_count")}</th>
+              <th>{t("status")}</th>
+              <th />
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {contracts.map((c) => (
+              <RowLink key={c.id} to={`/contracts/${c.id}`}>
+                <td>
+                  <Link to={`/contracts/${c.id}`}>
+                    {c.first_name} {c.last_name}
+                  </Link>
+                </td>
+                <td>
+                  {c.brand} {c.series ?? ""}
+                </td>
+                <td>{c.plate_number ?? ""}</td>
+                <td className="num">{formatBaht(c.installment_amount)}</td>
+                <td className="num">{c.installment_count}</td>
+                <td>
+                  <span className={`tag ${c.status}`}>{t(c.status)}</span>
+                </td>
+                <td className="row-actions">
+                  <ConfirmButton
+                    question={t("confirm_delete_contract")}
+                    className="danger"
+                    onConfirm={async () => {
+                      await deleteContract(db, c.id);
+                      setContracts(await listContracts(db, status || undefined));
+                    }}
+                  >
+                    {t("delete")}
+                  </ConfirmButton>
+                </td>
+              </RowLink>
+            ))}
+            {contracts.length === 0 && (
+              <tr>
+                <td colSpan={7}>{t("none_yet")}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </>
   );
 }

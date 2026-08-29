@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
+import ConfirmButton from "../ConfirmButton";
 import { useApp } from "../context";
 import { formatDate } from "../dates";
 import DateInput from "../DateInput";
@@ -163,11 +164,11 @@ export default function PaymentForm({
                     >
                       {t("edit")}
                     </button>
-                    <button
+                    <ConfirmButton
+                      question={t("confirm_delete_payment")}
                       className="danger"
                       disabled={busy}
-                      onClick={async () => {
-                        if (!confirm(t("confirm_delete_payment"))) return;
+                      onConfirm={async () => {
                         setBusy(true);
                         try {
                           await deletePayment(db, p.id);
@@ -179,7 +180,7 @@ export default function PaymentForm({
                       }}
                     >
                       {t("delete")}
-                    </button>
+                    </ConfirmButton>
                   </td>
                 </tr>
               ))}

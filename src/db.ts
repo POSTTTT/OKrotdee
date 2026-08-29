@@ -361,9 +361,23 @@ export async function deleteCar(db: Db, id: number): Promise<void> {
   await db.execute("DELETE FROM cars WHERE id = ?", [id]);
 }
 
-/** Correct the date on a timeline entry recorded under the wrong day. */
-export async function setCarEventDate(db: Db, id: number, eventDate: string): Promise<void> {
-  await db.execute("UPDATE car_events SET event_date = ? WHERE id = ?", [eventDate, id]);
+/** Correct a timeline entry: the day it happened, and what was written about it. */
+export async function setCarEvent(
+  db: Db,
+  id: number,
+  eventDate: string,
+  note: string | null,
+): Promise<void> {
+  await db.execute("UPDATE car_events SET event_date = ?, note = ? WHERE id = ?", [
+    eventDate,
+    note,
+    id,
+  ]);
+}
+
+/** Remove a timeline entry recorded by mistake. */
+export async function deleteCarEvent(db: Db, id: number): Promise<void> {
+  await db.execute("DELETE FROM car_events WHERE id = ?", [id]);
 }
 
 export async function carEvents(db: Db, carId: number): Promise<CarEvent[]> {

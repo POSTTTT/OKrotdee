@@ -43,39 +43,41 @@ export default function Cars() {
           ))}
         </select>
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>{t("brand")}</th>
-            <th>{t("series")}</th>
-            <th>{t("color")}</th>
-            <th>{t("model_year")}</th>
-            <th>{t("plate_number")}</th>
-            <th>{t("status")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {cars.map((c) => (
-            <RowLink key={c.id} to={`/cars/${c.id}`}>
-              <td>
-                <Link to={`/cars/${c.id}`}>{c.brand}</Link>
-              </td>
-              <td>{c.series ?? ""}</td>
-              <td>{c.color ?? ""}</td>
-              <td>{c.model_year ?? ""}</td>
-              <td>{c.plate_number ?? ""}</td>
-              <td>
-                <span className={`tag ${c.status}`}>{t(c.status)}</span>
-              </td>
-            </RowLink>
-          ))}
-          {cars.length === 0 && (
+      <div className="scroll page">
+        <table>
+          <thead>
             <tr>
-              <td colSpan={6}>{t("none_yet")}</td>
+              <th>{t("brand")}</th>
+              <th>{t("series")}</th>
+              <th>{t("color")}</th>
+              <th>{t("model_year")}</th>
+              <th>{t("plate_number")}</th>
+              <th>{t("status")}</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {cars.map((c) => (
+              <RowLink key={c.id} to={`/cars/${c.id}`}>
+                <td>
+                  <Link to={`/cars/${c.id}`}>{c.brand}</Link>
+                </td>
+                <td>{c.series ?? ""}</td>
+                <td>{c.color ?? ""}</td>
+                <td>{c.model_year ?? ""}</td>
+                <td>{c.plate_number ?? ""}</td>
+                <td>
+                  <span className={`tag ${c.status}`}>{t(c.status)}</span>
+                </td>
+              </RowLink>
+            ))}
+            {cars.length === 0 && (
+              <tr>
+                <td colSpan={6}>{t("none_yet")}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </>
   );
 }

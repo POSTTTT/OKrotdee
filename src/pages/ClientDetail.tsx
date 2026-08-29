@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
 import RowLink from "../RowLink";
+import ConfirmButton from "../ConfirmButton";
 import { useApp } from "../context";
 import { phoneList } from "../phone";
 import { clientContracts, deleteClient, getClient, type Client, type ContractRow } from "../db";
@@ -38,10 +39,10 @@ export default function ClientDetail() {
           <Link className="button" to={`/clients/${client.id}/edit`}>
             {t("edit")}
           </Link>
-          <button
+          <ConfirmButton
+            question={t("confirm_delete_client")}
             className="danger"
-            onClick={async () => {
-              if (!confirm(t("confirm_delete_client"))) return;
+            onConfirm={async () => {
               try {
                 await deleteClient(db, client.id);
                 navigate("/clients");
@@ -51,7 +52,7 @@ export default function ClientDetail() {
             }}
           >
             {t("delete")}
-          </button>
+          </ConfirmButton>
         </span>
       </div>
       {error && <p className="flash">{error}</p>}

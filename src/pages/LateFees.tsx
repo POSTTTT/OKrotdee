@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
+import ConfirmButton from "../ConfirmButton";
 import { useApp } from "../context";
 import DateInput from "../DateInput";
 import { formatDate } from "../dates";
@@ -185,11 +186,11 @@ export default function LateFees() {
                     >
                       {t("edit")}
                     </Link>{" "}
-                    <button
+                    <ConfirmButton
+                      question={t("confirm_delete_payment")}
                       className="danger"
                       disabled={busy}
-                      onClick={async () => {
-                        if (!confirm(t("confirm_delete_payment"))) return;
+                      onConfirm={async () => {
                         setBusy(true);
                         try {
                           await deleteLateFeePayment(db, r.id);
@@ -201,7 +202,7 @@ export default function LateFees() {
                       }}
                     >
                       {t("delete")}
-                    </button>
+                    </ConfirmButton>
                   </td>
                 </RowLink>
               ))}

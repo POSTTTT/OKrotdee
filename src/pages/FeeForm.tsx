@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
+import ConfirmButton from "../ConfirmButton";
 import { useApp } from "../context";
 import { formatDate } from "../dates";
 import DateInput from "../DateInput";
@@ -285,16 +286,17 @@ export default function FeeForm() {
                     <td>{formatDate(p.due_on)}</td>
                     <td className="num">{formatBaht(p.amount)}</td>
                     <td className="num">
-                      <button
+                      <ConfirmButton
+                        question={t("confirm_delete_promised")}
                         className="danger"
                         disabled={busy}
-                        onClick={async () => {
+                        onConfirm={async () => {
                           await deleteFeeSchedulePart(db, p.id);
                           await loadParts(fee.id);
                         }}
                       >
                         {t("delete")}
-                      </button>
+                      </ConfirmButton>
                     </td>
                   </tr>
                 ))}
@@ -353,11 +355,11 @@ export default function FeeForm() {
                     <td className="num">{formatBaht(p.amount)}</td>
                     <td>{p.note ?? ""}</td>
                     <td className="num">
-                      <button
+                      <ConfirmButton
+                        question={t("confirm_delete_payment")}
                         className="danger"
                         disabled={busy}
-                        onClick={async () => {
-                          if (!confirm(t("confirm_delete_payment"))) return;
+                        onConfirm={async () => {
                           setBusy(true);
                           try {
                             await deleteFeePayment(db, p.id);
@@ -368,7 +370,7 @@ export default function FeeForm() {
                         }}
                       >
                         {t("delete")}
-                      </button>
+                      </ConfirmButton>
                     </td>
                   </tr>
                 ))}
