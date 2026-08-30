@@ -93,6 +93,17 @@ CREATE TABLE IF NOT EXISTS car_events (
   note        TEXT
 );
 
+CREATE TABLE IF NOT EXISTS client_events (
+  id          INTEGER PRIMARY KEY,
+  client_id   INTEGER NOT NULL REFERENCES clients(id),
+  event_date  TEXT NOT NULL,
+  type        TEXT NOT NULL
+              CHECK (type IN ('contract_started','contract_completed',
+                              'repossessed','note')),
+  contract_id INTEGER REFERENCES contracts(id),
+  note        TEXT
+);
+
 -- Money taken outside the installment schedule: the down payment, and the
 -- insurance fee with the police fine that comes with it. Insurance is paid
 -- again every year on no fixed date, so a contract has as many rows as the
@@ -165,6 +176,7 @@ CREATE INDEX IF NOT EXISTS idx_fees_contract ON fees(contract_id);
 CREATE INDEX IF NOT EXISTS idx_installments_contract ON installments(contract_id);
 CREATE INDEX IF NOT EXISTS idx_payments_installment  ON payments(installment_id);
 CREATE INDEX IF NOT EXISTS idx_car_events_car        ON car_events(car_id);
+CREATE INDEX IF NOT EXISTS idx_client_events_client  ON client_events(client_id);
 CREATE INDEX IF NOT EXISTS idx_contracts_client      ON contracts(client_id);
 CREATE INDEX IF NOT EXISTS idx_contract_clients_client ON contract_clients(client_id);
 CREATE INDEX IF NOT EXISTS idx_contracts_car         ON contracts(car_id);
@@ -193,6 +205,15 @@ export const MIGRATIONS = [
   // recorded until now was against the installments.
   "ALTER TABLE late_fee_payments ADD COLUMN kind TEXT NOT NULL DEFAULT 'installment'",
   "ALTER TABLE cars ADD COLUMN insurance_expires_on TEXT",
+  // Clients kept no history until now; the turning points of their contracts
+  // were already written to the car's log, so they are copied across. Guarded,
+  // so a later start does not copy them twice.
+  "INSERT INTO client_events (client_id, event_date, type, contract_id, note)" +
+    " SELECT c.client_id, e.event_date, e.type, e.contract_id, e.note" +
+    " FROM car_events e JOIN contracts c ON c.id = e.contract_id" +
+    " WHERE e.type IN ('contract_started','contract_completed','repossessed')" +
+    " AND NOT EXISTS (SELECT 1 FROM client_events x" +
+    " WHERE x.contract_id = e.contract_id AND x.type = e.type)",
 ];
 
 /** Bump whenever REBUILDS grows. Stored in the file as PRAGMA user_version. */

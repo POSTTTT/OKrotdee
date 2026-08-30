@@ -27,3 +27,17 @@ export function formatDate(iso: string): string {
   if (!p) return iso;
   return `${p.day}/${p.month}/${p.year}`;
 }
+
+/**
+ * The month a date falls in, named short and in the reader's language, for a
+ * timeline that puts the day beside the entry rather than inside it.
+ */
+export function monthYear(iso: string, lang: string): string {
+  const p = parts(iso);
+  if (!p) return "";
+  const month = new Intl.DateTimeFormat(lang === "th" ? "th-TH-u-ca-gregory" : "en-GB", {
+    month: "short",
+    timeZone: "UTC",
+  }).format(Date.UTC(p.year, p.month - 1, p.day));
+  return `${month} ${p.year}`;
+}

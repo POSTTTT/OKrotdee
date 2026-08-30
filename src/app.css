@@ -370,6 +370,12 @@ tbody td[colspan] {
 /* Height, not a ceiling: the frame reaches the foot of the window even when
    only three rows are in it. */
 .scroll.page { height: calc(100vh - 14.5rem); max-height: none; min-height: 12rem; }
+/* The history log in the same frame, with room around its cards. */
+.scroll.log { padding: var(--s4); background: var(--paper); }
+.scroll.log .empty { margin: 0; text-align: center; color: var(--ink-soft); }
+/* Whatever follows a framed block stands clear of it — the row that adds to
+   it, a form, a second table. Headings keep their own, larger, air. */
+:is(table, .scroll, ul.timeline, dl.facts) + :not(h1, h2, h3) { margin-top: var(--s4); }
 
 /* ---------- Forms ---------- */
 
@@ -559,13 +565,13 @@ button.danger:disabled:hover { background: var(--alarm); }
   letter-spacing: 0.01em;
   white-space: nowrap;
 }
-.tag.PAID, .tag.OK, .tag.available, .tag.completed, .tag.sold {
+.tag.PAID, .tag.OK, .tag.available, .tag.completed, .tag.sold, .tag.contract_completed {
   background: var(--good-wash); color: var(--good); border-color: #c2ddca;
 }
-.tag.UPCOMING, .tag.on_contract, .tag.cancelled {
+.tag.UPCOMING, .tag.on_contract, .tag.cancelled, .tag.note {
   background: var(--idle-wash); color: var(--ink-soft); border-color: var(--line-strong);
 }
-.tag.active {
+.tag.active, .tag.contract_started, .tag.acquired {
   background: var(--accent-wash); color: var(--accent); border-color: #c3d3e0;
 }
 .tag.PARTIAL, .tag.OVERDUE, .tag.unpaid {
@@ -604,29 +610,73 @@ ul.counts a:hover { color: var(--accent); }
 
 /* ---------- Timeline ---------- */
 
+/* The car's history as a timeline: the day it happened on the left, a rail of
+   dots down the middle, and what happened on a card of its own. */
 ul.timeline {
   list-style: none;
   padding: 0;
   margin: 0;
+  display: grid;
+  gap: var(--s3);
+}
+ul.timeline li {
+  display: grid;
+  grid-template-columns: 4rem 1.25rem 1fr;
+  gap: var(--s3);
+  align-items: start;
+  font-size: 0.94rem;
+}
+.timeline .when { text-align: right; padding-top: var(--s2); line-height: 1.2; }
+.timeline .when strong { display: block; font-size: 1.35rem; font-weight: 600; }
+.timeline .when small { color: var(--ink-soft); font-size: 0.8rem; }
+/* The rail runs between the dots, and stops at the first and the last one. */
+.timeline .rail { position: relative; display: flex; justify-content: center; }
+.timeline .rail::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: calc(var(--s3) * -1);
+  width: 2px;
+  background: var(--line);
+}
+.timeline li:first-child .rail::before { top: 0.95rem; }
+.timeline li:last-child .rail::before { bottom: auto; height: 0.95rem; }
+.timeline .dot {
+  position: relative;
+  margin-top: 0.5rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 3px solid var(--ink-faint);
+}
+.timeline .dot.acquired { border-color: var(--accent); }
+.timeline .dot.contract_started { border-color: var(--accent); }
+.timeline .dot.contract_completed { border-color: var(--good); }
+.timeline .dot.repossessed { border-color: var(--alarm); }
+.timeline .card {
+  display: grid;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
-ul.timeline li {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  padding: var(--s2) var(--s4);
-  border-bottom: 1px solid var(--line);
-  font-size: 0.94rem;
+.timeline .card .meta { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.timeline .card .what { margin: 0; font-size: 1rem; font-weight: 600; }
+/* A card's own buttons stay quiet: the entry matters, not the way to remove it. */
+.timeline .card button { padding: 0.32rem 0.7rem; font-size: 0.86rem; }
+.timeline .card button.danger {
+  background: transparent;
+  color: var(--alarm);
+  border-color: #e0b3ad;
 }
-ul.timeline li:last-child { border-bottom: 0; }
-/* An entry being corrected: a compact date, the note taking the free room,
-   and the way out of the edit at the end of the row. */
+.timeline .card button.danger:hover { background: var(--alarm-wash); }
+/* An entry being corrected: a compact date, the note on the line below. */
 ul.timeline .date-input { height: 36px; min-height: 0; width: auto; }
 ul.timeline .date-input select { height: 100%; }
-ul.timeline li > input { flex: 1; min-width: 8rem; height: 36px; }
-ul.timeline li .row-end { margin-left: auto; display: flex; gap: var(--s2); }
+ul.timeline .card > input { height: 36px; }
+ul.timeline .row-end { margin-left: auto; display: flex; gap: var(--s2); }
 ul.timeline a { color: var(--accent); }
 
 /* A row's own buttons should not outshout the numbers they sit beside. */

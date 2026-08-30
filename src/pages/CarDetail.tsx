@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
 import RowLink from "../RowLink";
+import Timeline from "../Timeline";
 import ConfirmButton from "../ConfirmButton";
 import { useApp } from "../context";
 import { formatDate } from "../dates";
-import DateInput from "../DateInput";
 import {
   addCarEvent,
   carContracts,
@@ -28,14 +28,9 @@ export default function CarDetail() {
   const carId = Number(useParams().id);
   // undefined while loading, null when there is no such car.
   const [car, setCar] = useState<Car | null | undefined>();
-  const [busy, setBusy] = useState(false);
   const [events, setEvents] = useState<CarEvent[]>([]);
   const [contracts, setContracts] = useState<ContractRow[]>([]);
   const [error, setError] = useState<string | null>(null);
-  // The timeline entry open for correction, and what it is being changed to.
-  const [editing, setEditing] = useState<number | null>(null);
-  const [editDate, setEditDate] = useState("");
-  const [editNote, setEditNote] = useState("");
 
   const load = useCallback(async () => {
     setCar((await getCar(db, carId)) ?? null);
@@ -47,29 +42,10 @@ export default function CarDetail() {
     load();
   }, [load]);
 
-  const addNote = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    // React clears currentTarget once the handler returns, so hold on to the
-    // form itself; reading it after the await would throw and skip load().
-    const element = event.currentTarget;
-    const form = new FormData(element);
-    const note = ((form.get("note") as string) ?? "").trim();
-    if (!note) return;
-    setBusy(true);
-    try {
-      await addCarEvent(
-        db,
-        carId,
-        (form.get("event_date") as string) || todayIso(),
-        "note",
-        null,
-        note,
-      );
-      element.reset();
-      await load();
-    } finally {
-      setBusy(false);
-    }
+  /** Who signed a contract, for a timeline that names people rather than ids. */
+  const signer = (contractId: number) => {
+    const row = contracts.find((c) => c.id === contractId);
+    return row?.first_name ? `${row.first_name} ${row.last_name ?? ""}`.trim() : null;
   };
 
   if (car === undefined) return <p>{t("loading")}</p>;
@@ -154,90 +130,22 @@ export default function CarDetail() {
       </table>
 
       <h2>{t("timeline")}</h2>
-      <ul className="timeline">
-        {events.map((e) => (
-          <li key={e.id}>
-            {editing === e.id ? (
-              <>
-                <DateInput
-                  name="event_date_edit"
-                  defaultValue={e.event_date}
-                  required
-                  onChange={setEditDate}
-                />
-                {t(e.type)}
-                <input
-                  value={editNote}
-                  placeholder={t("note")}
-                  onChange={(event) => setEditNote(event.target.value)}
-                />
-                <span className="row-end">
-                  <button
-                    type="button"
-                    disabled={busy || !editDate}
-                    onClick={async () => {
-                      setBusy(true);
-                      try {
-                        await setCarEvent(db, e.id, editDate, editNote.trim() || null);
-                        setEditing(null);
-                        await load();
-                      } finally {
-                        setBusy(false);
-                      }
-                    }}
-                  >
-                    {t("save")}
-                  </button>
-                  <button type="button" className="ghost" onClick={() => setEditing(null)}>
-                    {t("cancel")}
-                  </button>
-                </span>
-              </>
-            ) : (
-              <>
-                {formatDate(e.event_date)} — {t(e.type)}
-                {e.note ? `: ${e.note}` : ""}{" "}
-                {e.contract_id && <Link to={`/contracts/${e.contract_id}`}>#{e.contract_id}</Link>}
-                <span className="row-end">
-                  <button
-                    type="button"
-                    className="ghost"
-                    onClick={() => {
-                      setEditing(e.id);
-                      setEditDate(e.event_date);
-                      setEditNote(e.note ?? "");
-                    }}
-                  >
-                    {t("edit")}
-                  </button>
-                  <ConfirmButton
-                    question={t("confirm_delete_event")}
-                    disabled={busy}
-                    onConfirm={async () => {
-                      setBusy(true);
-                      try {
-                        await deleteCarEvent(db, e.id);
-                        await load();
-                      } finally {
-                        setBusy(false);
-                      }
-                    }}
-                  >
-                    {t("delete")}
-                  </ConfirmButton>
-                </span>
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
-      <form className="toolbar" onSubmit={addNote}>
-        <DateInput name="event_date" defaultValue={todayIso()} required />
-        <input name="note" placeholder={t("add_note")} required />
-        <button type="submit" disabled={busy}>
-          {t("add_note")}
-        </button>
-      </form>
+      <Timeline
+        entries={events}
+        contractLabel={signer}
+        onAdd={async (date, note) => {
+          await addCarEvent(db, carId, date, "note", null, note);
+          await load();
+        }}
+        onSave={async (id, date, note) => {
+          await setCarEvent(db, id, date, note);
+          await load();
+        }}
+        onDelete={async (id) => {
+          await deleteCarEvent(db, id);
+          await load();
+        }}
+      />
     </>
   );
 }

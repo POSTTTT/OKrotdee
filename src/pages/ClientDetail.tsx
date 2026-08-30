@@ -1,12 +1,24 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
 import RowLink from "../RowLink";
+import Timeline from "../Timeline";
 import ConfirmButton from "../ConfirmButton";
 import { useApp } from "../context";
 import { phoneList } from "../phone";
-import { clientContracts, deleteClient, getClient, type Client, type ContractRow } from "../db";
+import {
+  addClientEvent,
+  clientContracts,
+  clientEvents,
+  deleteClient,
+  deleteClientEvent,
+  getClient,
+  setClientEvent,
+  type Client,
+  type ClientEvent,
+  type ContractRow,
+} from "../db";
 import { isErrorKey } from "../lang";
 import { formatBaht } from "../money";
 
@@ -17,12 +29,24 @@ export default function ClientDetail() {
   // undefined while loading, null when there is no such client.
   const [client, setClient] = useState<Client | null | undefined>();
   const [contracts, setContracts] = useState<ContractRow[]>([]);
+  const [events, setEvents] = useState<ClientEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    getClient(db, clientId).then((c) => setClient(c ?? null));
-    clientContracts(db, clientId).then(setContracts);
+  const load = useCallback(async () => {
+    setClient((await getClient(db, clientId)) ?? null);
+    setContracts(await clientContracts(db, clientId));
+    setEvents(await clientEvents(db, clientId));
   }, [db, clientId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  /** Which car a contract is for, so the log names it rather than an id. */
+  const subject = (contractId: number) => {
+    const row = contracts.find((c) => c.id === contractId);
+    return row?.brand ? `${row.brand} ${row.plate_number ?? ""}`.trim() : null;
+  };
 
   if (client === undefined) return <p>{t("loading")}</p>;
   if (client === null) return <p>{t("not_found")}</p>;
@@ -114,6 +138,24 @@ export default function ClientDetail() {
           )}
         </tbody>
       </table>
+
+      <h2>{t("history")}</h2>
+      <Timeline
+        entries={events}
+        contractLabel={subject}
+        onAdd={async (date, note) => {
+          await addClientEvent(db, clientId, date, "note", null, note);
+          await load();
+        }}
+        onSave={async (id, date, note) => {
+          await setClientEvent(db, id, date, note);
+          await load();
+        }}
+        onDelete={async (id) => {
+          await deleteClientEvent(db, id);
+          await load();
+        }}
+      />
     </>
   );
 }

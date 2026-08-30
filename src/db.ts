@@ -242,7 +242,58 @@ export async function deleteClient(db: Db, id: number): Promise<void> {
   if ((await clientContracts(db, id)).length > 0) {
     throw new Error("err_client_has_contracts");
   }
+  await db.execute("DELETE FROM client_events WHERE client_id = ?", [id]);
   await db.execute("DELETE FROM clients WHERE id = ?", [id]);
+}
+
+/** A line in a client's history: what happened, on what day, and any note. */
+export interface ClientEvent {
+  id: number;
+  client_id: number;
+  event_date: string;
+  type: string;
+  contract_id: number | null;
+  note: string | null;
+}
+
+export async function clientEvents(db: Db, clientId: number): Promise<ClientEvent[]> {
+  return db.select<ClientEvent>(
+    "SELECT * FROM client_events WHERE client_id = ? ORDER BY event_date, id",
+    [clientId],
+  );
+}
+
+export async function addClientEvent(
+  db: Db,
+  clientId: number,
+  eventDate: string,
+  type: string,
+  contractId: number | null = null,
+  note: string | null = null,
+): Promise<void> {
+  await db.execute(
+    "INSERT INTO client_events (client_id, event_date, type, contract_id, note)" +
+      " VALUES (?, ?, ?, ?, ?)",
+    [clientId, eventDate, type, contractId, note],
+  );
+}
+
+/** Correct an entry: the day it happened, and what was written about it. */
+export async function setClientEvent(
+  db: Db,
+  id: number,
+  eventDate: string,
+  note: string | null,
+): Promise<void> {
+  await db.execute("UPDATE client_events SET event_date = ?, note = ? WHERE id = ?", [
+    eventDate,
+    note,
+    id,
+  ]);
+}
+
+export async function deleteClientEvent(db: Db, id: number): Promise<void> {
+  await db.execute("DELETE FROM client_events WHERE id = ?", [id]);
 }
 
 export type CarStatus = "available" | "on_contract" | "sold" | "repossessed";
@@ -486,6 +537,7 @@ export async function createContract(db: Db, fields: ContractFields): Promise<nu
 
   await setCarStatus(db, fields.car_id, "on_contract");
   await addCarEvent(db, fields.car_id, todayIso(), "contract_started", lastInsertId);
+  await addClientEvent(db, fields.client_id, todayIso(), "contract_started", lastInsertId);
   return lastInsertId;
 }
 
@@ -611,6 +663,7 @@ export async function completeContractIfPaid(db: Db, contractId: number): Promis
   await db.execute("UPDATE contracts SET status = 'completed' WHERE id = ?", [contractId]);
   await setCarStatus(db, contract.car_id, "sold");
   await addCarEvent(db, contract.car_id, todayIso(), "contract_completed", contractId);
+  await addClientEvent(db, contract.client_id, todayIso(), "contract_completed", contractId);
   return true;
 }
 
@@ -643,6 +696,7 @@ export async function repossessContract(db: Db, contractId: number): Promise<voi
   await db.execute("UPDATE contracts SET status = 'repossessed' WHERE id = ?", [contractId]);
   await setCarStatus(db, contract.car_id, "repossessed");
   await addCarEvent(db, contract.car_id, todayIso(), "repossessed", contractId);
+  await addClientEvent(db, contract.client_id, todayIso(), "repossessed", contractId);
 }
 
 /** Void a contract entered in error and free the car. */
@@ -678,6 +732,7 @@ export async function deleteContract(db: Db, contractId: number): Promise<void> 
   await db.execute("DELETE FROM fees WHERE contract_id = ?", [contractId]);
   await db.execute("DELETE FROM late_fee_payments WHERE contract_id = ?", [contractId]);
   await db.execute("DELETE FROM car_events WHERE contract_id = ?", [contractId]);
+  await db.execute("DELETE FROM client_events WHERE contract_id = ?", [contractId]);
   await db.execute("DELETE FROM contracts WHERE id = ?", [contractId]);
   if (contract.status === "active") await setCarStatus(db, contract.car_id, "available");
 }

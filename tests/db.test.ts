@@ -46,7 +46,11 @@ import {
   repossessContract,
   deleteFee,
   saveFee,
+  addClientEvent,
+  clientEvents,
   deleteCarEvent,
+  deleteClientEvent,
+  setClientEvent,
   setCarEvent,
   setCarStatus,
   setLateFee,
@@ -55,6 +59,7 @@ import {
   updateClient,
 } from "../src/db";
 import { contractFlag, outstanding, overdueCount } from "../src/money";
+import { MIGRATIONS } from "../src/schema";
 import { memoryDb } from "./helpers";
 
 describe("toDollarPlaceholders", () => {
@@ -301,6 +306,51 @@ describe("timeline dates", () => {
     // The car keeps the "acquired" entry it was given when it was saved.
     await deleteCarEvent(db, entry.id);
     expect((await carEvents(db, carId)).map((x) => x.type)).toEqual(["acquired"]);
+  });
+});
+
+describe("client history", () => {
+  it("logs the contracts a client signs, alongside notes typed by hand", async () => {
+    const db = await seeded();
+    const contractId = await createContract(db, CONTRACT);
+    await addClientEvent(db, 1, "2026-09-02", "note", null, "promised to pay friday");
+
+    const log = await clientEvents(db, 1);
+    expect(log.map((e) => e.type)).toEqual(["contract_started", "note"]);
+    expect(log[0].contract_id).toBe(contractId);
+
+    const note = log[1];
+    await setClientEvent(db, note.id, "2026-09-03", "paid");
+    expect((await clientEvents(db, 1))[1]).toMatchObject({
+      event_date: "2026-09-03",
+      note: "paid",
+    });
+
+    await deleteClientEvent(db, note.id);
+    expect(await clientEvents(db, 1)).toHaveLength(1);
+  });
+
+  it("copies the history of contracts signed before the client log existed", async () => {
+    const db = await seeded();
+    const contractId = await createContract(db, CONTRACT);
+    // A database from before the log: only the car remembers what happened.
+    await db.execute("DELETE FROM client_events");
+
+    for (const statement of MIGRATIONS) await db.execute(statement).catch(() => {});
+
+    const log = await clientEvents(db, 1);
+    expect(log.map((e) => [e.type, e.contract_id])).toEqual([["contract_started", contractId]]);
+
+    // Running them again does not double the entries up.
+    for (const statement of MIGRATIONS) await db.execute(statement).catch(() => {});
+    expect(await clientEvents(db, 1)).toHaveLength(1);
+  });
+
+  it("takes a client's history with the contract it belongs to", async () => {
+    const db = await seeded();
+    const contractId = await createContract(db, CONTRACT);
+    await deleteContract(db, contractId);
+    expect(await clientEvents(db, 1)).toHaveLength(0);
   });
 });
 
