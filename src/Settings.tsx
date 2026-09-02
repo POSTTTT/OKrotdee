@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { appConfigDir, join } from "@tauri-apps/api/path";
 import { getVersion } from "@tauri-apps/api/app";
 import { open } from "@tauri-apps/plugin-dialog";
 
@@ -17,6 +18,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const { db, t, lang, setLang } = useApp();
   const [version, setVersion] = useState("");
   const [folder, setFolder] = useState("");
+  const [backups, setBackups] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +26,9 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     getVersion().then(setVersion, (e) => setError(String(e)));
     dataDir().then(setFolder, (e) => setError(String(e)));
+    appConfigDir()
+      .then((dir) => join(dir, "backups"))
+      .then(setBackups, (e) => setError(String(e)));
   }, []);
 
   const run = async (work: () => Promise<string | null>) => {
@@ -97,6 +102,16 @@ export default function Settings({ onClose }: { onClose: () => void }) {
         >
           {t("open_data_folder")}
         </button>
+      </div>
+
+      <h2>{t("backups")}</h2>
+      <dl className="facts">
+        <div>
+          <dt>{t("backup_folder")}</dt>
+          <dd className="text">{backups || "…"}</dd>
+        </div>
+      </dl>
+      <div className="toolbar">
         <button
           disabled={busy}
           onClick={() =>
