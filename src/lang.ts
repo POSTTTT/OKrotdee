@@ -112,6 +112,8 @@ export const LABELS: Record<LangCode, Record<string, string>> = {
     language: "Language",
     data: "Data",
     data_folder: "Data folder",
+    change_data_folder: "Change folder…",
+    use_local_data: "Use the folder on this computer",
     about: "About",
     version: "Version",
     backup_now: "Backup now",
@@ -155,6 +157,7 @@ export const LABELS: Record<LangCode, Record<string, string>> = {
     err_client_already_on_contract: "That client is already on this contract",
     err_car_has_contracts: "That car has contracts and cannot be deleted",
     err_backup_failed: "Backup failed — the data was NOT saved. Tell the owner",
+    err_data_folder_missing: "The data folder cannot be reached. Plug in the drive holding it, then start the program again",
   },
   th: {
     app_name: "O.K.รถดี",
@@ -264,6 +267,8 @@ export const LABELS: Record<LangCode, Record<string, string>> = {
     language: "ภาษา",
     data: "ข้อมูล",
     data_folder: "ที่เก็บข้อมูล",
+    change_data_folder: "เปลี่ยนที่เก็บข้อมูล…",
+    use_local_data: "ใช้ที่เก็บข้อมูลในเครื่องนี้",
     about: "เกี่ยวกับโปรแกรม",
     version: "เวอร์ชัน",
     backup_now: "สำรองข้อมูล",
@@ -307,6 +312,7 @@ export const LABELS: Record<LangCode, Record<string, string>> = {
     err_client_already_on_contract: "ลูกค้ารายนี้อยู่ในสัญญานี้แล้ว",
     err_car_has_contracts: "รถคันนี้มีสัญญาอยู่ ลบไม่ได้",
     err_backup_failed: "สำรองข้อมูลไม่สำเร็จ ข้อมูลยังไม่ถูกสำรอง กรุณาแจ้งเจ้าของร้าน",
+    err_data_folder_missing: "เข้าถึงที่เก็บข้อมูลไม่ได้ กรุณาเสียบฮาร์ดดิสก์ที่เก็บข้อมูลแล้วเปิดโปรแกรมใหม่",
   },
 };
 

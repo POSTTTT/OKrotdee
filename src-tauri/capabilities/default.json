@@ -11,6 +11,8 @@
     "sql:default",
     "sql:allow-execute",
     "fs:allow-exists",
+    "fs:allow-read-text-file",
+    "fs:allow-write-text-file",
     "fs:allow-mkdir",
     "fs:allow-read-dir",
     "fs:allow-copy-file",
@@ -18,6 +20,7 @@
     {
       "identifier": "fs:scope",
       "allow": [
+        { "path": "$APPCONFIG/datadir.txt" },
         { "path": "$APPCONFIG/okrotdee.db" },
         { "path": "$APPCONFIG/okrotdee.db-wal" },
         { "path": "$APPCONFIG/okrotdee.db-shm" },
@@ -26,6 +29,7 @@
       ]
     },
     "dialog:allow-save",
+    "dialog:allow-open",
     {
       "identifier": "opener:allow-open-path",
       "allow": [

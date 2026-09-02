@@ -7,6 +7,10 @@
  */
 
 import Database from "@tauri-apps/plugin-sql";
+import { exists } from "@tauri-apps/plugin-fs";
+import { join } from "@tauri-apps/api/path";
+
+import { dataDir } from "./datadir";
 
 import {
   generateSchedule,
@@ -48,7 +52,11 @@ export function nowIso(): string {
 
 /** Open the application database, enable foreign keys, and apply the schema. */
 export async function openDatabase(): Promise<Db> {
-  const database = await Database.load("sqlite:okrotdee.db");
+  const dir = await dataDir();
+  // An external disk that is not plugged in would otherwise be treated as an
+  // empty folder, and the shop would be handed a new, empty database.
+  if (!(await exists(dir))) throw new Error("err_data_folder_missing");
+  const database = await Database.load(`sqlite:${await join(dir, "okrotdee.db")}`);
 
   const db: Db = {
     async select<T>(sql: string, params: unknown[] = []): Promise<T[]> {

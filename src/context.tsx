@@ -1,8 +1,9 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 import { startupBackup } from "./backup";
+import { clearDataDir } from "./datadir";
 import { openDatabase, type Db } from "./db";
-import { DEFAULT_LANG, t as translate, type LangCode } from "./lang";
+import { DEFAULT_LANG, isErrorKey, t as translate, type LangCode } from "./lang";
 
 interface AppValue {
   db: Db;
@@ -37,7 +38,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setLangState(code);
   };
 
-  if (error) return <p className="flash alarm">{error}</p>;
+  if (error) {
+    // Usually the drive holding the data is simply not plugged in. The way
+    // back on has to be here: this screen is all there is until it opens.
+    return (
+      <>
+        <p className="flash alarm">{isErrorKey(error) ? translate(error, lang) : error}</p>
+        <div className="toolbar">
+          <button
+            onClick={() => clearDataDir().then(() => window.location.reload())}
+          >
+            {translate("use_local_data", lang)}
+          </button>
+        </div>
+      </>
+    );
+  }
   if (!db) return <p>{translate("loading", lang)}</p>;
 
   return (

@@ -6,6 +6,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { copyFile, exists, mkdir, readDir, remove } from "@tauri-apps/plugin-fs";
 import { openPath } from "@tauri-apps/plugin-opener";
 
+import { dataDir, setDataDir } from "./datadir";
 import type { Db } from "./db";
 import { todayIso } from "./money";
 
@@ -15,10 +16,11 @@ const KEEP = 30;
 const SIDECARS = ["-wal", "-shm"];
 
 async function paths() {
-  const dir = await appConfigDir();
+  // Backups stay on this machine even when the database is on a drive: two
+  // disks holding the shop's history is the point of taking them at all.
   return {
-    database: await join(dir, "okrotdee.db"),
-    backups: await join(dir, "backups"),
+    database: await join(await dataDir(), "okrotdee.db"),
+    backups: await join(await appConfigDir(), "backups"),
   };
 }
 
@@ -82,4 +84,25 @@ export async function showBackups(): Promise<void> {
   const { backups } = await paths();
   if (!(await exists(backups))) await mkdir(backups, { recursive: true });
   await openPath(backups);
+}
+
+/**
+ * Keep the data somewhere else — usually an external disk. A database already
+ * in the chosen folder is adopted as it is, which is what happens when the
+ * same drive is plugged into a second machine; otherwise this one is copied
+ * across. Nothing is deleted: the old copy stays where it was.
+ */
+export async function moveDataTo(db: Db, target: string): Promise<void> {
+  const { database } = await paths();
+  const moved = await join(target, "okrotdee.db");
+  if (moved === database) return;
+
+  if (!(await exists(moved))) {
+    await checkpoint(db);
+    await copyFile(database, moved);
+    for (const suffix of SIDECARS) {
+      if (await exists(database + suffix)) await copyFile(database + suffix, moved + suffix);
+    }
+  }
+  await setDataDir(target);
 }

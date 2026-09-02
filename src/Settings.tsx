@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
-import { appConfigDir } from "@tauri-apps/api/path";
+import { open } from "@tauri-apps/plugin-dialog";
 
 import Modal from "./Modal";
-import { backupTo, showBackups } from "./backup";
+import { backupTo, moveDataTo, showBackups } from "./backup";
+import { dataDir } from "./datadir";
 import { useApp } from "./context";
 
 /**
@@ -21,7 +22,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     getVersion().then(setVersion, (e) => setError(String(e)));
-    appConfigDir().then(setFolder, (e) => setError(String(e)));
+    dataDir().then(setFolder, (e) => setError(String(e)));
   }, []);
 
   const run = async (work: () => Promise<string | null>) => {
@@ -64,6 +65,23 @@ export default function Settings({ onClose }: { onClose: () => void }) {
         </div>
       </dl>
       <div className="toolbar">
+        <button
+          className="ghost"
+          disabled={busy}
+          onClick={() =>
+            run(async () => {
+              const target = await open({ directory: true, defaultPath: folder });
+              if (typeof target !== "string") return null;
+              await moveDataTo(db, target);
+              // The database was opened when the program started, so the only
+              // honest way to use the new one is to start over.
+              window.location.reload();
+              return null;
+            })
+          }
+        >
+          {t("change_data_folder")}
+        </button>
         <button
           disabled={busy}
           onClick={() =>

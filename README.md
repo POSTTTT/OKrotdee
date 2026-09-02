@@ -31,10 +31,18 @@ Privacy & Security on first launch; Windows shows a SmartScreen warning.
 
 ## Where the data lives
 
-The database is `okrotdee.db` in the application configuration directory,
-with dated copies in `backups/` beside it. The application copies the
-database there on every start and keeps the 30 most recent. Use "Backup now"
-on the settings page to write a copy to a USB stick — do this weekly.
+The database is `okrotdee.db` in the application configuration directory. Use
+"เปลี่ยนที่เก็บข้อมูล" in the settings dialog to keep it somewhere else — an
+external disk, say; the folder is remembered in `datadir.txt` beside the
+settings and the program restarts onto it. If that disk is not plugged in the
+program says so and offers to go back to the folder on this computer, rather
+than opening an empty database.
+
+Dated copies are kept in `backups/` in the configuration directory, on this
+computer, whether or not the database itself has moved — two disks holding the
+history is the point of taking copies at all. The application writes one on
+every start and keeps the 30 most recent. Use "Backup now" in the settings
+dialog to write a copy to a USB stick — do this weekly.
 
 ## Design and plan
 

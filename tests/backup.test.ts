@@ -18,7 +18,14 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
   save: async () => "/usb/okrotdee-backup.db",
 }));
 
+const written = new Map<string, string>();
+
 vi.mock("@tauri-apps/plugin-fs", () => ({
+  readTextFile: async (path: string) => written.get(path) ?? "",
+  writeTextFile: async (path: string, text: string) => {
+    written.set(path, text);
+    files.add(path);
+  },
   copyFile: async (from: string, to: string) => {
     calls.push(`copy ${from} -> ${to}`);
     files.add(to);
@@ -31,7 +38,7 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
 
 vi.mock("@tauri-apps/plugin-opener", () => ({ openPath: async () => undefined }));
 
-const { backupTo, startupBackup } = await import("../src/backup");
+const { backupTo, moveDataTo, startupBackup } = await import("../src/backup");
 
 /** A Db that records every statement it is asked to run. */
 function recordingDb(options: { fail?: boolean; busy?: number } = {}) {
@@ -50,6 +57,7 @@ function recordingDb(options: { fail?: boolean; busy?: number } = {}) {
 beforeEach(() => {
   calls.length = 0;
   files.clear();
+  written.clear();
   files.add("/config/okrotdee.db");
 });
 
@@ -95,5 +103,21 @@ describe("backupTo", () => {
       "sql PRAGMA wal_checkpoint(TRUNCATE)",
       "copy /config/okrotdee.db -> /usb/okrotdee-backup.db",
     ]);
+  });
+});
+
+describe("moveDataTo", () => {
+  it("carries the database to the drive and keeps it pointed there", async () => {
+    await moveDataTo(recordingDb(), "/usb");
+    expect(calls[0]).toBe("sql PRAGMA wal_checkpoint(TRUNCATE)");
+    expect(calls[1]).toBe("copy /config/okrotdee.db -> /usb/okrotdee.db");
+    expect(written.get("/config/datadir.txt")).toBe("/usb");
+  });
+
+  it("adopts a database already on the drive rather than writing over it", async () => {
+    files.add("/usb/okrotdee.db");
+    await moveDataTo(recordingDb(), "/usb");
+    expect(calls).toEqual([]);
+    expect(written.get("/config/datadir.txt")).toBe("/usb");
   });
 });
