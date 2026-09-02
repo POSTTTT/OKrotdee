@@ -1,10 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
+import DueRows from "../DueRows";
 import { useApp } from "../context";
 import { daysInMonth, formatDate, monthYear, toIso } from "../dates";
 import { activeInstallments, type DashboardRow } from "../db";
-import { formatBaht, installmentState, outstanding, todayIso } from "../money";
+import {
+  formatBaht,
+  installmentState,
+  outstanding,
+  todayIso,
+  type InstallmentState,
+} from "../money";
 
 type View = "day" | "week" | "month" | "year";
 
@@ -47,6 +54,9 @@ export default function Calendar() {
   const today = todayIso();
   const [at, setAt] = useState(today);
   const [view, setView] = useState<View>("month");
+  // Which view a day (or a month) was opened from, so there is a way back out
+  // of it. Null once the reader picks a view themselves.
+  const [from, setFrom] = useState<View | null>(null);
 
   useEffect(() => {
     activeInstallments(db).then(setRows);
@@ -87,6 +97,16 @@ export default function Calendar() {
     return map;
   }, [rows]);
 
+  /* Whatever is on the grid, read as a list underneath: the same slice of
+     time, in the order the money falls due. */
+  const listed = useMemo(() => {
+    const [from, to] =
+      view === "year"
+        ? [`${year}-01-01`, `${year}-12-31`]
+        : [days[0], days[days.length - 1]];
+    return rows.filter((r) => r.due_date >= from && r.due_date <= to);
+  }, [rows, days, year, view]);
+
   // The month rarely ends on a Saturday; without the tail the last week is a
   // hole in the grid rather than a row of days that have not come yet.
   const tail = view === "month" ? (7 - ((blanks + days.length) % 7)) % 7 : 0;
@@ -111,6 +131,24 @@ export default function Calendar() {
               Date.UTC(year, mon - 1, Number(at.slice(8))),
             );
 
+  /* A cell in a week or a month says how many payments land on it, in the
+     colour of the worst of them. The list underneath carries the names and
+     the figures, so the grid stays a shape the eye can count. */
+  const badge = (iso: string) => {
+    const list = byDay.get(iso) ?? [];
+    if (list.length === 0) return null;
+    const states = list.map((r) =>
+      installmentState(r.amount_due, r.late_fee, r.paid_total, r.due_date, today),
+    );
+    const rank: InstallmentState[] = ["OVERDUE", "PARTIAL", "UPCOMING", "PAID"];
+    const worst = rank.find((state) => states.includes(state)) ?? "PAID";
+    return (
+      <span className={`tag count ${worst}`}>
+        {list.length} {t("installments")}
+      </span>
+    );
+  };
+
   const entries = (iso: string) =>
     (byDay.get(iso) ?? []).map((r) => {
       const state = installmentState(r.amount_due, r.late_fee, r.paid_total, r.due_date, today);
@@ -127,6 +165,19 @@ export default function Calendar() {
   return (
     <>
       <div className="pagehead">
+        {from && (
+          <span className="lead">
+            <button
+              className="ghost"
+              onClick={() => {
+                setView(from);
+                setFrom(null);
+              }}
+            >
+              ← {t("back")}
+            </button>
+          </span>
+        )}
         <h1>{t("calendar")}</h1>
         <span className="actions">
           <span className="views">
@@ -136,6 +187,7 @@ export default function Calendar() {
                 className={`ghost${v === view ? " on" : ""}`}
                 onClick={() => {
                   if (v === "day") setAt(today);
+                  setFrom(null);
                   setView(v);
                 }}
               >
@@ -172,6 +224,7 @@ export default function Calendar() {
                 key={key}
                 className={`day ghost${key === today.slice(0, 7) ? " today" : ""}`}
                 onClick={() => {
+                  setFrom("year");
                   setAt(`${key}-01`);
                   setView("month");
                 }}
@@ -198,16 +251,51 @@ export default function Calendar() {
           {Array.from({ length: blanks }, (_, i) => (
             <div key={`blank${i}`} className="day blank" />
           ))}
-          {days.map((iso) => (
-            <div key={iso} className={`day${iso === today ? " today" : ""}`}>
-              <span className="n">{Number(iso.slice(8))}</span>
-              {entries(iso)}
-            </div>
-          ))}
+          {days.map((iso) => {
+            // A day on the grid opens as a day of its own — the same gesture a
+            // month cell makes in the year view.
+            const pick = () => {
+              setFrom(view);
+              setAt(iso);
+              setView("day");
+            };
+            return (
+              <div
+                key={iso}
+                className={`day${iso === today ? " today" : ""}${view === "day" ? "" : " pick"}`}
+                role={view === "day" ? undefined : "button"}
+                tabIndex={view === "day" ? undefined : 0}
+                onClick={(event) => {
+                  // A payment inside the cell opens its contract instead.
+                  if (view === "day" || (event.target as HTMLElement).closest("a")) return;
+                  pick();
+                }}
+                onKeyDown={(event) => {
+                  if (view === "day" || (event.key !== "Enter" && event.key !== " ")) return;
+                  event.preventDefault();
+                  pick();
+                }}
+              >
+                <span className="n">{Number(iso.slice(8))}</span>
+                {view === "day" ? entries(iso) : badge(iso)}
+              </div>
+            );
+          })}
           {Array.from({ length: tail }, (_, i) => (
             <div key={`tail${i}`} className="day blank" />
           ))}
         </div>
+      )}
+
+      {/* A single day is already its own list — repeating it underneath says
+          nothing twice. */}
+      {view !== "day" && (
+        <>
+          <h2>{t("installments")}</h2>
+          <div className="scroll">
+            <DueRows items={listed} />
+          </div>
+        </>
       )}
     </>
   );

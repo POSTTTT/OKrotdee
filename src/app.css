@@ -3,8 +3,8 @@
 
 /* ---------- Palette ----------
 
-   Graph paper: cobalt pen ink ruled on engineering cream, with the three
-   markers a state can be written in. Every colour in the app comes from this
+   Graph paper: charcoal pen on engineering cream, one slate accent for what
+   can be acted on, and the three markers a state can be written in. Every colour in the app comes from this
    block: nothing below writes a hex of its own, so the whole program can be
    re-toned by editing one screen of CSS.
 
@@ -16,33 +16,36 @@
    tag, a flash and a quiet button all agree. */
 
 :root {
-  /* Cobalt pen on engineering cream. The page is the paper, a card is a white
-     node-box drawn on it, and every line is ink. The paper is left unruled:
-     a grid behind forty rows of figures is noise, not texture. */
-  --paper: #f7f4e4;
-  --surface: #ffffff;
+  /* Pen on engineering cream. The page is the paper, a card is a sheet drawn
+     on it, and every line is ink. Two rules keep it readable for a whole day:
+     the text is a near-black with almost no colour in it, and the one hue in
+     the app is spent on what can be acted on — a saturated ink for forty rows
+     of figures is what tires an eye, not a dark one. */
+  --paper: #f5f2e6;
+  --surface: #fffdf8;
   /* Ink thinned into the paper, so a rule between two rows of figures is a
      pencil line and not a fence. */
-  --line: #c7cbd2;
-  --line-strong: #a1aac4;
-  --ink: #1f3a93;
-  --ink-soft: #5064ab;
-  --ink-faint: #8a93b8;
+  --line: #ddd7c8;
+  --line-strong: #c3bcab;
+  --ink: #2b2926;
+  --ink-soft: #625f57;
+  --ink-faint: #938e83;
   /* The ink as channels: every shadow and scrim in the app is it, thinned. */
-  --ink-rgb: 31, 58, 147;
-  --row-hover: #f2f4fb;
+  --ink-rgb: 43, 41, 38;
+  --row-hover: #faf7ef;
 
-  /* Type laid over a filled-ink surface. Paper, not white — ink printed on
-     this page never has white under it. */
-  --on-dark: #f7f4e4;
+  /* Type laid over a filled accent surface. Paper, not white — ink printed
+     on this page never has white under it. */
+  --on-dark: #f8f5ea;
   --glass: #ffffffb3;
 
-  /* One pen. Cobalt is the app's whole accent: what is written in it can be
-     acted on. */
-  --accent: #1f3a93;
-  --accent-deep: #18306f;
-  --accent-wash: #e8ecf7;
-  --accent-edge: #b9c3e2;
+  /* One pen, and a quiet one: a slate blue with the chroma taken out, so it
+     can be read against cream all day. What is written in it can be acted
+     on — nothing else is allowed to wear it. */
+  --accent: #3c5a6e;
+  --accent-deep: #2e4757;
+  --accent-wash: #e6ecef;
+  --accent-edge: #bccdd6;
 
   /* The markers, uncapped only for a record's state: the cool one for
      settled, the control pen for late, the warm one for lost. */
@@ -58,7 +61,10 @@
   --alarm-wash: #f9e6e3;
   --alarm-edge: #e8b6ae;
   --alarm-ink: #8f2115;
-  --idle-wash: #eceada;
+  --idle-wash: #ece7d8;
+  /* The scrim over the page behind a dialog. Charcoal with only a trace of
+     the pen in it: the ink at full chroma turned the whole window blue. */
+  --scrim: rgba(46, 46, 52, 0.4);
 
   /* One 4px spacing scale. Every gap and margin in the app comes from it, so
      tight and generous intervals stay deliberate instead of drifting. */
@@ -364,8 +370,11 @@ th, td {
   border-bottom: 1px solid var(--line);
   text-align: center;
 }
+/* The heading strip is tinted in the pen it is written with, so it reads as
+   the head of the sheet and not as a first row of data. One rule under it,
+   not two: it used to carry a border and an inset shadow both. */
 th {
-  background: var(--paper);
+  background: var(--accent-wash);
   padding-top: var(--s2);
   padding-bottom: var(--s2);
   font-weight: 600;
@@ -374,15 +383,16 @@ th {
   text-transform: uppercase;
   color: var(--ink-soft);
   white-space: nowrap;
+  border-bottom: 1.5px solid var(--ink);
   /* A 40-row schedule scrolls past its own header otherwise. */
   position: sticky;
   top: 0;
   z-index: 1;
-  box-shadow: inset 0 -1px 0 var(--line-strong);
 }
 /* A vertical rule between columns, so a figure belongs to the heading above
    it and not to the number beside it. */
 th + th, td + td { border-left: 1px solid var(--line); }
+th + th { border-left-color: var(--accent-edge); }
 tbody tr:last-child td { border-bottom: 0; }
 tbody tr { transition: background var(--speed); }
 tbody tr:hover { background: var(--row-hover); }
@@ -691,9 +701,40 @@ ul.counts strong {
   letter-spacing: -0.02em;
   line-height: 1.1;
 }
-/* Baht runs to seven digits and a decimal; a count never does. */
-ul.counts .money strong { font-size: clamp(1.4rem, 2.2vw, 1.9rem); }
 ul.counts small { font-size: 0.85rem; color: var(--ink-soft); }
+
+/* The same card, but it opens instead of going somewhere: the list drops out
+   of it, full width, under the row. */
+ul.counts.sections { margin-bottom: var(--s4); }
+ul.counts .section button {
+  width: 100%;
+  /* A button centres its content; this one is a card, so it fills instead. */
+  align-items: stretch;
+  justify-content: flex-start;
+  background: var(--surface);
+  border: 0;
+  border-radius: 0;
+  font: inherit;
+  font-size: 1rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--speed) var(--ease-out);
+}
+ul.counts .section button:hover { background: var(--accent-wash); }
+ul.counts .section button:active { transform: none; }
+/* Open: the card is drawn in the pen, so it reads as the head of the block
+   below rather than as one of three closed cards. */
+ul.counts .section.on { border-color: var(--ink); }
+ul.counts .section.on button { background: var(--accent-wash); }
+ul.counts .section.on .icon { transform: rotate(180deg); }
+ul.counts .section .icon { transition: transform var(--speed) var(--ease-out); }
+.drop { margin: 0 0 var(--s6); }
+@media (prefers-reduced-motion: no-preference) {
+  .drop { animation: drop-in 160ms var(--ease-out); }
+}
+@keyframes drop-in {
+  from { opacity: 0; transform: translateY(-4px); }
+}
 
 /* One soft wash per card, warm on the left of the row and cool on the right,
    so the four are told apart by colour before they are read. */
@@ -842,7 +883,7 @@ dialog.modal .close {
 }
 /* Its focus ring has to clear the dialog edge, not sit on it. */
 dialog.modal .close:focus-visible { outline-offset: 1px; }
-dialog.modal::backdrop { background: rgba(var(--ink-rgb), 0.34); }
+dialog.modal::backdrop { background: var(--scrim); }
 
 /* Nothing in the world appears out of nothing: the dialog arrives from a size
    it already had, fast enough not to be waited on. */
@@ -1026,6 +1067,10 @@ button.party.pick:hover { border-color: var(--accent); }
 /* The days before the first: still part of the month's shape, not of it. */
 .calendar .day.blank { background: var(--paper); }
 .calendar .day.today { background: var(--accent-wash); }
+/* A day is a way in: click it and the calendar opens on that day alone. */
+.calendar .day.pick { cursor: pointer; transition: background var(--speed) var(--ease-out); }
+.calendar .day.pick:hover { background: var(--row-hover); }
+.calendar .day.pick.today:hover { background: var(--accent-wash); }
 .calendar .day .n { font-size: 0.85rem; color: var(--ink-soft); }
 .calendar .day.today .n { color: var(--accent); font-weight: 700; }
 /* A due payment wears the same status colour it wears in every table; only
@@ -1035,6 +1080,9 @@ button.party.pick:hover { border-color: var(--accent); }
   font-size: 0.75rem; line-height: 1.35; white-space: normal;
 }
 .calendar .due strong { display: block; }
+/* The whole day in one mark, in the corner it is read from: how many, and how
+   bad the worst of them is. */
+.calendar .tag.count { margin-top: auto; align-self: flex-end; font-size: 0.72rem; }
 .calendar .due small {
   display: block; font-weight: 400;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -1072,7 +1120,7 @@ button.party.pick:hover { border-color: var(--accent); }
 
 /* A single day has the whole width, so it may as well have the height too. */
 .calendar.one { grid-template-columns: 1fr; }
-.calendar.one .day { min-height: 20rem; }
+.calendar.one .day { min-height: 12rem; }
 /* A year is read as twelve totals, not as 365 cells. */
 .calendar.year { grid-template-columns: repeat(4, 1fr); }
 .calendar.year .day {

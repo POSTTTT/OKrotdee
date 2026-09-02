@@ -2,10 +2,10 @@ import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { backupTo, showBackups } from "../backup";
-import RowLink from "../RowLink";
+import DueRows from "../DueRows";
 import { useApp } from "../context";
 import { formatDate } from "../dates";
-import { activeInstallments, collectedBetween, overdueRow, type DashboardRow } from "../db";
+import { activeInstallments, overdueRow, type DashboardRow } from "../db";
 import {
   contractFlag,
   formatBaht,
@@ -32,60 +32,6 @@ function Icon({ children }: { children: ReactNode }) {
         {children}
       </svg>
     </span>
-  );
-}
-
-function Rows({ items }: { items: DashboardRow[] }) {
-  const { t } = useApp();
-  const today = todayIso();
-  return (
-    <table>
-      <thead>
-        <tr>
-          <th>{t("due_date")}</th>
-          <th>{t("client")}</th>
-          <th>{t("car")}</th>
-          <th className="num">{t("balance")}</th>
-          <th>{t("status")}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((i) => (
-          <RowLink key={i.id} to={`/contracts/${i.contract_id}`}>
-            <td>{formatDate(i.due_date)}</td>
-            <td>
-              <Link to={`/contracts/${i.contract_id}`}>
-                {i.first_name} {i.last_name}
-              </Link>
-            </td>
-            <td>
-              {i.brand} {i.plate_number ?? ""}
-            </td>
-            <td className="num">
-              {formatBaht(outstanding(i.amount_due, i.late_fee, i.paid_total))}
-            </td>
-            <td>
-              <span
-                className={`tag ${installmentState(
-                  i.amount_due,
-                  i.late_fee,
-                  i.paid_total,
-                  i.due_date,
-                  today,
-                )}`}
-              >
-                {t(installmentState(i.amount_due, i.late_fee, i.paid_total, i.due_date, today))}
-              </span>
-            </td>
-          </RowLink>
-        ))}
-        {items.length === 0 && (
-          <tr>
-            <td colSpan={5}>{t("none_yet")}</td>
-          </tr>
-        )}
-      </tbody>
-    </table>
   );
 }
 
@@ -207,15 +153,13 @@ function GroupedRows({ items }: { items: DashboardRow[] }) {
 export default function Dashboard() {
   const { db, t } = useApp();
   const [rows, setRows] = useState<DashboardRow[]>([]);
-  const [collected, setCollected] = useState(0);
   const [counts, setCounts] = useState({ clients: 0, cars: 0, contracts: 0 });
   const [backupError, setBackupError] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
   const today = todayIso();
 
   useEffect(() => {
-    const [start, end] = monthBounds(today);
     activeInstallments(db).then(setRows);
-    collectedBetween(db, start, end).then(setCollected);
     const one = async (sql: string) => (await db.select<{ c: number }>(sql))[0]?.c ?? 0;
     Promise.all([
       one("SELECT COUNT(*) AS c FROM clients"),
@@ -248,6 +192,13 @@ export default function Dashboard() {
         .map((list) => list.find(owing) ?? list[0]),
     };
   }, [rows, today]);
+
+  const sections = [
+    { key: "flagged", label: t("repossess_eligible"), caption: t("contracts"), items: flagged },
+    { key: "overdue", label: t("overdue"), caption: t("installments"), items: overdue },
+    { key: "due", label: t("due_this_month"), caption: t("installments"), items: dueThisMonth },
+  ];
+  const shown = sections.find((s) => s.key === open) ?? null;
 
   return (
     <>
@@ -324,29 +275,36 @@ export default function Dashboard() {
             <small>{t("active")}</small>
           </Link>
         </li>
-        <li className="count money">
-          <div>
-            <span className="head">
-              {t("collected")}
-              <Icon>
-                <circle cx="12" cy="12" r="7.5" />
-                <path d="M9.5 8.5h3a2 2 0 0 1 0 4h-3zM9.5 12.5h3.5a2 2 0 0 1 0 4H9.5zM11.5 7v10" />
-              </Icon>
-            </span>
-            <strong>{formatBaht(collected)}</strong>
-            <small>{t("this_month")}</small>
-          </div>
-        </li>
       </ul>
 
-      <h2>{t("repossess_eligible")}</h2>
-      <Rows items={flagged} />
-
-      <h2>{t("overdue")}</h2>
-      <GroupedRows items={overdue} />
-
-      <h2>{t("due_this_month")}</h2>
-      <Rows items={dueThisMonth} />
+      {/* The three lists that matter, folded into the same card the counts
+          wear. Only one is open at a time: the staff are answering one
+          question — who to call today — not reading three tables. */}
+      <ul className="counts sections">
+        {sections.map((s) => (
+          <li key={s.key} className={`count section${open === s.key ? " on" : ""}`}>
+            <button type="button" onClick={() => setOpen(open === s.key ? null : s.key)}>
+              <span className="head">
+                {s.label}
+                <Icon>
+                  <path d="M8 10.5l4 4 4-4" />
+                </Icon>
+              </span>
+              <strong>{s.items.length}</strong>
+              <small>{s.caption}</small>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {shown && (
+        <div className="drop">
+          {shown.key === "overdue" ? (
+            <GroupedRows items={shown.items} />
+          ) : (
+            <DueRows items={shown.items} />
+          )}
+        </div>
+      )}
     </>
   );
 }
