@@ -20,6 +20,7 @@
     {
       "identifier": "fs:scope",
       "allow": [
+        { "path": "$APPCONFIG" },
         { "path": "$APPCONFIG/datadir.txt" },
         { "path": "$APPCONFIG/okrotdee.db" },
         { "path": "$APPCONFIG/okrotdee.db-wal" },

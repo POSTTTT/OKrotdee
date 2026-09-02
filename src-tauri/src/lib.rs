@@ -16,6 +16,9 @@ pub fn run() {
             if let Ok(dir) = std::fs::read_to_string(&pointer) {
                 let dir = dir.trim();
                 if !dir.is_empty() {
+                    // The folder itself as well as what is in it: asking
+                    // whether the drive is plugged in reads the folder.
+                    app.fs_scope().allow_file(dir)?;
                     app.fs_scope().allow_directory(dir, true)?;
                 }
             }
