@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { backupTo, showBackups } from "../backup";
@@ -21,6 +21,18 @@ function monthBounds(today: string): [string, string] {
   const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
   const pad = (n: number) => String(n).padStart(2, "0");
   return [`${year}-${pad(month)}-01`, `${year}-${pad(month)}-${pad(lastDay)}`];
+}
+
+/** The card's mark: one stroke glyph, drawn rather than loaded. */
+function Icon({ children }: { children: ReactNode }) {
+  return (
+    <span className="icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
+        strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {children}
+      </svg>
+    </span>
+  );
 }
 
 function Rows({ items }: { items: DashboardRow[] }) {
@@ -272,23 +284,58 @@ export default function Dashboard() {
         </p>
       )}
       <ul className="counts">
-        <li>
+        <li className="count clients">
           <Link to="/clients">
-            {t("clients")}: {counts.clients}
+            <span className="head">
+              {t("clients")}
+              <Icon>
+                <circle cx="12" cy="8.5" r="3.5" />
+                <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
+              </Icon>
+            </span>
+            <strong>{counts.clients}</strong>
+            <small>{t("registered")}</small>
           </Link>
         </li>
-        <li>
+        <li className="count cars">
           <Link to="/cars">
-            {t("available")}: {counts.cars}
+            <span className="head">
+              {t("cars")}
+              <Icon>
+                <path d="M4.5 16.5h15M6.5 11l1.4-3.5h8.2l1.4 3.5" />
+                <path d="M4.5 16.5v-4a1.5 1.5 0 0 1 1.5-1.5h12a1.5 1.5 0 0 1 1.5 1.5v4" />
+                <path d="M7 16.5v1.5M17 16.5v1.5" />
+              </Icon>
+            </span>
+            <strong>{counts.cars}</strong>
+            <small>{t("available")}</small>
           </Link>
         </li>
-        <li>
+        <li className="count contracts">
           <Link to="/contracts">
-            {t("active")}: {counts.contracts}
+            <span className="head">
+              {t("contracts")}
+              <Icon>
+                <path d="M7 3.5h6.5L18 8v12.5H7z" />
+                <path d="M9.5 12.5h6M9.5 16h4" />
+              </Icon>
+            </span>
+            <strong>{counts.contracts}</strong>
+            <small>{t("active")}</small>
           </Link>
         </li>
-        <li>
-          {t("collected_this_month")}: {formatBaht(collected)}
+        <li className="count money">
+          <div>
+            <span className="head">
+              {t("collected")}
+              <Icon>
+                <circle cx="12" cy="12" r="7.5" />
+                <path d="M9.5 8.5h3a2 2 0 0 1 0 4h-3zM9.5 12.5h3.5a2 2 0 0 1 0 4H9.5zM11.5 7v10" />
+              </Icon>
+            </span>
+            <strong>{formatBaht(collected)}</strong>
+            <small>{t("this_month")}</small>
+          </div>
         </li>
       </ul>
 

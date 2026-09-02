@@ -4,6 +4,7 @@ import { useApp } from "./context";
 import CarDetail from "./pages/CarDetail";
 import CarForm from "./pages/CarForm";
 import Cars from "./pages/Cars";
+import Calendar from "./pages/Calendar";
 import ClientDetail from "./pages/ClientDetail";
 import ClientForm from "./pages/ClientForm";
 import Clients from "./pages/Clients";
@@ -29,6 +30,9 @@ export default function App() {
           <NavLink to="/" end className={navClass}>
             {t("dashboard")}
           </NavLink>
+          <NavLink to="/calendar" className={navClass}>
+            {t("calendar")}
+          </NavLink>
           <NavLink to="/clients" className={navClass}>
             {t("clients")}
           </NavLink>
@@ -51,6 +55,7 @@ export default function App() {
       <main>
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/calendar" element={<Calendar />} />
           <Route path="/clients" element={<Clients />} />
           <Route path="/clients/new" element={<ClientForm />} />
           <Route path="/clients/:id" element={<ClientDetail />} />

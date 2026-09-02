@@ -1,29 +1,64 @@
 /* OKrotdee — a counter-side ledger, not a dashboard.
    Offline by design: system fonts only, no network assets. */
 
+/* ---------- Palette ----------
+
+   Graph paper: cobalt pen ink ruled on engineering cream, with the three
+   markers a state can be written in. Every colour in the app comes from this
+   block: nothing below writes a hex of its own, so the whole program can be
+   re-toned by editing one screen of CSS.
+
+   paper   the sheet everything is drawn on   surface  a node-box on it
+   line    a pencil rule       line-strong    an edge that has to be found
+   ink     the pen: text, borders, and everything that can be acted on
+   good/warn/alarm  the markers — settled, late, lost. Each comes as three:
+   the marker for text, a -wash behind it, an -edge to draw its border, so a
+   tag, a flash and a quiet button all agree. */
+
 :root {
-  /* One warm gray family, so nothing clashes. */
-  --paper: #f4f2ee;
-  --surface: #fffefb;
-  --line: #e2ded6;
-  --line-strong: #cfc9be;
-  --ink: #23201c;
-  --ink-soft: #6b655c;
-  --ink-faint: #948d82;
+  /* Cobalt pen on engineering cream. The page is the paper, a card is a white
+     node-box drawn on it, and every line is ink. The paper is left unruled:
+     a grid behind forty rows of figures is noise, not texture. */
+  --paper: #f7f4e4;
+  --surface: #ffffff;
+  /* Ink thinned into the paper, so a rule between two rows of figures is a
+     pencil line and not a fence. */
+  --line: #c7cbd2;
+  --line-strong: #a1aac4;
+  --ink: #1f3a93;
+  --ink-soft: #5064ab;
+  --ink-faint: #8a93b8;
+  /* The ink as channels: every shadow and scrim in the app is it, thinned. */
+  --ink-rgb: 31, 58, 147;
+  --row-hover: #f2f4fb;
 
-  /* One accent. Deep document-ink blue against warm paper. */
-  --accent: #26445f;
-  --accent-deep: #1a3145;
-  --accent-wash: #e7edf3;
+  /* Type laid over a filled-ink surface. Paper, not white — ink printed on
+     this page never has white under it. */
+  --on-dark: #f7f4e4;
+  --glass: #ffffffb3;
 
-  /* Status hues, muted enough to sit together, separate enough to scan. */
-  --good: #2f6b45;
-  --good-wash: #e3efe6;
-  --warn: #8a5a12;
-  --warn-wash: #f8eddb;
-  --alarm: #8f2f24;
-  --alarm-wash: #f7e3e0;
-  --idle-wash: #eae6df;
+  /* One pen. Cobalt is the app's whole accent: what is written in it can be
+     acted on. */
+  --accent: #1f3a93;
+  --accent-deep: #18306f;
+  --accent-wash: #e8ecf7;
+  --accent-edge: #b9c3e2;
+
+  /* The markers, uncapped only for a record's state: the cool one for
+     settled, the control pen for late, the warm one for lost. */
+  --good: #127a50;
+  --good-wash: #e7f3ee;
+  --good-edge: #a9d3c2;
+  --warn: #a54e06;
+  --warn-wash: #fdeedd;
+  --warn-edge: #f5c79b;
+  --warn-ink: #8f4405;
+  --alarm: #c0392b;
+  --alarm-deep: #9c2c20;
+  --alarm-wash: #f9e6e3;
+  --alarm-edge: #e8b6ae;
+  --alarm-ink: #8f2115;
+  --idle-wash: #eceada;
 
   /* One 4px spacing scale. Every gap and margin in the app comes from it, so
      tight and generous intervals stay deliberate instead of drifting. */
@@ -36,12 +71,19 @@
   --s7: 2.75rem;
   --s8: 4rem;
 
-  --radius: 6px;
-  --radius-sm: 4px;
-  --shadow: 0 1px 2px rgba(35, 32, 28, 0.06), 0 4px 12px rgba(35, 32, 28, 0.04);
+  --radius: 8px;
+  --radius-sm: 6px;
+  /* Paper is flat: ink defines structure, and the only depth allowed is the
+     faint offset of a sheet lifting off the desk. */
+  --shadow: 2px 2px 0 rgba(var(--ink-rgb), 0.1);
+  --shadow-lift: 3px 3px 0 rgba(var(--ink-rgb), 0.14);
   --speed: 150ms;
   /* Stronger than the built-in curves: movement starts at once, then settles. */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+  /* Georgia for the display line only. It carries no Thai, so a Thai heading
+     falls through to the same face the rest of the app is set in. */
+  --display: Georgia, "Times New Roman", "Sarabun", "Noto Serif Thai", serif;
 }
 
 * { box-sizing: border-box; }
@@ -85,12 +127,14 @@ header {
   gap: var(--s6);
   padding: 0 var(--s5);
   height: 52px;
-  background: var(--accent-deep);
-  color: #fff;
+  background: var(--paper);
+  color: var(--ink);
+  border-bottom: 2.5px solid var(--ink);
 }
-header a { color: #fff; text-decoration: none; }
+header a { color: var(--ink); text-decoration: none; }
 header .brand {
   flex: 1;
+  font-family: var(--display);
   font-weight: 600;
   font-size: 1.05rem;
   letter-spacing: -0.01em;
@@ -101,30 +145,30 @@ header nav a {
   align-items: center;
   padding: 0 0.85rem;
   font-size: 0.94rem;
-  color: #ffffffc4;
+  color: var(--ink-soft);
   border-bottom: 2px solid transparent;
   transition: color var(--speed), border-color var(--speed);
 }
-header nav a:hover { color: #fff; }
+header nav a:hover { color: var(--ink); }
 /* Staff should never have to guess which screen they are on. */
 header nav a.on {
-  color: #fff;
-  border-bottom-color: #ffffff;
+  color: var(--ink);
+  border-bottom-color: var(--ink);
 }
 header .lang { flex: 1; display: flex; justify-content: flex-end; gap: var(--s1); }
 header .lang button {
   background: transparent;
-  border: 1px solid #ffffff40;
-  color: #ffffffc4;
+  border: 1.5px solid var(--line-strong);
+  color: var(--ink-soft);
   padding: 0.2rem 0.6rem;
   font-size: 0.85rem;
   border-radius: var(--radius-sm);
 }
-header .lang button:hover { background: #ffffff1a; color: #fff; }
+header .lang button:hover { background: var(--accent-wash); color: var(--ink); }
 header .lang button.on {
-  background: #ffffff;
-  border-color: #ffffff;
-  color: var(--accent-deep);
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--on-dark);
   font-weight: 600;
 }
 
@@ -137,6 +181,7 @@ main {
 }
 
 h1 {
+  font-family: var(--display);
   font-size: 1.6rem;
   font-weight: 600;
   letter-spacing: -0.015em;
@@ -340,7 +385,7 @@ th {
 th + th, td + td { border-left: 1px solid var(--line); }
 tbody tr:last-child td { border-bottom: 0; }
 tbody tr { transition: background var(--speed); }
-tbody tr:hover { background: #faf8f4; }
+tbody tr:hover { background: var(--row-hover); }
 /* Money stays right-aligned: centering it would break the decimal point the
    eye runs down when comparing one row to the next. */
 td.num, th.num { text-align: right; }
@@ -375,7 +420,7 @@ tbody td[colspan] {
 .scroll.log .empty { margin: 0; text-align: center; color: var(--ink-soft); }
 /* Whatever follows a framed block stands clear of it — the row that adds to
    it, a form, a second table. Headings keep their own, larger, air. */
-:is(table, .scroll, ul.timeline, dl.facts) + :not(h1, h2, h3) { margin-top: var(--s4); }
+:is(table, .scroll, ul.timeline, dl.facts, .calendar) + :not(h1, h2, h3) { margin-top: var(--s4); }
 
 /* ---------- Forms ---------- */
 
@@ -507,7 +552,7 @@ button, .button {
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-dark);
   font: inherit;
   font-size: 0.92rem;
   font-weight: 500;
@@ -524,7 +569,7 @@ button:hover, .button:hover { background: var(--accent-deep); }
 /* A press the hand can feel: the control answers before the page does. */
 button:active, .button:active { transform: scale(0.97); }
 button.danger { background: var(--alarm); }
-button.danger:hover { background: #75261d; }
+button.danger:hover { background: var(--alarm-deep); }
 /* Without this the double-click guard is invisible and staff click again. */
 button:disabled {
   opacity: 0.5;
@@ -541,15 +586,15 @@ button.danger:disabled:hover { background: var(--alarm); }
   padding: var(--s3) var(--s4);
   border-radius: var(--radius-sm);
   background: var(--warn-wash);
-  border: 1px solid #e4cf9f;
-  color: #6d4710;
+  border: 1px solid var(--warn-edge);
+  color: var(--warn-ink);
   font-size: 0.92rem;
 }
 /* A failed backup is not the same class of event as a typo in a form. */
 .flash.alarm {
   background: var(--alarm-wash);
-  border-color: #e0b3ad;
-  color: #7a281f;
+  border-color: var(--alarm-edge);
+  color: var(--alarm-ink);
   font-weight: 500;
 }
 
@@ -566,47 +611,95 @@ button.danger:disabled:hover { background: var(--alarm); }
   white-space: nowrap;
 }
 .tag.PAID, .tag.OK, .tag.available, .tag.completed, .tag.sold, .tag.contract_completed {
-  background: var(--good-wash); color: var(--good); border-color: #c2ddca;
+  background: var(--good-wash); color: var(--good); border-color: var(--good-edge);
 }
 .tag.UPCOMING, .tag.on_contract, .tag.cancelled, .tag.note {
   background: var(--idle-wash); color: var(--ink-soft); border-color: var(--line-strong);
 }
 .tag.active, .tag.contract_started, .tag.acquired {
-  background: var(--accent-wash); color: var(--accent); border-color: #c3d3e0;
+  background: var(--accent-wash); color: var(--accent); border-color: var(--accent-edge);
 }
 .tag.PARTIAL, .tag.OVERDUE, .tag.unpaid {
-  background: var(--warn-wash); color: var(--warn); border-color: #e4cf9f;
+  background: var(--warn-wash); color: var(--warn); border-color: var(--warn-edge);
 }
 /* The loudest thing on the screen, because of what it means. */
 .tag.REPOSSESS_ELIGIBLE, .tag.repossessed {
-  background: var(--alarm); color: #fff; border-color: var(--alarm);
+  background: var(--alarm); color: var(--on-dark); border-color: var(--alarm);
 }
 
 /* ---------- Dashboard counts ---------- */
 
-/* One grouped strip with rules between, rather than three floating cards. */
+/* Four cards, one number each: what the staff came to read, before the
+   tables. The wash behind them is drawn with gradients, not images — nothing
+   to load on a machine that never goes online. */
 ul.counts {
   list-style: none;
   padding: 0;
-  margin: 0 0 var(--s2);
-  display: flex;
-  flex-wrap: wrap;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  overflow: hidden;
+  margin: 0 0 var(--s6);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--s4);
 }
 ul.counts li {
-  flex: 1 1 12rem;
-  padding: var(--s3) var(--s4);
-  border-right: 1px solid var(--line);
+  border: 1.5px solid var(--line-strong);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: transform var(--speed) var(--ease-out), box-shadow var(--speed) var(--ease-out);
+}
+ul.counts li:has(a):hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lift);
+}
+/* The card is the whole tile, link or not, so all four sit the same. */
+ul.counts li > * {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 10.5rem;
+  padding: var(--s5);
+  color: var(--ink);
+  text-decoration: none;
+}
+ul.counts .head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s3);
   font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+ul.counts .icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--line);
   color: var(--ink-soft);
 }
-ul.counts li:last-child { border-right: 0; }
-ul.counts a { color: inherit; text-decoration: none; }
-ul.counts a:hover { color: var(--accent); }
+ul.counts .icon svg { width: 1.15rem; height: 1.15rem; }
+/* The number sits on the floor of the card: pushed down, not centred, so the
+   four read along one line however long their headings run. */
+ul.counts strong {
+  margin-top: auto;
+  font-size: 2.6rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+/* Baht runs to seven digits and a decimal; a count never does. */
+ul.counts .money strong { font-size: clamp(1.4rem, 2.2vw, 1.9rem); }
+ul.counts small { font-size: 0.85rem; color: var(--ink-soft); }
+
+/* One soft wash per card, warm on the left of the row and cool on the right,
+   so the four are told apart by colour before they are read. */
+/* A card is a white node-box drawn on the paper; the ruling stays on the
+   page around it, where it cannot sit behind a figure. */
+.count { background: var(--surface); }
 
 /* ---------- Timeline ---------- */
 
@@ -669,7 +762,7 @@ ul.timeline li {
 .timeline .card button.danger {
   background: transparent;
   color: var(--alarm);
-  border-color: #e0b3ad;
+  border-color: var(--alarm-edge);
 }
 .timeline .card button.danger:hover { background: var(--alarm-wash); }
 /* An entry being corrected: a compact date, the note on the line below. */
@@ -690,7 +783,7 @@ td .button:hover { background: var(--accent-wash); color: var(--accent-deep); }
 td button.danger {
   background: transparent;
   color: var(--alarm);
-  border-color: #e0b3ad;
+  border-color: var(--alarm-edge);
 }
 td button.danger:hover { background: var(--alarm-wash); }
 td.row-actions { text-align: center; white-space: nowrap; }
@@ -730,7 +823,7 @@ dialog.modal {
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--ink);
-  box-shadow: 0 4px 10px rgba(35, 32, 28, 0.1), 0 24px 48px rgba(35, 32, 28, 0.16);
+  box-shadow: 0 4px 10px rgba(var(--ink-rgb), 0.1), 0 24px 48px rgba(var(--ink-rgb), 0.16);
   overflow: auto;
 }
 dialog.modal .pagehead { padding-bottom: var(--s3); }
@@ -749,7 +842,7 @@ dialog.modal .close {
 }
 /* Its focus ring has to clear the dialog edge, not sit on it. */
 dialog.modal .close:focus-visible { outline-offset: 1px; }
-dialog.modal::backdrop { background: rgba(35, 32, 28, 0.34); }
+dialog.modal::backdrop { background: rgba(var(--ink-rgb), 0.34); }
 
 /* Nothing in the world appears out of nothing: the dialog arrives from a size
    it already had, fast enough not to be waited on. */
@@ -905,3 +998,88 @@ button.party.pick:hover { border-color: var(--accent); }
 .picklist .name { font-weight: 600; }
 .picklist .sub { font-size: 0.85rem; color: var(--ink-soft); }
 .picklist .none { padding: var(--s3); color: var(--ink-soft); }
+
+/* ---------- Calendar ---------- */
+
+/* One month at a time. The grid is the month and a cell is a day, so a week
+   that will be heavy at the counter can be seen before it arrives. The 1px
+   gaps are the block's own background showing through: one rule per edge, no
+   doubled borders. */
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.calendar .weekday {
+  padding: var(--s2) var(--s3);
+  background: var(--paper);
+  font-size: 0.8rem; font-weight: 600; color: var(--ink-soft); text-align: center;
+}
+.calendar .day {
+  display: flex; flex-direction: column; gap: var(--s1);
+  min-height: 6.5rem; padding: var(--s2); background: var(--surface);
+}
+/* The days before the first: still part of the month's shape, not of it. */
+.calendar .day.blank { background: var(--paper); }
+.calendar .day.today { background: var(--accent-wash); }
+.calendar .day .n { font-size: 0.85rem; color: var(--ink-soft); }
+.calendar .day.today .n { color: var(--accent); font-weight: 700; }
+/* A due payment wears the same status colour it wears in every table; only
+   its shape changes, from a chip on a line to a block in a cell. */
+.calendar .due {
+  display: block; padding: 0.2rem 0.35rem; text-decoration: none;
+  font-size: 0.75rem; line-height: 1.35; white-space: normal;
+}
+.calendar .due strong { display: block; }
+.calendar .due small {
+  display: block; font-weight: 400;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* One slice of time at a time: a track holding four slices, with the chosen
+   one raised out of it. A border per button would double up against its
+   neighbour's; the track draws the only edge. */
+.views {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--idle-wash);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+}
+.views button.ghost {
+  border: 0;
+  border-radius: 3px;
+  padding: 0.28rem var(--s3);
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+.views button.ghost:hover { background: var(--glass); color: var(--ink); }
+.views button.ghost:active { transform: none; }
+.views button.ghost.on {
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(var(--ink-rgb), 0.12);
+}
+/* Stepping through time is the same kind of control, so it wears the same
+   track: the way back, the way home, the way on. */
+.stepper button.ghost { min-width: 2rem; }
+
+/* A single day has the whole width, so it may as well have the height too. */
+.calendar.one { grid-template-columns: 1fr; }
+.calendar.one .day { min-height: 20rem; }
+/* A year is read as twelve totals, not as 365 cells. */
+.calendar.year { grid-template-columns: repeat(4, 1fr); }
+.calendar.year .day {
+  align-items: flex-start; gap: 0; min-height: 5.5rem; border: 0; border-radius: 0;
+  color: var(--ink); font-size: 0.92rem; text-align: left;
+}
+.calendar.year .day:hover { background: var(--accent-wash); }
+.calendar.year .day .n { font-weight: 600; color: var(--ink); }
+.calendar.year .day strong { font-size: 1.1rem; }
+.calendar.year .day small { color: var(--ink-soft); font-size: 0.8rem; }
