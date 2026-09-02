@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
 import { open } from "@tauri-apps/plugin-dialog";
 
@@ -81,6 +82,20 @@ export default function Settings({ onClose }: { onClose: () => void }) {
           }
         >
           {t("change_data_folder")}
+        </button>
+        <button
+          className="ghost"
+          disabled={busy}
+          onClick={() =>
+            run(async () => {
+              // Opened from Rust: the folder can be on any drive, and the
+              // command scope is fixed when the program is built.
+              await invoke("open_data_dir");
+              return null;
+            })
+          }
+        >
+          {t("open_data_folder")}
         </button>
         <button
           disabled={busy}
