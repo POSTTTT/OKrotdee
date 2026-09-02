@@ -864,14 +864,19 @@ dialog.modal h1 { font-size: 1.25rem; }
 dialog.modal form.stack { grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
 /* The first heading inside the dialog has the head above it already. */
 dialog.modal h2 { margin-top: var(--s5); }
+/* A square on the title's own line, not a button-shaped thing floating above
+   it: the glyph is the whole control. */
 dialog.modal .close {
   position: absolute;
-  top: var(--s4);
-  right: var(--s4);
-  padding: 0 var(--s2);
+  top: var(--s5);
+  right: var(--s5);
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
   border: 0;
-  font-size: 1.2rem;
-  line-height: 1.6;
+  border-radius: var(--radius-sm);
+  font-size: 1.15rem;
+  line-height: 1;
 }
 /* Its focus ring has to clear the dialog edge, not sit on it. */
 dialog.modal .close:focus-visible { outline-offset: 1px; }
