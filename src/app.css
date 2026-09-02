@@ -868,6 +868,9 @@ dialog.modal h2 { margin-top: var(--s5); }
    it: the glyph is the whole control. */
 dialog.modal .close {
   position: absolute;
+  /* Last in the DOM, so the flow rules that space one block from the next were
+     pushing it down by whatever it happened to follow. */
+  margin: 0;
   top: var(--s5);
   right: var(--s5);
   width: 1.75rem;
