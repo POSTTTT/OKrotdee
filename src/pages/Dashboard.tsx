@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-import { backupTo, showBackups } from "../backup";
 import DueRows from "../DueRows";
 import { useApp } from "../context";
 import { formatDate } from "../dates";
@@ -154,7 +153,6 @@ export default function Dashboard() {
   const { db, t } = useApp();
   const [rows, setRows] = useState<DashboardRow[]>([]);
   const [counts, setCounts] = useState({ clients: 0, cars: 0, contracts: 0 });
-  const [backupError, setBackupError] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const today = todayIso();
 
@@ -204,36 +202,7 @@ export default function Dashboard() {
     <>
       <div className="pagehead">
         <h1>{t("dashboard")}</h1>
-        {/* Keeping the data safe is upkeep, not the day's work: it belongs in
-            the corner, not above the numbers the staff came to read. */}
-        <span className="actions">
-          <button
-            className="ghost"
-            onClick={async () => {
-              setBackupError(null);
-              try {
-                const target = await backupTo(db);
-                if (target) alert(`${t("backup_done")}: ${target}`);
-              } catch (e) {
-                setBackupError(String(e));
-              }
-            }}
-          >
-            {t("backup_now")}
-          </button>
-          <button
-            className="ghost"
-            onClick={() => showBackups().catch((e) => setBackupError(String(e)))}
-          >
-            {t("show_backups")}
-          </button>
-        </span>
       </div>
-      {backupError && (
-        <p className="flash alarm">
-          {t("err_backup_failed")}: {backupError}
-        </p>
-      )}
       <ul className="counts">
         <li className="count clients">
           <Link to="/clients">

@@ -34,7 +34,7 @@ Privacy & Security on first launch; Windows shows a SmartScreen warning.
 The database is `okrotdee.db` in the application configuration directory,
 with dated copies in `backups/` beside it. The application copies the
 database there on every start and keeps the 30 most recent. Use "Backup now"
-on the dashboard to write a copy to a USB stick — do this weekly.
+on the settings page to write a copy to a USB stick — do this weekly.
 
 ## Design and plan
 

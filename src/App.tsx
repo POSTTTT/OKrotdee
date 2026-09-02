@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, NavLink, Route, Routes } from "react-router-dom";
 
 import { useApp } from "./context";
@@ -15,9 +16,11 @@ import LateFees from "./pages/LateFees";
 import Contracts from "./pages/Contracts";
 import Dashboard from "./pages/Dashboard";
 import PaymentForm from "./pages/PaymentForm";
+import Settings from "./Settings";
 
 export default function App() {
-  const { t, lang, setLang } = useApp();
+  const { t } = useApp();
+  const [settings, setSettings] = useState(false);
   const navClass = ({ isActive }: { isActive: boolean }) => (isActive ? "on" : "");
 
   return (
@@ -43,12 +46,11 @@ export default function App() {
             {t("contracts")}
           </NavLink>
         </nav>
-        <span className="lang">
-          <button className={lang === "th" ? "on" : ""} onClick={() => setLang("th")}>
-            ไทย
-          </button>
-          <button className={lang === "en" ? "on" : ""} onClick={() => setLang("en")}>
-            EN
+        <span className="side">
+          {/* Settings is upkeep, not a place in the shop's day: it opens over
+              whatever screen the staff are on and closes back onto it. */}
+          <button className="ghost" onClick={() => setSettings(true)}>
+            {t("settings")}
           </button>
         </span>
       </header>
@@ -72,6 +74,7 @@ export default function App() {
           <Route path="/installments/:id/pay" element={<PaymentForm />} />
         </Routes>
       </main>
+      {settings && <Settings onClose={() => setSettings(false)} />}
     </>
   );
 }

@@ -161,22 +161,14 @@ header nav a.on {
   color: var(--ink);
   border-bottom-color: var(--ink);
 }
-header .lang { flex: 1; display: flex; justify-content: flex-end; gap: var(--s1); }
-header .lang button {
-  background: transparent;
+header .side { flex: 1; display: flex; justify-content: flex-end; }
+header .side button {
   border: 1.5px solid var(--line-strong);
   color: var(--ink-soft);
-  padding: 0.2rem 0.6rem;
+  padding: 0.2rem 0.7rem;
   font-size: 0.85rem;
-  border-radius: var(--radius-sm);
 }
-header .lang button:hover { background: var(--accent-wash); color: var(--ink); }
-header .lang button.on {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--on-dark);
-  font-weight: 600;
-}
+header .side button:hover { background: var(--accent-wash); color: var(--ink); }
 
 /* ---------- Page ---------- */
 
