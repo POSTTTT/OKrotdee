@@ -412,6 +412,9 @@ tbody td[colspan] {
   background: var(--surface);
 }
 .scroll table { border: 0; border-radius: 0; }
+/* Without the table's own frame under it the last row would trail off into
+   the empty part of the panel, so it keeps the line the others have. */
+.scroll tbody tr:last-child td { border-bottom: 1px solid var(--line); }
 /* A list is the page: its frame runs down to the foot of the window instead
    of stopping short and leaving the room below it empty. */
 /* Height, not a ceiling: the frame reaches the foot of the window even when
