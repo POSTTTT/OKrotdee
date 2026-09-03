@@ -43,7 +43,11 @@ import {
   paymentsFor,
   syncContractStatus,
   updatePayment,
+  refinanceContract,
+  refinancedInto,
+  refinancedOn,
   repossessContract,
+  undoRefinance,
   deleteFee,
   saveFee,
   addClientEvent,
@@ -54,11 +58,12 @@ import {
   setCarEvent,
   setCarStatus,
   setLateFee,
+  settleInterruptedRebuilds,
   toDollarPlaceholders,
   updateCar,
   updateClient,
 } from "../src/db";
-import { contractFlag, outstanding, overdueCount } from "../src/money";
+import { contractFlag, outstanding, overdueCount, todayIso } from "../src/money";
 import { MIGRATIONS } from "../src/schema";
 import { memoryDb } from "./helpers";
 
@@ -313,16 +318,18 @@ describe("client history", () => {
   it("logs the contracts a client signs, alongside notes typed by hand", async () => {
     const db = await seeded();
     const contractId = await createContract(db, CONTRACT);
-    await addClientEvent(db, 1, "2026-09-02", "note", null, "promised to pay friday");
+    // Dated against today, not a fixed day: signing is logged as of today,
+    // and a note written before it would sort above it once that day passed.
+    await addClientEvent(db, 1, todayIso(), "note", null, "promised to pay friday");
 
     const log = await clientEvents(db, 1);
     expect(log.map((e) => e.type)).toEqual(["contract_started", "note"]);
     expect(log[0].contract_id).toBe(contractId);
 
     const note = log[1];
-    await setClientEvent(db, note.id, "2026-09-03", "paid");
+    await setClientEvent(db, note.id, "2099-01-01", "paid");
     expect((await clientEvents(db, 1))[1]).toMatchObject({
-      event_date: "2026-09-03",
+      event_date: "2099-01-01",
       note: "paid",
     });
 
@@ -579,6 +586,136 @@ describe("repossession", () => {
     const flag = contractFlag(overdueCount(rows.map(overdueRow), "2099-01-01"));
     expect(flag).toBe("REPOSSESS_ELIGIBLE");
     expect((await getContract(db, id))?.status).toBe("active");
+  });
+});
+
+describe("a rebuild that was interrupted", () => {
+  it("adopts the copy when the table it was replacing is gone", async () => {
+    const db = memoryDb();
+    await db.execute("CREATE TABLE notes_rebuilt (id INTEGER PRIMARY KEY, body TEXT)");
+    await db.execute("INSERT INTO notes_rebuilt (body) VALUES ('kept')");
+    await settleInterruptedRebuilds(db);
+    expect(await db.select("SELECT body FROM notes")).toEqual([{ body: "kept" }]);
+  });
+
+  it("clears the copy when the table is already in place", async () => {
+    const db = memoryDb();
+    await db.execute("CREATE TABLE notes (id INTEGER PRIMARY KEY)");
+    await db.execute("CREATE TABLE notes_rebuilt (id INTEGER PRIMARY KEY)");
+    await settleInterruptedRebuilds(db);
+    expect(
+      await db.select("SELECT name FROM sqlite_master WHERE name = 'notes_rebuilt'"),
+    ).toEqual([]);
+  });
+});
+
+describe("refinancing", () => {
+  it("flags the contract and puts the car back on the lot", async () => {
+    const { db, id } = await contracted();
+    await refinanceContract(db, id);
+    expect((await getContract(db, id))?.status).toBe("refinanced");
+    expect((await getCar(db, 1))?.status).toBe("available");
+  });
+
+  it("lets the same client take the same car on the new contract", async () => {
+    const { db, id } = await contracted();
+    await refinanceContract(db, id);
+    const second = await createContract(db, { ...CONTRACT, installment_amount: 1200000 });
+    expect(second).toBeGreaterThan(id);
+    expect((await getCar(db, 1))?.status).toBe("on_contract");
+    expect((await getContract(db, id))?.status).toBe("refinanced");
+  });
+
+  it("keeps what was paid on the old contract", async () => {
+    const { db, id } = await contracted();
+    const installments = await installmentsFor(db, id);
+    await addPayment(db, installments[0].id, "2026-09-15", 1540000, "cash", null);
+    await refinanceContract(db, id);
+    expect((await installmentsFor(db, id))[0].paid_total).toBe(1540000);
+  });
+
+  it("does not touch a contract that is already closed", async () => {
+    const { db, id } = await contracted();
+    await cancelContract(db, id);
+    await refinanceContract(db, id);
+    expect((await getContract(db, id))?.status).toBe("cancelled");
+  });
+
+  it("writes the day it happened to both histories", async () => {
+    const { db, id } = await contracted();
+    await refinanceContract(db, id);
+    const car = await carEvents(db, 1);
+    const client = await clientEvents(db, 1);
+    expect(car[car.length - 1]).toMatchObject({ type: "refinanced", contract_id: id });
+    expect(client[client.length - 1]).toMatchObject({ type: "refinanced", contract_id: id });
+    // The contract itself reads the day back off that entry.
+    expect(await refinancedOn(db, id)).toBe(todayIso());
+  });
+
+  it("reads the day it happened in order, ending before beginning", async () => {
+    const { db, id } = await contracted();
+    await refinanceContract(db, id);
+    const second = await createContract(db, { ...CONTRACT, refinanced_from: id });
+    await refinanceContract(db, second);
+    // All of it on one day: the entries still read old contract before new.
+    expect((await carEvents(db, 1)).map((e) => [e.type, e.contract_id])).toEqual([
+      ["acquired", null],
+      ["contract_started", id],
+      ["refinanced", id],
+      ["contract_started", second],
+      ["refinanced", second],
+    ]);
+  });
+
+  it("has no day to show before it is refinanced", async () => {
+    const { db, id } = await contracted();
+    expect(await refinancedOn(db, id)).toBeNull();
+  });
+
+  it("puts the contract back when the new one is never written", async () => {
+    const { db, id } = await contracted();
+    await refinanceContract(db, id);
+    await undoRefinance(db, id);
+    expect((await getContract(db, id))?.status).toBe("active");
+    expect((await getCar(db, 1))?.status).toBe("on_contract");
+    expect((await carEvents(db, 1)).some((e) => e.type === "refinanced")).toBe(false);
+    expect((await clientEvents(db, 1)).some((e) => e.type === "refinanced")).toBe(false);
+  });
+
+  it("refuses to put it back once the new contract exists", async () => {
+    const { db, id } = await contracted();
+    await refinanceContract(db, id);
+    await createContract(db, { ...CONTRACT, refinanced_from: id });
+    await undoRefinance(db, id);
+    expect((await getContract(db, id))?.status).toBe("refinanced");
+    expect((await getCar(db, 1))?.status).toBe("on_contract");
+  });
+
+  it("can be deleted with someone signed alongside the client", async () => {
+    const { db, id } = await contracted();
+    await createClient(db, { ...CLIENT, first_name: "Malee", thai_id: null });
+    await addContractCoClient(db, id, 2);
+    await deleteContract(db, id);
+    expect(await getContract(db, id)).toBeUndefined();
+  });
+
+  it("can be deleted even after another contract replaced it", async () => {
+    const { db, id } = await contracted();
+    await refinanceContract(db, id);
+    const second = await createContract(db, { ...CONTRACT, refinanced_from: id });
+    await deleteContract(db, id);
+    expect(await getContract(db, id)).toBeUndefined();
+    // The one that replaced it stays, with nothing left to point at.
+    expect((await getContract(db, second))?.refinanced_from).toBeNull();
+  });
+
+  it("ties the new contract to the one it replaced, both ways", async () => {
+    const { db, id } = await contracted();
+    await refinanceContract(db, id);
+    const second = await createContract(db, { ...CONTRACT, refinanced_from: id });
+    expect((await getContract(db, second))?.refinanced_from).toBe(id);
+    expect((await refinancedInto(db, id))?.id).toBe(second);
+    expect(await refinancedInto(db, second)).toBeUndefined();
   });
 });
 

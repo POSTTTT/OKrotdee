@@ -2,17 +2,21 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import RowLink from "../RowLink";
+import { useChains } from "../chains";
 import ConfirmButton from "../ConfirmButton";
 import { useApp } from "../context";
 import { deleteContract, listContracts, type ContractRow } from "../db";
 import { formatBaht } from "../money";
 
-const STATUSES = ["active", "completed", "repossessed", "cancelled"] as const;
+const STATUSES = ["active", "completed", "repossessed", "cancelled", "refinanced"] as const;
 
 export default function Contracts() {
   const { db, t } = useApp();
   const [status, setStatus] = useState("");
   const [contracts, setContracts] = useState<ContractRow[]>([]);
+  // A delete that quietly does nothing is worse than one that says why.
+  const [error, setError] = useState<string | null>(null);
+  const { rows, toggle } = useChains(contracts);
 
   useEffect(() => {
     listContracts(db, status || undefined).then(setContracts);
@@ -28,6 +32,7 @@ export default function Contracts() {
           </Link>
         </span>
       </div>
+      {error && <p className="flash alarm">{error}</p>}
       <div className="toolbar">
         <select value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">{t("status")}</option>
@@ -52,12 +57,27 @@ export default function Contracts() {
             </tr>
           </thead>
           <tbody>
-            {contracts.map((c) => (
-              <RowLink key={c.id} to={`/contracts/${c.id}`}>
+            {rows.map(({ contract: c, times, index, ordinal, open, className }) => (
+              <RowLink key={c.id} to={`/contracts/${c.id}`} className={className}>
                 <td>
+                  {/* The rows under the newest one are what it replaced. */}
+                  {index > 0 && <span className="chained">&#8627; </span>}
                   <Link to={`/contracts/${c.id}`}>
                     {c.first_name} {c.last_name}
                   </Link>
+                  {/* Which of the deal's contracts this row is, counting from the
+                      first one signed. */}
+                  {index > 0 && (
+                    <small className="ordinal">
+                      {t("contract_no")} {ordinal}
+                    </small>
+                  )}
+                  {/* Refinanced deals read as one contract until asked to open. */}
+                  {times > 1 && index === 0 && (
+                    <button type="button" className="chain-toggle" onClick={() => toggle(c.id)}>
+                      {t("refinance")} &times;{times - 1} {open ? "\u25b4" : "\u25be"}
+                    </button>
+                  )}
                 </td>
                 <td>
                   {c.brand} {c.series ?? ""}
@@ -73,7 +93,12 @@ export default function Contracts() {
                     question={t("confirm_delete_contract")}
                     className="danger"
                     onConfirm={async () => {
-                      await deleteContract(db, c.id);
+                      setError(null);
+                      try {
+                        await deleteContract(db, c.id);
+                      } catch (e) {
+                        setError(String(e));
+                      }
                       setContracts(await listContracts(db, status || undefined));
                     }}
                   >

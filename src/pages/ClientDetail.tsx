@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
 import RowLink from "../RowLink";
+import { useChains } from "../chains";
 import Timeline from "../Timeline";
 import ConfirmButton from "../ConfirmButton";
 import { useApp } from "../context";
@@ -29,6 +30,7 @@ export default function ClientDetail() {
   // undefined while loading, null when there is no such client.
   const [client, setClient] = useState<Client | null | undefined>();
   const [contracts, setContracts] = useState<ContractRow[]>([]);
+  const { rows, toggle } = useChains(contracts);
   const [events, setEvents] = useState<ClientEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -117,12 +119,27 @@ export default function ClientDetail() {
           </tr>
         </thead>
         <tbody>
-          {contracts.map((c) => (
-            <RowLink key={c.id} to={`/contracts/${c.id}`}>
+          {rows.map(({ contract: c, times, index, ordinal, open, className }) => (
+            <RowLink key={c.id} to={`/contracts/${c.id}`} className={className}>
               <td>
+                {/* The rows under the newest one are what it replaced. */}
+                {index > 0 && <span className="chained">&#8627; </span>}
                 <Link to={`/contracts/${c.id}`}>
                   {c.brand} {c.series ?? ""}
                 </Link>
+                {/* Which of the deal's contracts this row is, counting from the
+                    first one signed. */}
+                {index > 0 && (
+                  <small className="ordinal">
+                    {t("contract_no")} {ordinal}
+                  </small>
+                )}
+                {/* Refinanced deals read as one contract until asked to open. */}
+                {times > 1 && index === 0 && (
+                  <button type="button" className="chain-toggle" onClick={() => toggle(c.id)}>
+                    {t("refinance")} &times;{times - 1} {open ? "\u25b4" : "\u25be"}
+                  </button>
+                )}
               </td>
               <td>{c.plate_number ?? ""}</td>
               <td className="num">{formatBaht(c.installment_amount)}</td>

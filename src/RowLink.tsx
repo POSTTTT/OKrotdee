@@ -6,11 +6,19 @@ import type { ReactNode } from "react";
  * real link, which is what keyboard users tab to; this only widens the target
  * for the mouse.
  */
-export default function RowLink({ to, children }: { to: string; children: ReactNode }) {
+export default function RowLink({
+  to,
+  children,
+  className,
+}: {
+  to: string;
+  children: ReactNode;
+  className?: string;
+}) {
   const navigate = useNavigate();
   return (
     <tr
-      className="clickable"
+      className={className ? `clickable ${className}` : "clickable"}
       onClick={(event) => {
         // Buttons and links inside the row do their own job.
         if ((event.target as HTMLElement).closest("a, button")) return;

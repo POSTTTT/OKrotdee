@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
 import Modal from "../Modal";
@@ -21,6 +21,9 @@ import {
   lateFeePayments,
   removeContractCoClient,
   overdueRow,
+  refinanceContract,
+  refinancedInto,
+  refinancedOn,
   repossessContract,
   type Client,
   type Fee,
@@ -43,6 +46,7 @@ export default function ContractDetail() {
   // money should not cost the staff their place in a 72-row schedule.
   const [paying, setPaying] = useState<number | null>(null);
   const { db, t } = useApp();
+  const navigate = useNavigate();
   const contractId = Number(useParams().id);
   // undefined while loading, null when there is no such contract.
   const [contract, setContract] = useState<ContractRow | null | undefined>();
@@ -56,6 +60,10 @@ export default function ContractDetail() {
   // Everyone signing alongside the main client, and the pool to add from.
   const [coClients, setCoClients] = useState<Client[]>([]);
   const [showCo, setShowCo] = useState(false);
+  // The contract written to replace this one, when it was refinanced, and the
+  // day that happened.
+  const [successor, setSuccessor] = useState<ContractRow | undefined>();
+  const [refinancedDate, setRefinancedDate] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setContract((await getContract(db, contractId)) ?? null);
@@ -71,6 +79,8 @@ export default function ContractDetail() {
     setDownFinePaid(total(await lateFeePayments(db, contractId, "down")));
     setDownFine(await downFeeFine(db, contractId, todayIso()));
     setCoClients(await contractCoClients(db, contractId));
+    setSuccessor(await refinancedInto(db, contractId));
+    setRefinancedDate(await refinancedOn(db, contractId));
   }, [db, contractId]);
 
   useEffect(() => {
@@ -134,6 +144,18 @@ export default function ContractDetail() {
         </h1>
         {contract.status === "active" && (
           <span className="actions">
+            {/* The client keeps the car and starts again on new terms: this
+                contract closes and the next one is written from it. */}
+            <ConfirmButton
+              question={t("confirm_refinance")}
+              className=""
+              onConfirm={async () => {
+                await refinanceContract(db, contract.id);
+                navigate(`/contracts/new?from=${contract.id}`);
+              }}
+            >
+              {t("refinance")}
+            </ConfirmButton>
             <ConfirmButton
               question={t("confirm_repossess")}
               className="danger"
@@ -157,10 +179,33 @@ export default function ContractDetail() {
             </ConfirmButton>
           </span>
         )}
+        {/* Refinancing flags the contract before the new one is written, so
+            coming back here without finishing must lead to the form again. */}
+        {contract.status === "refinanced" && !successor && (
+          <span className="actions">
+            <Link className="button" to={`/contracts/new?from=${contract.id}`}>
+              {t("continue_refinance")}
+            </Link>
+          </span>
+        )}
       </div>
       <div className="subhead">
         <span className={`tag ${contract.status}`}>{t(contract.status)}</span>
+        {/* A closed contract is read months later: the day it closed is half
+            of what the tag means. */}
+        {refinancedDate && <small>{formatDate(refinancedDate)}</small>}
         <span className={`tag ${flag}`}>{t(flag)}</span>
+        {/* Both ends of a refinancing, so either contract leads to the other. */}
+        {contract.refinanced_from && (
+          <Link className="button" to={`/contracts/${contract.refinanced_from}`}>
+            {t("previous_contract")}
+          </Link>
+        )}
+        {successor && (
+          <Link className="button" to={`/contracts/${successor.id}`}>
+            {t("next_contract")}
+          </Link>
+        )}
       </div>
       <dl className="facts">
         <div>

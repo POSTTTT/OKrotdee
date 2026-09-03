@@ -21,6 +21,7 @@ export default function Picker({
   items,
   value,
   onPick,
+  locked = false,
 }: {
   /** Set to carry the choice in a plain form; omit when state is enough. */
   name?: string;
@@ -28,6 +29,8 @@ export default function Picker({
   items: PickerItem[];
   value: number | null;
   onPick: (id: number) => void;
+  /** Show the choice but do not let it be changed. */
+  locked?: boolean;
 }) {
   const { t } = useApp();
   const [open, setOpen] = useState(false);
@@ -41,7 +44,12 @@ export default function Picker({
 
   return (
     <>
-      <button type="button" className="party pick" onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className={locked ? "party pick locked" : "party pick"}
+        disabled={locked}
+        onClick={() => setOpen(true)}
+      >
         <span className="role">{label}</span>
         {chosen ? (
           <>

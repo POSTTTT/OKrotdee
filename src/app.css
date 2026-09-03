@@ -220,6 +220,7 @@ h1 {
 /* Status tags belong under the name they describe, not beside it. The head
    above them gives up most of its own gap so the two read as one block. */
 .pagehead:has(+ .subhead) { margin-bottom: var(--s3); }
+.subhead small { color: var(--ink-soft); }
 .subhead {
   display: flex;
   justify-content: center;
@@ -618,7 +619,7 @@ button.danger:disabled:hover { background: var(--alarm); }
 .tag.PAID, .tag.OK, .tag.available, .tag.completed, .tag.sold, .tag.contract_completed {
   background: var(--good-wash); color: var(--good); border-color: var(--good-edge);
 }
-.tag.UPCOMING, .tag.on_contract, .tag.cancelled, .tag.note {
+.tag.UPCOMING, .tag.on_contract, .tag.cancelled, .tag.refinanced, .tag.note {
   background: var(--idle-wash); color: var(--ink-soft); border-color: var(--line-strong);
 }
 .tag.active, .tag.contract_started, .tag.acquired {
@@ -783,6 +784,7 @@ ul.timeline li {
 .timeline .dot.contract_started { border-color: var(--accent); }
 .timeline .dot.contract_completed { border-color: var(--good); }
 .timeline .dot.repossessed { border-color: var(--alarm); }
+.timeline .dot.refinanced { border-color: var(--ink-soft); }
 .timeline .card {
   display: grid;
   gap: var(--s2);
@@ -841,6 +843,33 @@ tr.child td:first-child { padding-left: 2.1rem; }
 
 /* A whole row opens its page, so it wants a pointer and a firmer hover than
    the plain row highlight above. */
+/* A refinanced deal is one story told over two contracts: the rows keep the
+   divider only at the foot of the block, and an edge down their left says
+   where the block starts and ends. */
+tbody tr.chain td { border-bottom-color: transparent; }
+tbody tr.chain.chain-end td { border-bottom-color: var(--line); }
+/* An inset edge, not a border: a border would shift the row's text 3px and
+   break the column the eye runs down. */
+tbody tr.chain td:first-child { box-shadow: inset 3px 0 var(--accent-edge); }
+.chained { color: var(--ink-faint); }
+.ordinal { display: block; color: var(--ink-faint); font-size: 0.72rem; }
+/* How many times the deal has been written again, and the switch that
+   unfolds the contracts behind it. */
+button.chain-toggle {
+  display: block;
+  margin: var(--s1) auto 0;
+  padding: 0.1rem 0.45rem;
+  background: var(--idle-wash);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+}
+button.chain-toggle:hover { background: var(--accent-wash); color: var(--accent); }
+
 tbody tr.clickable { cursor: pointer; }
 tbody tr.clickable:hover { background: var(--paper); }
 
@@ -1006,6 +1035,10 @@ button.party.pick {
   letter-spacing: normal;
 }
 button.party.pick:hover { border-color: var(--accent); }
+/* Refinancing is written for the same client and the same car, so those two
+   cards read as they always do — they simply cannot be changed. */
+button.party.pick.locked { opacity: 1; cursor: default; }
+button.party.pick.locked:hover { border-color: var(--line-strong); }
 .party.pick .name { font-size: 1.15rem; font-weight: 600; }
 .party.pick .name.empty { color: var(--ink-faint); font-weight: 400; }
 

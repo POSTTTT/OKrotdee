@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { statements } from "../src/db";
-import { SCHEMA } from "../src/schema";
+import { MIGRATIONS, REBUILDS, SCHEMA } from "../src/schema";
 
 let db: Database.Database;
 
@@ -42,6 +42,100 @@ describe("applying the schema the way the app does", () => {
         "late_fee_payments",
       ]),
     );
+  });
+});
+
+/** The database as it was before refinancing had a word for it anywhere. */
+function beforeRefinancing(): Database.Database {
+  const old = new Database(":memory:");
+  old.exec(
+    SCHEMA.replace("'cancelled','refinanced'", "'cancelled'")
+      .replace("'repossessed','refinanced','sold','note'", "'repossessed','sold','note'")
+      .replace("'repossessed','refinanced','note'", "'repossessed','note'")
+      .replace("  refinanced_from    INTEGER REFERENCES contracts(id),\n", ""),
+  );
+  old.prepare(
+    "INSERT INTO clients (id, first_name, last_name, created_at)" +
+      " VALUES (1, 'A', 'B', '2026-08-24T10:00:00')",
+  ).run();
+  old.prepare(
+    "INSERT INTO cars (id, brand, status, created_at)" +
+      " VALUES (1, 'Toyota', 'available', '2026-08-24T10:00:00')",
+  ).run();
+  old.prepare(
+    "INSERT INTO contracts (id, client_id, car_id, car_price, down_payment," +
+      " installment_amount, installment_count, due_day, first_due_date, status," +
+      " created_at) VALUES (7, 1, 1, 60000000, 10000000, 1540000, 40, 15," +
+      " '2026-09-15', 'active', '2026-08-24T10:00:00')",
+  ).run();
+  old.prepare(
+    "INSERT INTO installments (contract_id, seq, due_date, amount_due)" +
+      " VALUES (7, 1, '2026-09-15', 1540000)",
+  ).run();
+  old.prepare(
+    "INSERT INTO car_events (id, car_id, event_date, type, contract_id)" +
+      " VALUES (3, 1, '2026-08-24', 'contract_started', 7)",
+  ).run();
+  return old;
+}
+
+describe("the rebuilds refinancing needed", () => {
+  /**
+   * The shop's database is full of contracts written before refinancing
+   * existed, in tables whose CHECK does not know the word. Every row has to
+   * come across, and the new word has to be taken afterwards.
+   */
+  it("carries the rows across and accepts the new status and event", () => {
+    const old = beforeRefinancing();
+
+    // The same switch openDatabase throws: dropping a table is what the
+    // tables pointing at it would otherwise refuse.
+    old.pragma("foreign_keys = OFF");
+    for (const version of REBUILDS.slice(1)) {
+      for (const statement of version) old.exec(statement);
+    }
+    for (const statement of MIGRATIONS) {
+      try {
+        old.exec(statement);
+      } catch {
+        // Already applied, which is how openDatabase runs them too.
+      }
+    }
+    old.pragma("foreign_keys = ON");
+
+    expect(old.prepare("SELECT car_price FROM contracts WHERE id = 7").get()).toEqual({
+      car_price: 60000000,
+    });
+    expect(
+      old.prepare("SELECT COUNT(*) AS n FROM installments WHERE contract_id = 7").get(),
+    ).toEqual({ n: 1 });
+    expect(old.prepare("SELECT type FROM car_events WHERE id = 3").get()).toEqual({
+      type: "contract_started",
+    });
+
+    expect(() =>
+      old.prepare("UPDATE contracts SET status = 'refinanced' WHERE id = 7").run(),
+    ).not.toThrow();
+    expect(() =>
+      old
+        .prepare(
+          "INSERT INTO car_events (car_id, event_date, type, contract_id)" +
+            " VALUES (1, '2026-09-03', 'refinanced', 7)",
+        )
+        .run(),
+    ).not.toThrow();
+    expect(() =>
+      old
+        .prepare(
+          "INSERT INTO client_events (client_id, event_date, type, contract_id)" +
+            " VALUES (1, '2026-09-03', 'refinanced', 7)",
+        )
+        .run(),
+    ).not.toThrow();
+    // The column the new contract points back through arrives with them.
+    expect(() =>
+      old.prepare("UPDATE contracts SET refinanced_from = NULL WHERE id = 7").run(),
+    ).not.toThrow();
   });
 });
 

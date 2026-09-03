@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
 import { useApp } from "../context";
@@ -11,17 +11,26 @@ import {
   addContractCoClient,
   availableCars,
   createContract,
+  getContract,
+  undoRefinance,
+  installmentsFor,
   listClients,
   type Car,
   type Client,
   type ContractFields,
+  type ContractRow,
 } from "../db";
 import { isErrorKey } from "../lang";
-import { formatBaht, generateSchedule, toSatang } from "../money";
+import { formatBaht, generateSchedule, outstanding, toSatang } from "../money";
 
 export default function ContractForm() {
   const { db, t } = useApp();
   const navigate = useNavigate();
+  // Refinancing arrives here from the contract it replaces: the same client
+  // keeps the same car, and only the terms are written again.
+  const previousId = Number(useSearchParams()[0].get("from")) || null;
+  const [previous, setPrevious] = useState<ContractRow | null>(null);
+  const [previousBalance, setPreviousBalance] = useState(0);
   const [clients, setClients] = useState<Client[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
   const [preview, setPreview] = useState<{ dates: string[]; amount: number } | null>(null);
@@ -41,6 +50,21 @@ export default function ContractForm() {
     availableCars(db).then(setCars);
   }, [db]);
 
+  useEffect(() => {
+    if (!previousId) return;
+    getContract(db, previousId).then((row) => {
+      if (!row) return;
+      setPrevious(row);
+      setClientId(row.client_id);
+      setCarId(row.car_id);
+    });
+    installmentsFor(db, previousId).then((rows) =>
+      setPreviousBalance(
+        rows.reduce((sum, i) => sum + outstanding(i.amount_due, i.late_fee, i.paid_total), 0),
+      ),
+    );
+  }, [db, previousId]);
+
   const readFields = (form: FormData): ContractFields => {
     const text = (key: string) => ((form.get(key) as string) ?? "").trim();
     if (!text("client_id") || !text("car_id")) throw new Error("err_choose_client_car");
@@ -57,6 +81,9 @@ export default function ContractForm() {
       due_day: Number(firstDue.slice(8, 10)),
       down_payment: toSatang(text("down_payment") || "0"),
       note: null,
+      // What ties the new contract to the one it replaces, so the list can
+      // show the two together.
+      refinanced_from: previousId,
     };
     if (!fields.client_id || !fields.car_id) throw new Error("err_choose_client_car");
     if (fields.installment_count < 1) {
@@ -110,6 +137,39 @@ export default function ContractForm() {
         <h1>{t("create_contract")}</h1>
       </div>
       {error && <p className="flash">{error}</p>}
+      {/* What the client was on until now, to write the new terms against. */}
+      {previous && (
+        <>
+          <h2>
+            <Link to={`/contracts/${previous.id}`}>{t("previous_contract")}</Link>
+          </h2>
+          <dl className="facts">
+            <div>
+              <dt>{t("car_price")}</dt>
+              <dd>{formatBaht(previous.car_price)}</dd>
+            </div>
+            <div>
+              <dt>{t("down_payment")}</dt>
+              <dd>{formatBaht(previous.down_payment)}</dd>
+            </div>
+            <div>
+              <dt>{t("installment_amount")}</dt>
+              <dd>
+                {formatBaht(previous.installment_amount)}{" "}
+                <small>&times; {previous.installment_count}</small>
+              </dd>
+            </div>
+            <div>
+              <dt>{t("first_due_date")}</dt>
+              <dd>{formatDate(previous.first_due_date)}</dd>
+            </div>
+            <div className={previousBalance > 0 ? "owing" : "settled"}>
+              <dt>{t("balance")}</dt>
+              <dd>{formatBaht(previousBalance)}</dd>
+            </div>
+          </dl>
+        </>
+      )}
       <form className="stack" onSubmit={onSubmit}>
         {/* Who and what the contract ties together, kept apart from the money
             terms below: the client on the left, the car on the right, and
@@ -120,6 +180,7 @@ export default function ContractForm() {
             label={t("client")}
             value={clientId}
             onPick={setClientId}
+            locked={previous !== null}
             items={clients.map((c) => ({
               id: c.id,
               text: `${c.first_name} ${c.last_name}`,
@@ -134,6 +195,7 @@ export default function ContractForm() {
             label={t("car")}
             value={carId}
             onPick={setCarId}
+            locked={previous !== null}
             items={cars.map((c) => ({
               id: c.id,
               text: `${c.brand} ${c.series ?? ""}`.trim(),
@@ -199,6 +261,21 @@ export default function ContractForm() {
           <button type="submit" name="action" value="create" disabled={busy}>
             {t("create_contract")}
           </button>
+          {/* Changed their mind: the old contract goes back to running, and
+              the car with it, as though it had never been flagged. */}
+          {previous && (
+            <button
+              type="button"
+              className="ghost"
+              disabled={busy}
+              onClick={async () => {
+                await undoRefinance(db, previous.id);
+                navigate(`/contracts/${previous.id}`);
+              }}
+            >
+              {t("cancel_refinance")}
+            </button>
+          )}
         </div>
       </form>
 

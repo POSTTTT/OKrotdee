@@ -50,6 +50,28 @@ export function nowIso(): string {
   return new Date().toISOString().slice(0, 19);
 }
 
+/**
+ * A rebuild interrupted between copying a table and swapping it into place
+ * leaves the copy behind. That copy still holds rows pointing at other tables,
+ * which silently refuses deletes elsewhere, so it is settled on every start:
+ * if the table it was replacing is gone, the copy is the data and takes its
+ * name; if the table is there, the copy is dead weight.
+ */
+export async function settleInterruptedRebuilds(db: Db): Promise<void> {
+  const leftovers = await db.select<{ name: string }>(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE '%_rebuilt'",
+  );
+  for (const { name } of leftovers) {
+    const target = name.slice(0, -"_rebuilt".length);
+    const [{ n }] = await db.select<{ n: number }>(
+      "SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name = ?",
+      [target],
+    );
+    // A table name cannot be bound; these come from sqlite_master, not input.
+    await db.execute(n > 0 ? `DROP TABLE ${name}` : `ALTER TABLE ${name} RENAME TO ${target}`);
+  }
+}
+
 /** Open the application database, enable foreign keys, and apply the schema. */
 export async function openDatabase(): Promise<Db> {
   const dir = await dataDir();
@@ -81,13 +103,23 @@ export async function openDatabase(): Promise<Db> {
   const fresh =
     (await db.select("SELECT name FROM sqlite_master WHERE type = 'table' LIMIT 1")).length === 0;
 
+  // Before the schema: a table a rebuild never finished swapping in would
+  // otherwise be shadowed by an empty one created here.
+  await settleInterruptedRebuilds(db);
+
   for (const statement of statements(SCHEMA)) {
     await database.execute(statement);
   }
 
   const [{ user_version }] = await db.select<{ user_version: number }>("PRAGMA user_version");
   if (!fresh && user_version < SCHEMA_VERSION) {
-    for (const statement of REBUILDS) await database.execute(statement);
+    // A rebuild drops the old table, which the tables pointing at it would
+    // otherwise refuse. Nothing is deleted: every row is copied first.
+    await database.execute("PRAGMA foreign_keys = OFF");
+    for (const version of REBUILDS.slice(user_version)) {
+      for (const statement of version) await database.execute(statement);
+    }
+    await database.execute("PRAGMA foreign_keys = ON");
   }
   if (user_version < SCHEMA_VERSION) {
     // Not a bound parameter: SQLite does not allow one in a PRAGMA.
@@ -129,6 +161,8 @@ export interface ContractRow {
   due_day: number;
   first_due_date: string;
   status: string;
+  /** The contract this one replaced, when the client refinanced. */
+  refinanced_from: number | null;
   note: string | null;
   created_at: string;
   first_name?: string;
@@ -266,6 +300,9 @@ export interface ClientEvent {
 
 export async function clientEvents(db: Db, clientId: number): Promise<ClientEvent[]> {
   return db.select<ClientEvent>(
+    // Same day, same order it was written: a refinancing ends one contract
+    // and starts the next within a minute, and only the writing order tells
+    // them apart.
     "SELECT * FROM client_events WHERE client_id = ? ORDER BY event_date, id",
     [clientId],
   );
@@ -441,6 +478,7 @@ export async function deleteCarEvent(db: Db, id: number): Promise<void> {
 
 export async function carEvents(db: Db, carId: number): Promise<CarEvent[]> {
   return db.select<CarEvent>(
+    // Ordered like the client's log: see clientEvents.
     "SELECT * FROM car_events WHERE car_id = ? ORDER BY event_date, id",
     [carId],
   );
@@ -478,6 +516,8 @@ export interface ContractFields {
   due_day: number;
   first_due_date: string;
   note: string | null;
+  /** Set when the contract is written to replace one being refinanced. */
+  refinanced_from?: number | null;
 }
 
 export async function availableCars(db: Db): Promise<Car[]> {
@@ -520,7 +560,8 @@ export async function createContract(db: Db, fields: ContractFields): Promise<nu
   const { lastInsertId } = await db.execute(
     "INSERT INTO contracts (client_id, car_id, car_price, down_payment," +
       " installment_amount, installment_count, due_day, first_due_date, note," +
-      " status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)",
+      " refinanced_from, status, created_at)" +
+      " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)",
     [
       fields.client_id,
       fields.car_id,
@@ -531,6 +572,7 @@ export async function createContract(db: Db, fields: ContractFields): Promise<nu
       fields.due_day,
       fields.first_due_date,
       fields.note,
+      fields.refinanced_from ?? null,
       nowIso(),
     ],
   );
@@ -707,6 +749,66 @@ export async function repossessContract(db: Db, contractId: number): Promise<voi
   await addClientEvent(db, contract.client_id, todayIso(), "repossessed", contractId);
 }
 
+/**
+ * End the contract because the client is signing a new one for the same car.
+ * The car goes back on the lot so the new contract can take it; what was paid
+ * on this one stays where it is, as the record of what was settled.
+ */
+export async function refinanceContract(db: Db, contractId: number): Promise<void> {
+  const contract = await getContract(db, contractId);
+  if (!contract) throw new Error("err_no_such_contract");
+  if (contract.status !== "active") return;
+  await db.execute("UPDATE contracts SET status = 'refinanced' WHERE id = ?", [contractId]);
+  await setCarStatus(db, contract.car_id, "available");
+  await addCarEvent(db, contract.car_id, todayIso(), "refinanced", contractId);
+  await addClientEvent(db, contract.client_id, todayIso(), "refinanced", contractId);
+}
+
+/**
+ * Put back a contract flagged for refinancing when the new one was never
+ * written: the car returns to it, and the entries in both histories go, since
+ * nothing happened after all. Refused once the replacement exists, which
+ * would leave the car on two live contracts.
+ */
+export async function undoRefinance(db: Db, contractId: number): Promise<void> {
+  const contract = await getContract(db, contractId);
+  if (!contract) throw new Error("err_no_such_contract");
+  if (contract.status !== "refinanced") return;
+  if (await refinancedInto(db, contractId)) return;
+  await db.execute("UPDATE contracts SET status = 'active' WHERE id = ?", [contractId]);
+  await setCarStatus(db, contract.car_id, "on_contract");
+  await db.execute("DELETE FROM car_events WHERE contract_id = ? AND type = 'refinanced'", [
+    contractId,
+  ]);
+  await db.execute(
+    "DELETE FROM client_events WHERE contract_id = ? AND type = 'refinanced'",
+    [contractId],
+  );
+}
+
+/** The day this contract was refinanced, off the entry its logs were given. */
+export async function refinancedOn(db: Db, contractId: number): Promise<string | null> {
+  const rows = await db.select<{ event_date: string }>(
+    "SELECT event_date FROM car_events WHERE contract_id = ? AND type = 'refinanced'" +
+      " ORDER BY id LIMIT 1",
+    [contractId],
+  );
+  return rows[0]?.event_date ?? null;
+}
+
+/** The contract written to replace this one, if the refinancing was finished. */
+export async function refinancedInto(
+  db: Db,
+  contractId: number,
+): Promise<ContractRow | undefined> {
+  return (
+    await db.select<ContractRow>(
+      "SELECT * FROM contracts WHERE refinanced_from = ? ORDER BY id LIMIT 1",
+      [contractId],
+    )
+  )[0];
+}
+
 /** Void a contract entered in error and free the car. */
 export async function cancelContract(db: Db, contractId: number): Promise<void> {
   const contract = await getContract(db, contractId);
@@ -739,8 +841,16 @@ export async function deleteContract(db: Db, contractId: number): Promise<void> 
   );
   await db.execute("DELETE FROM fees WHERE contract_id = ?", [contractId]);
   await db.execute("DELETE FROM late_fee_payments WHERE contract_id = ?", [contractId]);
+  // Everyone who signed alongside the client is listed against the contract,
+  // and those rows hold it in place as surely as a payment does.
+  await db.execute("DELETE FROM contract_clients WHERE contract_id = ?", [contractId]);
   await db.execute("DELETE FROM car_events WHERE contract_id = ?", [contractId]);
   await db.execute("DELETE FROM client_events WHERE contract_id = ?", [contractId]);
+  // A contract written to replace this one still stands on its own; only its
+  // pointer back has to go, or the row cannot be deleted at all.
+  await db.execute("UPDATE contracts SET refinanced_from = NULL WHERE refinanced_from = ?", [
+    contractId,
+  ]);
   await db.execute("DELETE FROM contracts WHERE id = ?", [contractId]);
   if (contract.status === "active") await setCarStatus(db, contract.car_id, "available");
 }

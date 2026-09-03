@@ -46,7 +46,10 @@ CREATE TABLE IF NOT EXISTS contracts (
   due_day            INTEGER NOT NULL CHECK (due_day BETWEEN 1 AND 31),
   first_due_date     TEXT NOT NULL,
   status             TEXT NOT NULL
-                     CHECK (status IN ('active','completed','repossessed','cancelled')),
+                     CHECK (status IN ('active','completed','repossessed',
+                                       'cancelled','refinanced')),
+  -- The contract this one was written to replace, when the client refinanced.
+  refinanced_from    INTEGER REFERENCES contracts(id),
   note               TEXT,
   created_at         TEXT NOT NULL
 );
@@ -88,7 +91,7 @@ CREATE TABLE IF NOT EXISTS car_events (
   event_date  TEXT NOT NULL,
   type        TEXT NOT NULL
               CHECK (type IN ('acquired','contract_started','contract_completed',
-                              'repossessed','sold','note')),
+                              'repossessed','refinanced','sold','note')),
   contract_id INTEGER REFERENCES contracts(id),
   note        TEXT
 );
@@ -99,7 +102,7 @@ CREATE TABLE IF NOT EXISTS client_events (
   event_date  TEXT NOT NULL,
   type        TEXT NOT NULL
               CHECK (type IN ('contract_started','contract_completed',
-                              'repossessed','note')),
+                              'repossessed','refinanced','note')),
   contract_id INTEGER REFERENCES contracts(id),
   note        TEXT
 );
@@ -205,6 +208,8 @@ export const MIGRATIONS = [
   // recorded until now was against the installments.
   "ALTER TABLE late_fee_payments ADD COLUMN kind TEXT NOT NULL DEFAULT 'installment'",
   "ALTER TABLE cars ADD COLUMN insurance_expires_on TEXT",
+  // Runs after the v2 rebuild, which recreates contracts without it.
+  "ALTER TABLE contracts ADD COLUMN refinanced_from INTEGER REFERENCES contracts(id)",
   // Clients kept no history until now; the turning points of their contracts
   // were already written to the car's log, so they are copied across. Guarded,
   // so a later start does not copy them twice.
@@ -216,32 +221,96 @@ export const MIGRATIONS = [
     " WHERE x.contract_id = e.contract_id AND x.type = e.type)",
 ];
 
-/** Bump whenever REBUILDS grows. Stored in the file as PRAGMA user_version. */
-export const SCHEMA_VERSION = 1;
-
 /**
- * Changes ALTER TABLE cannot express, so the table is copied instead. Applied
- * once per database, in order, and only when its user_version is behind.
+ * Changes ALTER TABLE cannot express, so the table is copied instead. One
+ * entry per version, in order; a database runs only the entries past its own
+ * user_version, so a rebuild is never applied twice.
  */
 export const REBUILDS = [
   // v1: fees gained a due date, and paid_on became optional so a fee can be
   // recorded before the client has paid it. Existing rows were all paid.
-  `CREATE TABLE fees_rebuilt (
-     id             INTEGER PRIMARY KEY,
-     contract_id    INTEGER NOT NULL REFERENCES contracts(id),
-     type           TEXT NOT NULL CHECK (type IN ('down','insurance')),
-     due_on         TEXT NOT NULL,
-     paid_on        TEXT,
-     amount         INTEGER NOT NULL CHECK (amount > 0),
-     officer_amount INTEGER,
-     note           TEXT,
-     created_at     TEXT NOT NULL
-   )`,
-  `INSERT INTO fees_rebuilt (id, contract_id, type, due_on, paid_on, amount,
-     officer_amount, note, created_at)
-   SELECT id, contract_id, type, paid_on, paid_on, amount, officer_amount, note,
-     created_at FROM fees`,
-  "DROP TABLE fees",
-  "ALTER TABLE fees_rebuilt RENAME TO fees",
-  "CREATE INDEX IF NOT EXISTS idx_fees_contract ON fees(contract_id)",
+  [
+    `CREATE TABLE fees_rebuilt (
+       id             INTEGER PRIMARY KEY,
+       contract_id    INTEGER NOT NULL REFERENCES contracts(id),
+       type           TEXT NOT NULL CHECK (type IN ('down','insurance')),
+       due_on         TEXT NOT NULL,
+       paid_on        TEXT,
+       amount         INTEGER NOT NULL CHECK (amount > 0),
+       officer_amount INTEGER,
+       note           TEXT,
+       created_at     TEXT NOT NULL
+     )`,
+    `INSERT INTO fees_rebuilt (id, contract_id, type, due_on, paid_on, amount,
+       officer_amount, note, created_at)
+     SELECT id, contract_id, type, paid_on, paid_on, amount, officer_amount, note,
+       created_at FROM fees`,
+    "DROP TABLE fees",
+    "ALTER TABLE fees_rebuilt RENAME TO fees",
+    "CREATE INDEX IF NOT EXISTS idx_fees_contract ON fees(contract_id)",
+  ],
+  // v2: a contract can now end because the client signed a new one for the
+  // same car. Only the status CHECK changes; every row is copied as it is.
+  [
+    `CREATE TABLE contracts_rebuilt (
+       id                 INTEGER PRIMARY KEY,
+       client_id          INTEGER NOT NULL REFERENCES clients(id),
+       car_id             INTEGER NOT NULL REFERENCES cars(id),
+       car_price          INTEGER NOT NULL,
+       down_payment       INTEGER NOT NULL DEFAULT 0,
+       installment_amount INTEGER NOT NULL,
+       installment_count  INTEGER NOT NULL,
+       due_day            INTEGER NOT NULL CHECK (due_day BETWEEN 1 AND 31),
+       first_due_date     TEXT NOT NULL,
+       status             TEXT NOT NULL
+                          CHECK (status IN ('active','completed','repossessed',
+                                            'cancelled','refinanced')),
+       note               TEXT,
+       created_at         TEXT NOT NULL
+     )`,
+    "INSERT INTO contracts_rebuilt SELECT id, client_id, car_id, car_price," +
+      " down_payment, installment_amount, installment_count, due_day," +
+      " first_due_date, status, note, created_at FROM contracts",
+    "DROP TABLE contracts",
+    "ALTER TABLE contracts_rebuilt RENAME TO contracts",
+    "CREATE INDEX IF NOT EXISTS idx_contracts_client ON contracts(client_id)",
+    "CREATE INDEX IF NOT EXISTS idx_contracts_car ON contracts(car_id)",
+  ],
+  // v3: refinancing is a turn in the history of both the car and the client,
+  // and neither log would take the word until now.
+  [
+    `CREATE TABLE car_events_rebuilt (
+       id          INTEGER PRIMARY KEY,
+       car_id      INTEGER NOT NULL REFERENCES cars(id),
+       event_date  TEXT NOT NULL,
+       type        TEXT NOT NULL
+                   CHECK (type IN ('acquired','contract_started','contract_completed',
+                                   'repossessed','refinanced','sold','note')),
+       contract_id INTEGER REFERENCES contracts(id),
+       note        TEXT
+     )`,
+    "INSERT INTO car_events_rebuilt SELECT id, car_id, event_date, type," +
+      " contract_id, note FROM car_events",
+    "DROP TABLE car_events",
+    "ALTER TABLE car_events_rebuilt RENAME TO car_events",
+    "CREATE INDEX IF NOT EXISTS idx_car_events_car ON car_events(car_id)",
+    `CREATE TABLE client_events_rebuilt (
+       id          INTEGER PRIMARY KEY,
+       client_id   INTEGER NOT NULL REFERENCES clients(id),
+       event_date  TEXT NOT NULL,
+       type        TEXT NOT NULL
+                   CHECK (type IN ('contract_started','contract_completed',
+                                   'repossessed','refinanced','note')),
+       contract_id INTEGER REFERENCES contracts(id),
+       note        TEXT
+     )`,
+    "INSERT INTO client_events_rebuilt SELECT id, client_id, event_date, type," +
+      " contract_id, note FROM client_events",
+    "DROP TABLE client_events",
+    "ALTER TABLE client_events_rebuilt RENAME TO client_events",
+    "CREATE INDEX IF NOT EXISTS idx_client_events_client ON client_events(client_id)",
+  ],
 ];
+
+/** Stored in the file as PRAGMA user_version. */
+export const SCHEMA_VERSION = REBUILDS.length;
