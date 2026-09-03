@@ -450,6 +450,9 @@ form.stack > label:has(textarea) { grid-column: 1 / -1; }
 /* A question needs less room than a form: the dialog narrows around it. */
 dialog.modal:has(> p.ask) { width: min(26rem, calc(100vw - var(--s8))); }
 p.ask { margin: 0 0 var(--s5); font-size: 1rem; color: var(--ink); }
+/* A question already has its own way out, and the close in the corner only
+   lands on top of the last words of it. */
+dialog.modal:has(> p.ask) .close { display: none; }
 p.ask + .toolbar { margin: 0; }
 
 /* A table's sum, standing under it at the right rather than as a last row. */
