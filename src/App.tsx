@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, NavLink, Route, Routes } from "react-router-dom";
+import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
 
 import { useApp } from "./context";
 import CarDetail from "./pages/CarDetail";
@@ -20,6 +20,7 @@ import Settings from "./Settings";
 
 export default function App() {
   const { t } = useApp();
+  const { pathname } = useLocation();
   const [settings, setSettings] = useState(false);
   const navClass = ({ isActive }: { isActive: boolean }) => (isActive ? "on" : "");
 
@@ -55,24 +56,28 @@ export default function App() {
         </span>
       </header>
       <main>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/calendar" element={<Calendar />} />
-          <Route path="/clients" element={<Clients />} />
-          <Route path="/clients/new" element={<ClientForm />} />
-          <Route path="/clients/:id" element={<ClientDetail />} />
-          <Route path="/clients/:id/edit" element={<ClientForm />} />
-          <Route path="/cars" element={<Cars />} />
-          <Route path="/cars/new" element={<CarForm />} />
-          <Route path="/cars/:id" element={<CarDetail />} />
-          <Route path="/cars/:id/edit" element={<CarForm />} />
-          <Route path="/contracts" element={<Contracts />} />
-          <Route path="/contracts/new" element={<ContractForm />} />
-          <Route path="/contracts/:id" element={<ContractDetail />} />
-          <Route path="/contracts/:id/fees/:type" element={<FeeForm />} />
-          <Route path="/contracts/:id/late-fees/:kind" element={<LateFees />} />
-          <Route path="/installments/:id/pay" element={<PaymentForm />} />
-        </Routes>
+        {/* Keyed on the path so every screen is drawn fresh, and the eye is
+            told a new page arrived rather than having to read the heading. */}
+        <div className="route" key={pathname}>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/calendar" element={<Calendar />} />
+            <Route path="/clients" element={<Clients />} />
+            <Route path="/clients/new" element={<ClientForm />} />
+            <Route path="/clients/:id" element={<ClientDetail />} />
+            <Route path="/clients/:id/edit" element={<ClientForm />} />
+            <Route path="/cars" element={<Cars />} />
+            <Route path="/cars/new" element={<CarForm />} />
+            <Route path="/cars/:id" element={<CarDetail />} />
+            <Route path="/cars/:id/edit" element={<CarForm />} />
+            <Route path="/contracts" element={<Contracts />} />
+            <Route path="/contracts/new" element={<ContractForm />} />
+            <Route path="/contracts/:id" element={<ContractDetail />} />
+            <Route path="/contracts/:id/fees/:type" element={<FeeForm />} />
+            <Route path="/contracts/:id/late-fees/:kind" element={<LateFees />} />
+            <Route path="/installments/:id/pay" element={<PaymentForm />} />
+          </Routes>
+        </div>
       </main>
       {settings && <Settings onClose={() => setSettings(false)} />}
     </>

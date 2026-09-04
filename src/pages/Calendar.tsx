@@ -57,6 +57,9 @@ export default function Calendar() {
   // Which view a day (or a month) was opened from, so there is a way back out
   // of it. Null once the reader picks a view themselves.
   const [from, setFrom] = useState<View | null>(null);
+  // Which way the last move through time went, so the sheet arrives from the
+  // side it came from. Cleared by anything that is not a step.
+  const [dir, setDir] = useState("");
 
   useEffect(() => {
     activeInstallments(db).then(setRows);
@@ -111,7 +114,8 @@ export default function Calendar() {
   // hole in the grid rather than a row of days that have not come yet.
   const tail = view === "month" ? (7 - ((blanks + days.length) % 7)) % 7 : 0;
 
-  const step = (by: number) =>
+  const step = (by: number) => {
+    setDir(by > 0 ? "next" : "prev");
     setAt((iso) => {
       if (view === "day") return addDays(iso, by);
       if (view === "week") return addDays(iso, by * 7);
@@ -119,6 +123,7 @@ export default function Calendar() {
       const total = y * 12 + (m - 1) + (view === "month" ? by : by * 12);
       return toIso(Math.floor(total / 12), (total % 12) + 1, d);
     });
+  };
 
   const heading =
     view === "year"
@@ -170,6 +175,7 @@ export default function Calendar() {
             <button
               className="ghost"
               onClick={() => {
+                setDir("");
                 setView(from);
                 setFrom(null);
               }}
@@ -187,6 +193,7 @@ export default function Calendar() {
                 className={`ghost${v === view ? " on" : ""}`}
                 onClick={() => {
                   if (v === "day") setAt(today);
+                  setDir("");
                   setFrom(null);
                   setView(v);
                 }}
@@ -199,7 +206,13 @@ export default function Calendar() {
             <button className="ghost" onClick={() => step(-1)}>
               ‹
             </button>
-            <button className="ghost" onClick={() => setAt(today)}>
+            <button
+              className="ghost"
+              onClick={() => {
+                setDir("");
+                setAt(today);
+              }}
+            >
               {t("today")}
             </button>
             <button className="ghost" onClick={() => step(1)}>
@@ -208,95 +221,102 @@ export default function Calendar() {
           </span>
         </span>
       </div>
-      <h2>{heading}</h2>
+      {/* Everything that belongs to the slice of time on screen, keyed on it:
+          stepping a month draws a new sheet, arriving from the side it came
+          from, so the change is seen and not read off the heading. */}
+      <div className={`sheet ${dir}`} key={`${view}-${at}`}>
+        <h2>{heading}</h2>
 
-      {view === "year" ? (
-        <div className="calendar year">
-          {Array.from({ length: 12 }, (_, i) => {
-            const key = `${year}-${String(i + 1).padStart(2, "0")}`;
-            const list = byMonth.get(key) ?? [];
-            const owed = list.reduce(
-              (sum, r) => sum + outstanding(r.amount_due, r.late_fee, r.paid_total),
-              0,
-            );
-            return (
-              <button
-                key={key}
-                className={`day ghost${key === today.slice(0, 7) ? " today" : ""}`}
-                onClick={() => {
-                  setFrom("year");
-                  setAt(`${key}-01`);
-                  setView("month");
-                }}
-              >
-                <span className="n">{intl(lang, { month: "long" }).format(Date.UTC(year, i, 1))}</span>
-                <strong>{formatBaht(owed)}</strong>
-                <small>
-                  {list.length} {t("installments")}
-                </small>
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        <div className={`calendar${view === "day" ? " one" : ""}`}>
-          {(view === "day"
-            ? [intl(lang, { weekday: "short" }).format(Date.UTC(year, mon - 1, Number(at.slice(8))))]
-            : weekdayNames(lang)
-          ).map((name) => (
-            <div key={name} className="weekday">
-              {name}
-            </div>
-          ))}
-          {Array.from({ length: blanks }, (_, i) => (
-            <div key={`blank${i}`} className="day blank" />
-          ))}
-          {days.map((iso) => {
-            // A day on the grid opens as a day of its own — the same gesture a
-            // month cell makes in the year view.
-            const pick = () => {
-              setFrom(view);
-              setAt(iso);
-              setView("day");
-            };
-            return (
-              <div
-                key={iso}
-                className={`day${iso === today ? " today" : ""}${view === "day" ? "" : " pick"}`}
-                role={view === "day" ? undefined : "button"}
-                tabIndex={view === "day" ? undefined : 0}
-                onClick={(event) => {
-                  // A payment inside the cell opens its contract instead.
-                  if (view === "day" || (event.target as HTMLElement).closest("a")) return;
-                  pick();
-                }}
-                onKeyDown={(event) => {
-                  if (view === "day" || (event.key !== "Enter" && event.key !== " ")) return;
-                  event.preventDefault();
-                  pick();
-                }}
-              >
-                <span className="n">{Number(iso.slice(8))}</span>
-                {view === "day" ? entries(iso) : badge(iso)}
-              </div>
-            );
-          })}
-          {Array.from({ length: tail }, (_, i) => (
-            <div key={`tail${i}`} className="day blank" />
-          ))}
-        </div>
-      )}
-
-      {/* A single day is already its own list — repeating it underneath says
-          nothing twice. */}
-      {view !== "day" && (
-        <>
-          <h2>{t("installments")}</h2>
-          <div className="scroll">
-            <DueRows items={listed} />
+        {view === "year" ? (
+          <div className="calendar year">
+            {Array.from({ length: 12 }, (_, i) => {
+              const key = `${year}-${String(i + 1).padStart(2, "0")}`;
+              const list = byMonth.get(key) ?? [];
+              const owed = list.reduce(
+                (sum, r) => sum + outstanding(r.amount_due, r.late_fee, r.paid_total),
+                0,
+              );
+              return (
+                <button
+                  key={key}
+                  className={`day ghost${key === today.slice(0, 7) ? " today" : ""}`}
+                  onClick={() => {
+                    setDir("");
+                    setFrom("year");
+                    setAt(`${key}-01`);
+                    setView("month");
+                  }}
+                >
+                  <span className="n">{intl(lang, { month: "long" }).format(Date.UTC(year, i, 1))}</span>
+                  <strong>{formatBaht(owed)}</strong>
+                  <small>
+                    {list.length} {t("installments")}
+                  </small>
+                </button>
+              );
+            })}
           </div>
-        </>
-      )}
+        ) : (
+          <div className={`calendar${view === "day" ? " one" : ""}`}>
+            {(view === "day"
+              ? [intl(lang, { weekday: "short" }).format(Date.UTC(year, mon - 1, Number(at.slice(8))))]
+              : weekdayNames(lang)
+            ).map((name) => (
+              <div key={name} className="weekday">
+                {name}
+              </div>
+            ))}
+            {Array.from({ length: blanks }, (_, i) => (
+              <div key={`blank${i}`} className="day blank" />
+            ))}
+            {days.map((iso) => {
+              // A day on the grid opens as a day of its own — the same gesture a
+              // month cell makes in the year view.
+              const pick = () => {
+                setDir("");
+                setFrom(view);
+                setAt(iso);
+                setView("day");
+              };
+              return (
+                <div
+                  key={iso}
+                  className={`day${iso === today ? " today" : ""}${view === "day" ? "" : " pick"}`}
+                  role={view === "day" ? undefined : "button"}
+                  tabIndex={view === "day" ? undefined : 0}
+                  onClick={(event) => {
+                    // A payment inside the cell opens its contract instead.
+                    if (view === "day" || (event.target as HTMLElement).closest("a")) return;
+                    pick();
+                  }}
+                  onKeyDown={(event) => {
+                    if (view === "day" || (event.key !== "Enter" && event.key !== " ")) return;
+                    event.preventDefault();
+                    pick();
+                  }}
+                >
+                  <span className="n">{Number(iso.slice(8))}</span>
+                  {view === "day" ? entries(iso) : badge(iso)}
+                </div>
+              );
+            })}
+            {Array.from({ length: tail }, (_, i) => (
+              <div key={`tail${i}`} className="day blank" />
+            ))}
+          </div>
+        )}
+
+        {/* A single day is already its own list — repeating it underneath says
+            nothing twice. */}
+        {view !== "day" && (
+          <>
+            <h2>{t("installments")}</h2>
+            <div className="scroll">
+              <DueRows items={listed} />
+            </div>
+          </>
+        )}
+      </div>
     </>
   );
 }

@@ -176,6 +176,10 @@ main {
   max-width: 1180px;
   margin: var(--s5) auto var(--s8);
   padding: 0 var(--s5);
+  /* A screen sliding in from the side must not widen the page while it
+     travels. Clip, not hidden: the y axis stays visible, so a dropdown can
+     still hang past the bottom. */
+  overflow-x: clip;
 }
 
 h1 {
@@ -727,12 +731,16 @@ ul.counts .section.on { border-color: var(--ink); }
 ul.counts .section.on button { background: var(--accent-wash); }
 ul.counts .section.on .icon { transform: rotate(180deg); }
 ul.counts .section .icon { transition: transform var(--speed) var(--ease-out); }
-.drop { margin: 0 0 var(--s6); }
+.panel { margin: 0 0 var(--s6); }
 @media (prefers-reduced-motion: no-preference) {
-  .drop { animation: drop-in 160ms var(--ease-out); }
+  .panel { animation: panel-in 220ms var(--ease-out); }
 }
-@keyframes drop-in {
-  from { opacity: 0; transform: translateY(-4px); }
+/* The list is uncovered from the top down, the way a drawer comes out from
+   under the card that holds it — a 4px nudge was too small to be seen on a
+   panel this size. Nothing moves in the layout: the wipe is a clip. */
+@keyframes panel-in {
+  from { opacity: 0; clip-path: inset(0 0 100% 0); transform: translateY(-8px); }
+  to { opacity: 1; clip-path: inset(0 0 0 0); transform: none; }
 }
 
 /* One soft wash per card, warm on the left of the row and cool on the right,
@@ -841,8 +849,24 @@ td small { display: block; font-size: 0.82rem; color: var(--ink-faint); }
 /* The installments folded under an overdue contract: quieter than the row
    that carries them, and set in from it. */
 tr.child td { background: var(--paper); color: var(--ink-soft); font-size: 0.92rem; }
+/* backwards, so a row waiting its turn in the stagger is not drawn first and
+   then hidden. */
+@media (prefers-reduced-motion: no-preference) {
+  tr.child { animation: row-in 180ms var(--ease-out) backwards; }
+}
+@keyframes row-in {
+  from { opacity: 0; transform: translateY(-5px); }
+}
 tr.child td:first-child { padding-left: 2.1rem; }
-.caret { display: inline-block; width: 1.1rem; color: var(--ink-faint); }
+/* One arrow that turns, not two glyphs that swap: the turn is the thing
+   that says the row opened. */
+.caret {
+  display: inline-block;
+  width: 1.1rem;
+  color: var(--ink-faint);
+  transition: transform var(--speed) var(--ease-out);
+}
+.caret.on { transform: rotate(90deg); }
 
 /* A whole row opens its page, so it wants a pointer and a firmer hover than
    the plain row highlight above. */
@@ -1170,3 +1194,38 @@ button.party.pick.locked:hover { border-color: var(--line-strong); }
 .calendar.year .day .n { font-weight: 600; color: var(--ink); }
 .calendar.year .day strong { font-size: 1.1rem; }
 .calendar.year .day small { color: var(--ink-soft); font-size: 0.8rem; }
+
+/* ---------- Motion ----------
+
+   The screens here are quiet and they look alike: a month of cells is the
+   same shape as the month before it, a list of clients the same shape as a
+   list of cars. Without a movement there is nothing to tell the eye a change
+   landed, and the reader has to go up and read the heading to find out.
+
+   Two movements, both short, both saying only "this is new": a page arrives
+   from below, and a step through time arrives from the side it came from —
+   forward from the right, back from the left, the way a paper diary turns.
+   Under reduced motion both keep the fade and give up the travel. */
+
+.route,
+.sheet {
+  animation: arrive var(--speed) var(--ease-out);
+}
+@keyframes arrive {
+  from { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .route { animation: arrive-up 200ms var(--ease-out); }
+  .sheet.next { animation: arrive-next 200ms var(--ease-out); }
+  .sheet.prev { animation: arrive-prev 200ms var(--ease-out); }
+}
+@keyframes arrive-up {
+  from { opacity: 0; transform: translateY(6px); }
+}
+@keyframes arrive-next {
+  from { opacity: 0; transform: translateX(1.25rem); }
+}
+@keyframes arrive-prev {
+  from { opacity: 0; transform: translateX(-1.25rem); }
+}

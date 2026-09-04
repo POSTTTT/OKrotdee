@@ -83,7 +83,11 @@ function GroupedRows({ items }: { items: DashboardRow[] }) {
                 }}
               >
                 <td>
-                  {list.length > 1 && <span className="caret">{shown ? "▾" : "▸"}</span>}
+                  {list.length > 1 && (
+                    <span className={`caret${shown ? " on" : ""}`} aria-hidden="true">
+                      ▸
+                    </span>
+                  )}
                   {formatDate(head.due_date)}
                 </td>
                 <td>
@@ -103,8 +107,15 @@ function GroupedRows({ items }: { items: DashboardRow[] }) {
                 </td>
               </tr>
               {shown &&
-                list.map((i) => (
-                  <tr key={i.id} className="child">
+                list.map((i, n) => (
+                  // The installments arrive one after another rather than all
+                  // at once, so the eye reads them as rows that came out of
+                  // the one above. Capped: a long group must not crawl.
+                  <tr
+                    key={i.id}
+                    className="child"
+                    style={{ animationDelay: `${Math.min(n, 4) * 35}ms` }}
+                  >
                     <td>{formatDate(i.due_date)}</td>
                     <td>
                       {t("seq")} {i.seq}
@@ -266,7 +277,10 @@ export default function Dashboard() {
         ))}
       </ul>
       {shown && (
-        <div className="drop">
+        /* Keyed on the section so moving from one list to the next opens
+           again, instead of the rows changing under a panel that never
+           moved. */
+        <div className="panel" key={shown.key}>
           {shown.key === "overdue" ? (
             <GroupedRows items={shown.items} />
           ) : (
