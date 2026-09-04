@@ -45,6 +45,9 @@ import {
   updatePayment,
   refinanceContract,
   refinancedInto,
+  chainPosition,
+  setCarEvent,
+  setClientEvent,
   refinancedOn,
   repossessContract,
   undoRefinance,
@@ -665,6 +668,30 @@ describe("refinancing", () => {
       ["contract_started", second],
       ["refinanced", second],
     ]);
+  });
+
+  it("counts which contract of the run each one is", async () => {
+    const { db, id } = await contracted();
+    await refinanceContract(db, id);
+    const second = await createContract(db, { ...CONTRACT, refinanced_from: id });
+    await refinanceContract(db, second);
+    const third = await createContract(db, { ...CONTRACT, refinanced_from: second });
+    expect(await chainPosition(db, id)).toBe(1);
+    expect(await chainPosition(db, second)).toBe(2);
+    expect(await chainPosition(db, third)).toBe(3);
+  });
+
+  it("moves the day in both logs when either is corrected", async () => {
+    const { db, id } = await contracted();
+    await refinanceContract(db, id);
+    const carRow = (await carEvents(db, 1)).find((e) => e.type === "refinanced")!;
+    await setCarEvent(db, carRow.id, "2026-01-02", carRow.note);
+    expect(await refinancedOn(db, id)).toBe("2026-01-02");
+    const clientRow = (await clientEvents(db, 1)).find((e) => e.type === "refinanced")!;
+    expect(clientRow.event_date).toBe("2026-01-02");
+    // And the other way about: the client's log leads the car's.
+    await setClientEvent(db, clientRow.id, "2026-03-04", clientRow.note);
+    expect(await refinancedOn(db, id)).toBe("2026-03-04");
   });
 
   it("has no day to show before it is refinanced", async () => {

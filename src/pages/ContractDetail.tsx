@@ -11,6 +11,7 @@ import { useApp } from "../context";
 import { formatDate } from "../dates";
 import {
   cancelContract,
+  chainPosition,
   contractCoClients,
   contractFees,
   deleteFee,
@@ -64,6 +65,8 @@ export default function ContractDetail() {
   // day that happened.
   const [successor, setSuccessor] = useState<ContractRow | undefined>();
   const [refinancedDate, setRefinancedDate] = useState<string | null>(null);
+  // Which contract of the run this one is, counting from the deal as signed.
+  const [place, setPlace] = useState(1);
 
   const load = useCallback(async () => {
     setContract((await getContract(db, contractId)) ?? null);
@@ -81,6 +84,7 @@ export default function ContractDetail() {
     setCoClients(await contractCoClients(db, contractId));
     setSuccessor(await refinancedInto(db, contractId));
     setRefinancedDate(await refinancedOn(db, contractId));
+    setPlace(await chainPosition(db, contractId));
   }, [db, contractId]);
 
   useEffect(() => {
@@ -142,70 +146,73 @@ export default function ContractDetail() {
             {contract.plate_number && <span className="sub">{contract.plate_number}</span>}
           </Link>
         </h1>
-        {contract.status === "active" && (
-          <span className="actions">
-            {/* The client keeps the car and starts again on new terms: this
-                contract closes and the next one is written from it. */}
-            <ConfirmButton
-              question={t("confirm_refinance")}
-              className=""
-              onConfirm={async () => {
-                await refinanceContract(db, contract.id);
-                navigate(`/contracts/new?from=${contract.id}`);
-              }}
-            >
-              {t("refinance")}
-            </ConfirmButton>
-            <ConfirmButton
-              question={t("confirm_repossess")}
-              className="danger"
-              onConfirm={async () => {
-                await repossessContract(db, contract.id);
-                await load();
-              }}
-            >
-              {t("mark_repossessed")}
-            </ConfirmButton>
-            {/* Cancelling is the rarer, quieter of the two endings. */}
-            <ConfirmButton
-              question={t("confirm_cancel")}
-              className="ghost"
-              onConfirm={async () => {
-                await cancelContract(db, contract.id);
-                await load();
-              }}
-            >
-              {t("cancel_contract")}
-            </ConfirmButton>
-          </span>
-        )}
-        {/* Refinancing flags the contract before the new one is written, so
-            coming back here without finishing must lead to the form again. */}
-        {contract.status === "refinanced" && !successor && (
-          <span className="actions">
+        <span className="actions">
+          {/* Both ends of a refinancing, so either contract leads to the other. */}
+          {contract.refinanced_from && (
+            <Link className="button" to={`/contracts/${contract.refinanced_from}`}>
+              {t("previous_contract")}
+            </Link>
+          )}
+          {successor && (
+            <Link className="button" to={`/contracts/${successor.id}`}>
+              {t("next_contract")}
+            </Link>
+          )}
+          {contract.status === "active" && (
+            <>
+              {/* The client keeps the car and starts again on new terms: this
+                  contract closes and the next one is written from it. */}
+              <ConfirmButton
+                question={t("confirm_refinance")}
+                className=""
+                onConfirm={async () => {
+                  await refinanceContract(db, contract.id);
+                  navigate(`/contracts/new?from=${contract.id}`);
+                }}
+              >
+                {t("refinance")}
+              </ConfirmButton>
+              <ConfirmButton
+                question={t("confirm_repossess")}
+                className="danger"
+                onConfirm={async () => {
+                  await repossessContract(db, contract.id);
+                  await load();
+                }}
+              >
+                {t("mark_repossessed")}
+              </ConfirmButton>
+              {/* Cancelling is the rarer, quieter of the two endings. */}
+              <ConfirmButton
+                question={t("confirm_cancel")}
+                className="ghost"
+                onConfirm={async () => {
+                  await cancelContract(db, contract.id);
+                  await load();
+                }}
+              >
+                {t("cancel_contract")}
+              </ConfirmButton>
+            </>
+          )}
+          {/* Refinancing flags the contract before the new one is written, so
+              coming back here without finishing must lead to the form again. */}
+          {contract.status === "refinanced" && !successor && (
             <Link className="button" to={`/contracts/new?from=${contract.id}`}>
               {t("continue_refinance")}
             </Link>
-          </span>
-        )}
+          )}
+        </span>
       </div>
       <div className="subhead">
-        <span className={`tag ${contract.status}`}>{t(contract.status)}</span>
-        {/* A closed contract is read months later: the day it closed is half
-            of what the tag means. */}
-        {refinancedDate && <small>{formatDate(refinancedDate)}</small>}
+        {/* Two contracts on the same car and client read alike: the number
+            says which one this is, and the day says when it gave way. */}
+        <span className={`tag ${contract.status}`}>
+          {t(contract.status)}
+          {(contract.refinanced_from || successor) && <b> #{place}</b>}
+          {refinancedDate && ` - ${formatDate(refinancedDate)}`}
+        </span>
         <span className={`tag ${flag}`}>{t(flag)}</span>
-        {/* Both ends of a refinancing, so either contract leads to the other. */}
-        {contract.refinanced_from && (
-          <Link className="button" to={`/contracts/${contract.refinanced_from}`}>
-            {t("previous_contract")}
-          </Link>
-        )}
-        {successor && (
-          <Link className="button" to={`/contracts/${successor.id}`}>
-            {t("next_contract")}
-          </Link>
-        )}
       </div>
       <dl className="facts">
         <div>

@@ -335,6 +335,7 @@ export async function setClientEvent(
     note,
     id,
   ]);
+  await syncRefinancedDate(db, "client_events", "car_events", id, eventDate);
 }
 
 export async function deleteClientEvent(db: Db, id: number): Promise<void> {
@@ -469,6 +470,27 @@ export async function setCarEvent(
     note,
     id,
   ]);
+  await syncRefinancedDate(db, "car_events", "client_events", id, eventDate);
+}
+
+/**
+ * A refinancing is one event written in two logs, and the contract reads its
+ * day off them. Correcting it in one log has to move the other, or the two
+ * histories disagree about a day the contract itself shows.
+ */
+async function syncRefinancedDate(
+  db: Db,
+  edited: "car_events" | "client_events",
+  other: "car_events" | "client_events",
+  id: number,
+  eventDate: string,
+): Promise<void> {
+  // The table names are this function's own, not anything that came in.
+  await db.execute(
+    `UPDATE ${other} SET event_date = ? WHERE type = 'refinanced' AND contract_id =` +
+      ` (SELECT contract_id FROM ${edited} WHERE id = ? AND type = 'refinanced')`,
+    [eventDate, id],
+  );
 }
 
 /** Remove a timeline entry recorded by mistake. */
@@ -807,6 +829,22 @@ export async function refinancedInto(
       [contractId],
     )
   )[0];
+}
+
+/**
+ * Where this contract sits in the run of contracts written to replace one
+ * another: 1 for the deal as first signed, 2 for the one that refinanced it.
+ */
+export async function chainPosition(db: Db, contractId: number): Promise<number> {
+  let current = await getContract(db, contractId);
+  let place = 1;
+  // A chain is short; the bound is only so a row pointing at itself, or a
+  // pair pointing at each other, cannot hang the page.
+  while (current?.refinanced_from && place < 100) {
+    current = await getContract(db, current.refinanced_from);
+    place++;
+  }
+  return place;
 }
 
 /** Void a contract entered in error and free the car. */
