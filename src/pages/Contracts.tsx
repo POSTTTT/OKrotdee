@@ -75,7 +75,10 @@ export default function Contracts() {
                   {/* Refinanced deals read as one contract until asked to open. */}
                   {times > 1 && index === 0 && (
                     <button type="button" className="chain-toggle" onClick={() => toggle(c.id)}>
-                      {t("refinance")} &times;{times - 1} {open ? "\u25b4" : "\u25be"}
+                      {t("refinance")} &times;{times - 1}{" "}
+                      <span className={`caret${open ? " on" : ""}`} aria-hidden="true">
+                        &#9656;
+                      </span>
                     </button>
                   )}
                 </td>

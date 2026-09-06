@@ -875,6 +875,16 @@ tr.child td:first-child { padding-left: 2.1rem; }
    where the block starts and ends. */
 tbody tr.chain td { border-bottom-color: transparent; }
 tbody tr.chain.chain-end td { border-bottom-color: var(--line); }
+/* The contracts a refinance replaced come in when they are asked for; the
+   `.chained` marker is only on those rows, never on the one in force. */
+@media (prefers-reduced-motion: no-preference) {
+  tbody tr.chain:not(.chain-out):has(.chained) { animation: row-in 180ms var(--ease-out) backwards; }
+  /* Folding away: the rows are held on for this long, then dropped. */
+  tbody tr.chain.chain-out:has(.chained) { animation: row-out 150ms var(--ease-out) forwards; }
+}
+@keyframes row-out {
+  to { opacity: 0; transform: translateY(-5px); }
+}
 /* An inset edge, not a border: a border would shift the row's text 3px and
    break the column the eye runs down. */
 tbody tr.chain td:first-child { box-shadow: inset 3px 0 var(--accent-edge); }

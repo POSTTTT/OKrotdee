@@ -31,6 +31,9 @@ export function chains(rows: ContractRow[]): ContractRow[][] {
   return [...groups.values()];
 }
 
+/** How long the fold-away runs; the same span as `row-out` in app.css. */
+const FOLD_MS = 150;
+
 /** One line of a contract list: the contract, and where it sits in its block. */
 export interface ChainRow {
   contract: ContractRow;
@@ -56,10 +59,14 @@ export function useChains(contracts: ContractRow[]): {
   toggle: (id: number) => void;
 } {
   const [open, setOpen] = useState<number[]>([]);
+  // A row React has already removed cannot fade, so a block being folded is
+  // held for the length of the fade and then let go.
+  const [closing, setClosing] = useState<number[]>([]);
 
   const rows = chains(contracts).flatMap((group) => {
     const unfolded = open.includes(group[0].id);
-    const shown = unfolded ? group : group.slice(0, 1);
+    const folding = closing.includes(group[0].id);
+    const shown = unfolded || folding ? group : group.slice(0, 1);
     return shown.map((contract, index) => ({
       contract,
       times: group.length,
@@ -69,13 +76,20 @@ export function useChains(contracts: ContractRow[]): {
       open: unfolded,
       className:
         shown.length > 1
-          ? `chain${index === shown.length - 1 ? " chain-end" : ""}`
+          ? `chain${index === shown.length - 1 ? " chain-end" : ""}${folding ? " chain-out" : ""}`
           : undefined,
     }));
   });
 
-  const toggle = (id: number) =>
-    setOpen((ids) => (ids.includes(id) ? ids.filter((old) => old !== id) : [...ids, id]));
+  const toggle = (id: number) => {
+    if (!open.includes(id)) {
+      setOpen((ids) => [...ids, id]);
+      return;
+    }
+    setOpen((ids) => ids.filter((other) => other !== id));
+    setClosing((ids) => [...ids, id]);
+    setTimeout(() => setClosing((ids) => ids.filter((other) => other !== id)), FOLD_MS);
+  };
 
   return { rows, toggle };
 }
