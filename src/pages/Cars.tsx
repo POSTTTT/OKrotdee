@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+import ImportDialog from "../ImportDialog";
 import RowLink from "../RowLink";
 import { useApp } from "../context";
 import { listCars, type Car } from "../db";
@@ -10,18 +11,23 @@ const STATUSES = ["available", "on_contract", "sold", "repossessed"] as const;
 export default function Cars() {
   const { db, t } = useApp();
   const [query, setQuery] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [reload, setReload] = useState(0);
   const [status, setStatus] = useState("");
   const [cars, setCars] = useState<Car[]>([]);
 
   useEffect(() => {
     listCars(db, status || undefined, query || undefined).then(setCars);
-  }, [db, status, query]);
+  }, [db, status, query, reload]);
 
   return (
     <>
       <div className="pagehead">
         <h1>{t("cars")}</h1>
         <span className="actions">
+          <button className="ghost" onClick={() => setImporting(true)}>
+            {t("import")}
+          </button>
           <Link className="button" to="/cars/new">
             + {t("new")}
           </Link>
@@ -78,6 +84,13 @@ export default function Cars() {
           </tbody>
         </table>
       </div>
+      {importing && (
+        <ImportDialog
+          kind="cars"
+          onClose={() => setImporting(false)}
+          onImported={() => setReload(reload + 1)}
+        />
+      )}
     </>
   );
 }
