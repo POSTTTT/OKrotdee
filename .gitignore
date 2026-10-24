@@ -28,3 +28,11 @@ src-tauri/target/
 src-tauri/gen/
 *.db
 backups/
+*.sqlite
+.env
+.env.*
+*.key
+*.key.pub
+*.xlsx
+*.csv
+__pycache__/
