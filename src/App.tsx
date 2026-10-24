@@ -17,6 +17,7 @@ import Contracts from "./pages/Contracts";
 import Dashboard from "./pages/Dashboard";
 import PaymentForm from "./pages/PaymentForm";
 import Settings from "./Settings";
+import UpdatePrompt from "./UpdatePrompt";
 
 export default function App() {
   const { t } = useApp();
@@ -80,6 +81,7 @@ export default function App() {
         </div>
       </main>
       {settings && <Settings onClose={() => setSettings(false)} />}
+      <UpdatePrompt />
     </>
   );
 }

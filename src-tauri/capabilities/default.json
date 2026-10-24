@@ -31,6 +31,8 @@
     },
     "dialog:allow-save",
     "dialog:allow-open",
+    "updater:default",
+    "process:allow-restart",
     {
       "identifier": "opener:allow-open-path",
       "allow": [
