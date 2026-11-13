@@ -29,6 +29,14 @@ covered. React screens are verified by hand.
 Both installers are unsigned. macOS asks for approval under System Settings →
 Privacy & Security on first launch; Windows shows a SmartScreen warning.
 
+If macOS says "OKrotdee" Not Opened (Apple could not verify it), either press
+**Open Anyway** under System Settings → Privacy & Security, or run this once in
+Terminal after copying the app to Applications:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/OKrotdee.app
+```
+
 ## Where the data lives
 
 The database is `okrotdee.db` in the application configuration directory. Use
