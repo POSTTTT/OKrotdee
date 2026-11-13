@@ -77,7 +77,7 @@ export default function ClientForm() {
         <h1>{t("clients")}</h1>
       </div>
       {error && <p className="flash">{error}</p>}
-      <form className="stack" key={client?.id ?? "new"} onSubmit={onSubmit}>
+      <form className="stack paired" key={client?.id ?? "new"} onSubmit={onSubmit}>
         <label>
           {t("first_name")}
           <input name="first_name" defaultValue={client?.first_name ?? ""} required />

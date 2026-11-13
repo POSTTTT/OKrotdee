@@ -342,6 +342,30 @@ dl.facts dd.sub {
 }
 
 dl.facts dd small { font-size: 0.85rem; font-weight: 500; color: var(--ink-soft); }
+/* The contract's late-fee rules: three short label–value lines, not a
+   sentence wrapping round an edit button. */
+dl.facts > div.rules dt {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s2);
+}
+dl.facts > div.rules dt button.edit {
+  padding: 0 var(--s2);
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+dl.facts > div.rules dd {
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: space-between;
+  gap: 0.15rem var(--s3);
+  margin-top: var(--s1);
+  font-size: 0.9rem;
+  letter-spacing: 0;
+}
+dl.facts > div.rules dd span { font-weight: 400; color: var(--ink-soft); }
+dl.facts > div.rules dd b { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
 /* A free-text value (address, note) is prose, not a figure. */
 dl.facts dd.text { font-size: 0.95rem; font-weight: 400; letter-spacing: 0; }
 
@@ -451,6 +475,13 @@ form.stack > label.wide,
 form.stack > div,
 form.stack > .hint { grid-column: 1 / -1; }
 form.stack > label:has(textarea) { grid-column: 1 / -1; }
+/* Side by side when a form asks for them so, not one full-width box each. */
+form.stack.paired > label:has(textarea) { grid-column: auto; }
+/* A form's opening line sits in the form's own column, not at the page edge. */
+form.stack > p.intro { grid-column: 1 / -1; margin: 0; color: var(--ink-soft); }
+form.stack > .flash { grid-column: 1 / -1; margin: 0; }
+/* A form's error standing just above it lines up with the form, too. */
+.flash:has(+ form.stack) { max-width: 58rem; margin-inline: auto; }
 /* A question needs less room than a form: the dialog narrows around it. */
 dialog.modal:has(> p.ask) { width: min(26rem, calc(100vw - var(--s8))); }
 p.ask { margin: 0 0 var(--s5); font-size: 1rem; color: var(--ink); }
@@ -535,12 +566,20 @@ textarea { resize: vertical; }
   border-radius: 0;
   background: transparent;
   text-align: center;
+  text-align-last: center;
+  /* One field, not three dropdowns: the native arrow on each part made it
+     read as three controls. Clicking any part still opens its list. */
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
 }
+/* No day chosen yet: the placeholder reads quieter than a value. */
+.date-input select:has(option[value=""]:checked) { color: var(--ink-faint); }
 /* Keep the divider: zeroing the border here would drop the line the select
    carries on its left whenever it is hovered or open. */
 .date-input select:hover, .date-input select:focus { border-color: var(--line); box-shadow: none; }
 .date-input select + select { border-left: 1px solid var(--line); }
-.date-input select:last-of-type { flex: 1.3; min-width: 4.5rem; }
+.date-input select:last-of-type { flex: 1.2; min-width: 4.5rem; }
 .date-input button.ghost {
   border: 0;
   border-left: 1px solid var(--line);
@@ -980,7 +1019,9 @@ dialog.modal::backdrop { background: var(--scrim); }
 /* The date block is one field: it stands as tall as the ones beside it, and
    its parts fill it rather than adding their height to its border. */
 .toolbar .date-input { height: 36px; min-height: 0; width: auto; }
-.toolbar .date-input select { height: 100%; }
+/* The field's own padding does not fit inside 36px and pushed the text below
+   the middle; one line box the height of the field centres it instead. */
+.toolbar .date-input select { height: 100%; padding-block: 0; line-height: 34px; }
 .toolbar input[name="q"] { min-width: 16rem; }
 
 /* The people signing alongside the main client, read in a dialog: one per

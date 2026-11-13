@@ -19,7 +19,12 @@ export default function DateInput({
   required?: boolean;
   onChange?: (iso: string) => void;
 }) {
-  const { t } = useApp();
+  const { t, lang } = useApp();
+  // Months by name, so 1/2 reads as a date and not two numbers.
+  const monthName = new Intl.DateTimeFormat(lang === "th" ? "th-TH" : "en-GB", {
+    month: "short",
+    timeZone: "UTC",
+  });
   const [iso, set] = useState(defaultValue ?? "");
   const setIso = (next: string) => {
     set(next);
@@ -51,7 +56,7 @@ export default function DateInput({
         onChange={(e) => change({ day: Number(e.target.value) || undefined })}
         required={required}
       >
-        <option value="">--</option>
+        <option value="">{t("day")}</option>
         {Array.from({ length: daysInMonth(year, month) }, (_, i) => i + 1).map((d) => (
           <option key={d} value={d}>
             {d}
@@ -65,7 +70,7 @@ export default function DateInput({
       >
         {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
           <option key={m} value={m}>
-            {m}
+            {monthName.format(Date.UTC(2000, m - 1, 1))}
           </option>
         ))}
       </select>
