@@ -27,12 +27,20 @@ dist/
 src-tauri/target/
 src-tauri/gen/
 *.db
+# SQLite's sidecar files hold the newest client records too.
+*.db-wal
+*.db-shm
+*.db-journal
 backups/
 *.sqlite
 .env
 .env.*
 *.key
 *.key.pub
+# Code-signing certificates, for when the Mac build is signed.
+*.p12
+*.pem
 *.xlsx
+*.xls
 *.csv
 __pycache__/
