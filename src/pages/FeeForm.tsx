@@ -14,6 +14,8 @@ import {
   deleteFeeSchedulePart,
   feePayments,
   feeSchedule,
+  contractRuleChanges,
+  contractRules,
   getContract,
   getFee,
   saveFee,
@@ -24,7 +26,15 @@ import {
   type FeeType,
 } from "../db";
 import { isErrorKey } from "../lang";
-import { formatBaht, lateFee, scheduleStrikes, toSatang, todayIso } from "../money";
+import {
+  formatBaht,
+  lateFee,
+  rulesOn,
+  scheduleStrikes,
+  toSatang,
+  todayIso,
+  type RuleChange,
+} from "../money";
 import { payment as validatePayment } from "../validate";
 
 export default function FeeForm() {
@@ -44,6 +54,7 @@ export default function FeeForm() {
   // What the client promised to pay and when. Empty means the whole sum on
   // the fee's own due date.
   const [promised, setPromised] = useState<FeeSchedulePart[]>([]);
+  const [ruleChanges, setRuleChanges] = useState<RuleChange[]>([]);
   const [error, setError] = useState<string | null>(null);
   // One write per click: a second click while the first is in flight would
   // record the money twice.
@@ -59,6 +70,7 @@ export default function FeeForm() {
 
   useEffect(() => {
     getContract(db, contractId).then((c) => setContract(c ?? null));
+    contractRuleChanges(db, contractId).then(setRuleChanges);
     if (editingId) {
       getFee(db, editingId).then((f) => {
         setFee(f ?? null);
@@ -132,7 +144,9 @@ export default function FeeForm() {
           promised.length > 0 ? promised : [{ due_on: fee.due_on, amount: fee.amount }],
           parts,
           todayIso(),
+          rulesOn(contractRules(contract), ruleChanges, fee.due_on),
         ),
+        rulesOn(contractRules(contract), ruleChanges, fee.due_on),
       )
     : 0;
 

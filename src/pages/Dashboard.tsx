@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import DueRows from "../DueRows";
 import { useApp } from "../context";
 import { formatDate } from "../dates";
-import { activeInstallments, overdueRow, type DashboardRow } from "../db";
+import { activeInstallments, contractRules, overdueRow, type DashboardRow } from "../db";
 import {
   contractFlag,
   formatBaht,
@@ -194,7 +194,8 @@ export default function Dashboard() {
       flagged: [...byContract.values()]
         .filter(
           (list) =>
-            contractFlag(overdueCount(list.map(overdueRow), today)) === "REPOSSESS_ELIGIBLE",
+            contractFlag(overdueCount(list.map(overdueRow), today), contractRules(list[0])) ===
+            "REPOSSESS_ELIGIBLE",
         )
         // list is ordered by due date, so list[0] is installment #1 and is
         // usually long paid. Show the oldest one still owing money.

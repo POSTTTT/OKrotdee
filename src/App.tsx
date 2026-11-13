@@ -16,6 +16,7 @@ import LateFees from "./pages/LateFees";
 import Contracts from "./pages/Contracts";
 import Dashboard from "./pages/Dashboard";
 import PaymentForm from "./pages/PaymentForm";
+import Rules from "./pages/Rules";
 import Settings from "./Settings";
 import UpdatePrompt from "./UpdatePrompt";
 
@@ -47,6 +48,9 @@ export default function App() {
           <NavLink to="/contracts" className={navClass}>
             {t("contracts")}
           </NavLink>
+          <NavLink to="/rules" className={navClass}>
+            {t("rules")}
+          </NavLink>
         </nav>
         <span className="side">
           {/* Settings is upkeep, not a place in the shop's day: it opens over
@@ -77,6 +81,7 @@ export default function App() {
             <Route path="/contracts/:id/fees/:type" element={<FeeForm />} />
             <Route path="/contracts/:id/late-fees/:kind" element={<LateFees />} />
             <Route path="/installments/:id/pay" element={<PaymentForm />} />
+            <Route path="/rules" element={<Rules />} />
           </Routes>
         </div>
       </main>

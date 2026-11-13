@@ -9,6 +9,8 @@ import { formatDate } from "../dates";
 import RowLink from "../RowLink";
 import {
   deleteLateFeePayment,
+  contractRuleChanges,
+  contractRules,
   downFeeFine,
   getContract,
   installmentsFor,
@@ -20,7 +22,16 @@ import {
   type LateFeePayment,
 } from "../db";
 import { isErrorKey } from "../lang";
-import { formatBaht, lateCount, lateFee, outstanding, toSatang, todayIso } from "../money";
+import {
+  formatBaht,
+  lateCount,
+  lateFee,
+  outstanding,
+  rulesOn,
+  toSatang,
+  todayIso,
+  type RuleChange,
+} from "../money";
 import { payment as validatePayment } from "../validate";
 
 /** The late fee owed on a contract, and what has been paid against it. */
@@ -39,6 +50,7 @@ export default function LateFees() {
   const [installments, setInstallments] = useState<InstallmentRow[]>([]);
   const [received, setReceived] = useState<LateFeePayment[]>([]);
   const [downFine, setDownFine] = useState(0);
+  const [ruleChanges, setRuleChanges] = useState<RuleChange[]>([]);
   const [editing, setEditing] = useState<LateFeePayment | null>(null);
   const [error, setError] = useState<string | null>(null);
   // One write per click: a second click while the first is in flight would
@@ -49,6 +61,7 @@ export default function LateFees() {
     setContract((await getContract(db, contractId)) ?? null);
     setInstallments(await installmentsFor(db, contractId));
     setDownFine(await downFeeFine(db, contractId, todayIso()));
+    setRuleChanges(await contractRuleChanges(db, contractId));
     const rows = await lateFeePayments(db, contractId, kind);
     setReceived(rows);
     setEditing(editingId ? (rows.find((r) => r.id === editingId) ?? null) : null);
@@ -63,6 +76,9 @@ export default function LateFees() {
   if (contract === null) return <p>{t("not_found")}</p>;
 
   const today = todayIso();
+  // Each installment is fined under the rules of the day it fell due.
+  const rulesFor = (i: InstallmentRow) =>
+    rulesOn(contractRules(contract), ruleChanges, i.due_date);
   // The same rule the contract page shows: a settled installment is judged by
   // the day it was paid, one still owing counts against today.
   const charged =
@@ -73,7 +89,7 @@ export default function LateFees() {
             outstanding(i.amount_due, i.late_fee, i.paid_total) > 0
               ? today
               : (i.last_paid_on ?? today);
-          return sum + lateFee(i.amount_due, lateCount(i.due_date, asOf));
+          return sum + lateFee(i.amount_due, lateCount(i.due_date, asOf, rulesFor(i)), rulesFor(i));
         }, 0);
   const paid = received.reduce((sum, r) => sum + r.amount, 0);
   const remaining = charged - paid;
@@ -139,6 +155,7 @@ export default function LateFees() {
                     outstanding(i.amount_due, i.late_fee, i.paid_total) > 0
                       ? today
                       : (i.last_paid_on ?? today),
+                    rulesFor(i),
                   ),
                 0,
               )}

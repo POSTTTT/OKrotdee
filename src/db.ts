@@ -13,12 +13,16 @@ import { join } from "@tauri-apps/api/path";
 import { dataDir } from "./datadir";
 
 import {
+  DEFAULT_RULES,
   generateSchedule,
   lateFee,
   outstanding,
+  rulesOn,
   scheduleStrikes,
   todayIso,
   type OverdueRow,
+  type RuleChange,
+  type Rules,
 } from "./money";
 import { MIGRATIONS, REBUILDS, SCHEMA, SCHEMA_VERSION } from "./schema";
 
@@ -165,11 +169,97 @@ export interface ContractRow {
   refinanced_from: number | null;
   note: string | null;
   created_at: string;
+  grace_days: number;
+  late_fee_percent: number;
+  repossess_after: number;
   first_name?: string;
   last_name?: string;
   brand?: string;
   series?: string | null;
   plate_number?: string | null;
+}
+
+/** A contract's own late-fee rules, in the shape money.ts takes. */
+export function contractRules(c: {
+  grace_days: number;
+  late_fee_percent: number;
+  repossess_after: number;
+}): Rules {
+  return {
+    graceDays: c.grace_days,
+    feePercent: c.late_fee_percent,
+    repossessAfter: c.repossess_after,
+  };
+}
+
+/** The shop rules every new contract starts with. */
+export async function shopRules(db: Db): Promise<Rules> {
+  const [row] = await db.select<{
+    grace_days: number;
+    late_fee_percent: number;
+    repossess_after: number;
+  }>("SELECT grace_days, late_fee_percent, repossess_after FROM rules WHERE id = 1");
+  return row ? contractRules(row) : DEFAULT_RULES;
+}
+
+/** Turn down rules that would charge nonsense, before anything is written. */
+function checkRules(rules: Rules): void {
+  const whole = (n: number, min: number) => Number.isInteger(n) && n >= min;
+  if (!whole(rules.graceDays, 0) || !whole(rules.repossessAfter, 1)) {
+    throw new Error("err_rules_invalid");
+  }
+  if (!Number.isFinite(rules.feePercent) || rules.feePercent < 0 || rules.feePercent > 100) {
+    throw new Error("err_rules_invalid");
+  }
+}
+
+/** Change the shop rules. Contracts already written keep their own. */
+export async function setShopRules(db: Db, rules: Rules): Promise<void> {
+  checkRules(rules);
+  await db.execute(
+    "INSERT INTO rules (id, grace_days, late_fee_percent, repossess_after) VALUES (1, ?, ?, ?)" +
+      " ON CONFLICT(id) DO UPDATE SET grace_days = excluded.grace_days," +
+      " late_fee_percent = excluded.late_fee_percent, repossess_after = excluded.repossess_after",
+    [rules.graceDays, rules.feePercent, rules.repossessAfter],
+  );
+}
+
+/** The changes made to one contract's rules since it was written. */
+export async function contractRuleChanges(db: Db, contractId: number): Promise<RuleChange[]> {
+  const rows = await db.select<{
+    starts_on: string;
+    grace_days: number;
+    late_fee_percent: number;
+    repossess_after: number;
+  }>(
+    "SELECT starts_on, grace_days, late_fee_percent, repossess_after" +
+      " FROM contract_rule_changes WHERE contract_id = ? ORDER BY starts_on",
+    [contractId],
+  );
+  return rows.map((r) => ({ startsOn: r.starts_on, rules: contractRules(r) }));
+}
+
+/**
+ * Change one contract's rules for charges due on or after `startsOn`. Charges
+ * due earlier keep the rules they were fined under. A second change on the
+ * same day replaces the first.
+ */
+export async function setContractRules(
+  db: Db,
+  contractId: number,
+  rules: Rules,
+  startsOn: string,
+): Promise<void> {
+  checkRules(rules);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startsOn)) throw new Error("err_rules_invalid");
+  await db.execute(
+    "INSERT INTO contract_rule_changes (contract_id, starts_on, grace_days," +
+      " late_fee_percent, repossess_after, created_at) VALUES (?, ?, ?, ?, ?, ?)" +
+      " ON CONFLICT(contract_id, starts_on) DO UPDATE SET grace_days = excluded.grace_days," +
+      " late_fee_percent = excluded.late_fee_percent," +
+      " repossess_after = excluded.repossess_after, created_at = excluded.created_at",
+    [contractId, startsOn, rules.graceDays, rules.feePercent, rules.repossessAfter, nowIso()],
+  );
 }
 
 export async function listClients(db: Db, q?: string): Promise<Client[]> {
@@ -579,11 +669,13 @@ export async function createContract(db: Db, fields: ContractFields): Promise<nu
     fields.due_day,
   );
 
+  const rules = await shopRules(db);
   const { lastInsertId } = await db.execute(
     "INSERT INTO contracts (client_id, car_id, car_price, down_payment," +
       " installment_amount, installment_count, due_day, first_due_date, note," +
-      " refinanced_from, status, created_at)" +
-      " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)",
+      " refinanced_from, status, created_at, grace_days, late_fee_percent," +
+      " repossess_after)" +
+      " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)",
     [
       fields.client_id,
       fields.car_id,
@@ -596,6 +688,9 @@ export async function createContract(db: Db, fields: ContractFields): Promise<nu
       fields.note,
       fields.refinanced_from ?? null,
       nowIso(),
+      rules.graceDays,
+      rules.feePercent,
+      rules.repossessAfter,
     ],
   );
 
@@ -879,6 +974,7 @@ export async function deleteContract(db: Db, contractId: number): Promise<void> 
   );
   await db.execute("DELETE FROM fees WHERE contract_id = ?", [contractId]);
   await db.execute("DELETE FROM late_fee_payments WHERE contract_id = ?", [contractId]);
+  await db.execute("DELETE FROM contract_rule_changes WHERE contract_id = ?", [contractId]);
   // Everyone who signed alongside the client is listed against the contract,
   // and those rows hold it in place as surely as a payment does.
   await db.execute("DELETE FROM contract_clients WHERE contract_id = ?", [contractId]);
@@ -1038,8 +1134,8 @@ export async function deleteFeePayment(db: Db, id: number): Promise<void> {
 }
 
 /**
- * The late fee owed on the down payment: 15% of the whole charge for every
- * strike, counted until the last part of it is in.
+ * The late fee owed on the down payment: the contract's percent of the whole
+ * charge for every strike, counted until the last part of it is in.
  */
 export async function downFeeFine(
   db: Db,
@@ -1049,6 +1145,12 @@ export async function downFeeFine(
   const down = (await contractFees(db, contractId)).find((f) => f.type === "down");
   if (!down) return 0;
   const promised = await feeSchedule(db, down.id);
+  const contract = await getContract(db, contractId);
+  // The down payment is one charge, so it is fined under the rules of the day
+  // it fell due.
+  const rules = contract
+    ? rulesOn(contractRules(contract), await contractRuleChanges(db, contractId), down.due_on)
+    : DEFAULT_RULES;
   return lateFee(
     down.amount,
     scheduleStrikes(
@@ -1056,7 +1158,9 @@ export async function downFeeFine(
       promised.length > 0 ? promised : [{ due_on: down.due_on, amount: down.amount }],
       await feePayments(db, down.id),
       today,
+      rules,
     ),
+    rules,
   );
 }
 
@@ -1131,6 +1235,9 @@ export interface DashboardRow extends InstallmentRow {
   brand: string;
   series: string | null;
   plate_number: string | null;
+  grace_days: number;
+  late_fee_percent: number;
+  repossess_after: number;
 }
 
 /** Every installment on every active contract, with who and what it is for. */
@@ -1138,7 +1245,17 @@ export async function activeInstallments(db: Db): Promise<DashboardRow[]> {
   return db.select<DashboardRow>(
     "SELECT i.*, COALESCE(SUM(p.amount), 0) AS paid_total," +
       " MAX(p.paid_on) AS last_paid_on," +
-      " cl.first_name, cl.last_name, cars.brand, cars.series, cars.plate_number" +
+      " cl.first_name, cl.last_name, cars.brand, cars.series, cars.plate_number," +
+      // The rules in force today: the latest change already started, else the
+      // contract's own.
+      ["grace_days", "late_fee_percent", "repossess_after"]
+        .map(
+          (col) =>
+            ` COALESCE((SELECT r.${col} FROM contract_rule_changes r` +
+            " WHERE r.contract_id = c.id AND r.starts_on <= date('now', 'localtime')" +
+            ` ORDER BY r.starts_on DESC LIMIT 1), c.${col}) AS ${col}`,
+        )
+        .join(",") +
       " FROM installments i" +
       " JOIN contracts c ON c.id = i.contract_id" +
       " JOIN clients cl ON cl.id = c.client_id" +

@@ -92,18 +92,52 @@ export function overdueCount(rows: OverdueRow[], today: string): number {
   ).length;
 }
 
-/** Translate an overdue count into the dashboard warning level. */
-export function contractFlag(overdue: number): ContractFlag {
-  if (overdue >= 2) return "REPOSSESS_ELIGIBLE";
-  if (overdue === 1) return "OVERDUE";
-  return "OK";
+/**
+ * The shop's late-fee rules. Each contract keeps its own copy, taken from the
+ * shop defaults when it is written, so changing the defaults never reprices a
+ * contract already signed.
+ */
+export interface Rules {
+  /** Days a client may pay past the due date without it counting against them. */
+  graceDays: number;
+  /** Percent of the charge added for each time it is late. */
+  feePercent: number;
+  /** Overdue installments before the contract is flagged for repossession. */
+  repossessAfter: number;
+}
+
+/** The rules the shop ran on before they could be changed. */
+export const DEFAULT_RULES: Rules = { graceDays: 3, feePercent: 15, repossessAfter: 2 };
+
+/** A change to one contract's rules, for charges due on or after startsOn. */
+export interface RuleChange {
+  startsOn: string;
+  rules: Rules;
 }
 
 /**
- * Days a client may pay past the due date without it counting against them.
- * A payment due on the 15th is on time up to and including the 18th.
+ * The rules for a charge due on `date`: the latest change starting on or
+ * before it, else the rules the contract was written with. A change never
+ * reaches back to a charge due before it, so fines already run up stay put.
  */
-export const GRACE_DAYS = 3;
+export function rulesOn(base: Rules, changes: RuleChange[], date: string): Rules {
+  let found = base;
+  let since = "";
+  for (const change of changes) {
+    if (change.startsOn <= date && change.startsOn >= since) {
+      found = change.rules;
+      since = change.startsOn;
+    }
+  }
+  return found;
+}
+
+/** Translate an overdue count into the dashboard warning level. */
+export function contractFlag(overdue: number, rules: Rules = DEFAULT_RULES): ContractFlag {
+  if (overdue >= rules.repossessAfter) return "REPOSSESS_ELIGIBLE";
+  if (overdue >= 1) return "OVERDUE";
+  return "OK";
+}
 
 /** Shift an ISO date by whole days. */
 function addDays(iso: string, days: number): string {
@@ -134,20 +168,13 @@ function addMonths(iso: string, months: number): string {
  * Pass the payment date for a settled installment, or today's date for one
  * still owing, in which case the count keeps climbing.
  */
-export function lateCount(dueDate: string, asOf: string): number {
+export function lateCount(dueDate: string, asOf: string, rules: Rules = DEFAULT_RULES): number {
   let count = 0;
   // The date each successive strike lands on: due + grace + 1 day, then the
   // same day of each following month.
-  while (asOf >= addDays(addMonths(dueDate, count), GRACE_DAYS + 1)) count++;
+  while (asOf >= addDays(addMonths(dueDate, count), rules.graceDays + 1)) count++;
   return count;
 }
-
-/**
- * The shop charges 15% of the installment for each time it is late. The fee
- * is computed, never stored: it follows from the due date and the day the
- * money arrived, so correcting a payment corrects the fee with it.
- */
-export const LATE_FEE_RATE = 0.15;
 
 /**
  * The day a charge was finally covered, or null while any of it is still
@@ -176,22 +203,29 @@ export function scheduleStrikes(
   promised: { due_on: string; amount: number }[],
   payments: { paid_on: string; amount: number }[],
   today: string,
+  rules: Rules = DEFAULT_RULES,
 ): number {
   let target = 0;
   let strikes = 0;
   for (const part of [...promised].sort((a, b) => a.due_on.localeCompare(b.due_on))) {
     target += part.amount;
-    strikes += lateCount(part.due_on, settledOn(target, payments) ?? today);
+    strikes += lateCount(part.due_on, settledOn(target, payments) ?? today, rules);
   }
   return strikes;
 }
 
 /**
- * The late fee owed on one installment, in satang. Rounded once per strike,
+ * The late fee owed on one installment, in satang: a percent of the
+ * installment for each time it is late. Computed, never stored, so
+ * correcting a payment corrects the fee with it. Rounded once per strike,
  * so 15% of 15,400.00 is 2,310.00 and twenty-four strikes come to 55,440.00.
  */
-export function lateFee(installmentAmount: number, timesLate: number): number {
-  return Math.round(installmentAmount * LATE_FEE_RATE) * timesLate;
+export function lateFee(
+  installmentAmount: number,
+  timesLate: number,
+  rules: Rules = DEFAULT_RULES,
+): number {
+  return Math.round((installmentAmount * rules.feePercent) / 100) * timesLate;
 }
 
 /** Today in the machine's own timezone, as an ISO date string. */

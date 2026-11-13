@@ -6,6 +6,7 @@ import Modal from "../Modal";
 import PaymentForm from "./PaymentForm";
 import RowLink from "../RowLink";
 import { phoneList } from "../phone";
+import RulesForm from "../RulesForm";
 import ConfirmButton from "../ConfirmButton";
 import { useApp } from "../context";
 import { formatDate } from "../dates";
@@ -15,6 +16,8 @@ import {
   contractCoClients,
   contractFees,
   deleteFee,
+  contractRuleChanges,
+  contractRules,
   downFeeFine,
   feePayments,
   getContract,
@@ -26,6 +29,7 @@ import {
   refinancedInto,
   refinancedOn,
   repossessContract,
+  setContractRules,
   type Client,
   type Fee,
   type ContractRow,
@@ -39,7 +43,9 @@ import {
   lateFee,
   outstanding,
   overdueCount,
+  rulesOn,
   todayIso,
+  type RuleChange,
 } from "../money";
 
 export default function ContractDetail() {
@@ -61,6 +67,8 @@ export default function ContractDetail() {
   // Everyone signing alongside the main client, and the pool to add from.
   const [coClients, setCoClients] = useState<Client[]>([]);
   const [showCo, setShowCo] = useState(false);
+  const [editRules, setEditRules] = useState(false);
+  const [ruleChanges, setRuleChanges] = useState<RuleChange[]>([]);
   // The contract written to replace this one, when it was refinanced, and the
   // day that happened.
   const [successor, setSuccessor] = useState<ContractRow | undefined>();
@@ -81,6 +89,7 @@ export default function ContractDetail() {
     setLateFeePaid(total(await lateFeePayments(db, contractId, "installment")));
     setDownFinePaid(total(await lateFeePayments(db, contractId, "down")));
     setDownFine(await downFeeFine(db, contractId, todayIso()));
+    setRuleChanges(await contractRuleChanges(db, contractId));
     setCoClients(await contractCoClients(db, contractId));
     setSuccessor(await refinancedInto(db, contractId));
     setRefinancedDate(await refinancedOn(db, contractId));
@@ -95,7 +104,11 @@ export default function ContractDetail() {
   if (contract === null) return <p>{t("not_found")}</p>;
 
   const today = todayIso();
-  const flag = contractFlag(overdueCount(installments.map(overdueRow), today));
+  // Each installment is fined under the rules of the day it fell due; the
+  // repossession warning follows the rules in force today.
+  const rulesFor = (date: string) => rulesOn(contractRules(contract), ruleChanges, date);
+  const rules = rulesFor(today);
+  const flag = contractFlag(overdueCount(installments.map(overdueRow), today), rules);
   // The down payment has its own block on this row, so it is not listed with
   // the other fees below.
   const downFee = fees.find((f) => f.type === "down");
@@ -111,10 +124,11 @@ export default function ContractDetail() {
     lateCount(
       i.due_date,
       outstanding(i.amount_due, i.late_fee, i.paid_total) > 0 ? today : (i.last_paid_on ?? today),
+      rulesFor(i.due_date),
     );
   const lateTotal = installments.reduce((sum, i) => sum + lateTimes(i), 0);
   const lateFeeTotal = installments.reduce(
-    (sum, i) => sum + lateFee(i.amount_due, lateTimes(i)),
+    (sum, i) => sum + lateFee(i.amount_due, lateTimes(i), rulesFor(i.due_date)),
     0,
   );
 
@@ -260,6 +274,22 @@ export default function ContractDetail() {
             )}
           </dd>
         </div>
+        <div className="rules">
+          <dt>
+            {t("contract_rules")}
+            <button type="button" className="ghost edit" onClick={() => setEditRules(true)}>
+              {t("edit")}
+            </button>
+          </dt>
+          <dd>
+            <span>{t("rule_grace")}</span>
+            <b>{t("rule_days").replace("{n}", String(rules.graceDays))}</b>
+            <span>{t("rule_fee")}</span>
+            <b>{rules.feePercent}%</b>
+            <span>{t("rule_after")}</span>
+            <b>{t("rule_installments").replace("{n}", String(rules.repossessAfter))}</b>
+          </dd>
+        </div>
         {contract.note && (
           <div>
             <dt>{t("note")}</dt>
@@ -388,6 +418,20 @@ export default function ContractDetail() {
         </table>
       </div>
 
+      {editRules && (
+        <Modal onClose={() => setEditRules(false)}>
+          <h2>{t("contract_rules")}</h2>
+          <RulesForm
+            rules={rules}
+            startsOn={today}
+            onSave={async (next, startsOn) => {
+              await setContractRules(db, contract.id, next, startsOn ?? today);
+              setEditRules(false);
+              await load();
+            }}
+          />
+        </Modal>
+      )}
       {showCo && (
         <Modal onClose={() => setShowCo(false)}>
           <h2>{t("co_signers")}</h2>

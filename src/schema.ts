@@ -51,7 +51,32 @@ CREATE TABLE IF NOT EXISTS contracts (
   -- The contract this one was written to replace, when the client refinanced.
   refinanced_from    INTEGER REFERENCES contracts(id),
   note               TEXT,
-  created_at         TEXT NOT NULL
+  created_at         TEXT NOT NULL,
+  -- This contract's late-fee rules, copied from the shop rules when written.
+  grace_days         INTEGER NOT NULL DEFAULT 3,
+  late_fee_percent   REAL NOT NULL DEFAULT 15,
+  repossess_after    INTEGER NOT NULL DEFAULT 2
+);
+
+-- The shop's late-fee rules: one row, copied onto each new contract.
+CREATE TABLE IF NOT EXISTS rules (
+  id               INTEGER PRIMARY KEY CHECK (id = 1),
+  grace_days       INTEGER NOT NULL DEFAULT 3,
+  late_fee_percent REAL NOT NULL DEFAULT 15,
+  repossess_after  INTEGER NOT NULL DEFAULT 2
+);
+INSERT OR IGNORE INTO rules (id) VALUES (1);
+
+-- Changes to one contract's rules after it was written. Each applies to
+-- charges due on or after starts_on; earlier ones keep the rules before it.
+CREATE TABLE IF NOT EXISTS contract_rule_changes (
+  contract_id      INTEGER NOT NULL REFERENCES contracts(id),
+  starts_on        TEXT NOT NULL,
+  grace_days       INTEGER NOT NULL,
+  late_fee_percent REAL NOT NULL,
+  repossess_after  INTEGER NOT NULL,
+  created_at       TEXT NOT NULL,
+  PRIMARY KEY (contract_id, starts_on)
 );
 
 -- A contract is often signed by more than one person. The main client stays
@@ -219,6 +244,11 @@ export const MIGRATIONS = [
     " WHERE e.type IN ('contract_started','contract_completed','repossessed')" +
     " AND NOT EXISTS (SELECT 1 FROM client_events x" +
     " WHERE x.contract_id = e.contract_id AND x.type = e.type)",
+  // Late-fee rules became editable. Existing contracts keep the rules they
+  // were charged under: 3 days' grace, 15%, flagged at 2 overdue.
+  "ALTER TABLE contracts ADD COLUMN grace_days INTEGER NOT NULL DEFAULT 3",
+  "ALTER TABLE contracts ADD COLUMN late_fee_percent REAL NOT NULL DEFAULT 15",
+  "ALTER TABLE contracts ADD COLUMN repossess_after INTEGER NOT NULL DEFAULT 2",
 ];
 
 /**
