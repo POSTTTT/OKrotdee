@@ -39,6 +39,9 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![open_data_dir])
         .setup(|app| {
+            // On a fresh install the configuration directory does not exist
+            // yet, and the interface would take it for an unplugged drive.
+            std::fs::create_dir_all(app.path().app_config_dir()?)?;
             // The database can sit on an external disk. Which one is only
             // known at run time, so that folder is allowed here rather than
             // in capabilities, from the same file the interface writes.
