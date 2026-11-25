@@ -1397,3 +1397,5 @@ form.stack label > select,
   padding-bottom: var(--s2);
 }
 .mapping label { flex: none; width: 10rem; }
+/* An unticked import row stays listed but reads as left out. */
+.scroll.preview tr.left-out td:not(:first-child) { opacity: 0.4; }

@@ -37,9 +37,19 @@ export default function ImportDialog({
   const [done, setDone] = useState<number | null>(null);
   const [refused, setRefused] = useState<RowError[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // Rows staff untick to leave out, by line: a file imported again after a
+  // fix need only bring in the rows that were fixed.
+  const [left, setLeft] = useState<Set<number>>(new Set());
 
   const headers = rows[0] ?? [];
   const prepared = useMemo(() => prepare(kind, rows, mapping), [kind, rows, mapping]);
+  const chosen = prepared.ready.filter((r) => !left.has(r.line));
+  const toggle = (line: number) => {
+    const next = new Set(left);
+    if (next.has(line)) next.delete(line);
+    else next.add(line);
+    setLeft(next);
+  };
   const message = (key: string) => (isErrorKey(key) ? t(key) : key);
   // The columns staff matched, in the form order, shown as they will be saved.
   const shown = FIELDS[kind].filter((f) => f in mapping);
@@ -60,6 +70,7 @@ export default function ImportDialog({
     try {
       const sheet = readSheet(new Uint8Array(await file.arrayBuffer()), file.name);
       setRows(sheet);
+      setLeft(new Set());
       setMapping(guessMapping(sheet[0] ?? [], kind, Object.values(LABELS)));
     } catch (e) {
       setRows([]);
@@ -70,7 +81,7 @@ export default function ImportDialog({
   const onImport = async () => {
     setBusy(true);
     try {
-      const result = await importRows(db, kind, prepared.ready);
+      const result = await importRows(db, kind, chosen);
       setDone(result.imported);
       setRefused(result.errors);
       setRows([]);
@@ -158,7 +169,10 @@ export default function ImportDialog({
       {headers.length > 0 && (
         <>
           <p className="import-summary">
-            {prepared.ready.length} {t("import_ready")}
+            {chosen.length < prepared.ready.length
+              ? `${chosen.length} / ${prepared.ready.length}`
+              : prepared.ready.length}{" "}
+            {t("import_ready")}
             {prepared.errors.length > 0 && ` · ${prepared.errors.length} ${t("import_skipped")}`}
           </p>
           {prepared.ready.length > 0 && shown.length > 0 && (
@@ -168,6 +182,20 @@ export default function ImportDialog({
                 <table>
                   <thead>
                     <tr>
+                      <th>
+                        <input
+                          type="checkbox"
+                          aria-label={t("import_all")}
+                          checked={left.size === 0}
+                          onChange={() =>
+                            setLeft(
+                              left.size === 0
+                                ? new Set(prepared.ready.map((r) => r.line))
+                                : new Set(),
+                            )
+                          }
+                        />
+                      </th>
                       <th>{t("import_row")}</th>
                       {shown.map((f) => (
                         <th key={f}>{t(f)}</th>
@@ -176,7 +204,15 @@ export default function ImportDialog({
                   </thead>
                   <tbody>
                     {prepared.ready.map(({ line, fields }) => (
-                      <tr key={line}>
+                      <tr key={line} className={left.has(line) ? "left-out" : undefined}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            aria-label={`${t("import_row")} ${line}`}
+                            checked={!left.has(line)}
+                            onChange={() => toggle(line)}
+                          />
+                        </td>
                         <td>{line}</td>
                         {shown.map((f) => (
                           <td key={f}>{show(f, (fields as Record<string, unknown>)[f])}</td>
@@ -190,7 +226,7 @@ export default function ImportDialog({
           )}
           {errorList(prepared.errors)}
           <div className="toolbar">
-            <button disabled={busy || prepared.ready.length === 0} onClick={onImport}>
+            <button disabled={busy || chosen.length === 0} onClick={onImport}>
               {t("import")}
             </button>
           </div>
