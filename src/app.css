@@ -1298,7 +1298,6 @@ dialog.modal .choice ~ .toolbar { justify-content: center; }
 .choice button { padding: 0.45rem var(--s4); border-width: 1px; }
 /* A round "!" that explains what is beside it on hover or focus. */
 button.info {
-  position: relative;
   align-self: center;
   width: 1.5rem;
   height: 1.5rem;
@@ -1312,15 +1311,16 @@ button.info {
   flex: none;
 }
 button.info:hover { background: var(--surface); color: var(--ink); }
+/* Beside a field's label it is no taller than the text, so the label keeps
+   its usual space above the field. */
+.with-info button.info { width: 1.1rem; height: 1.1rem; font-size: 0.65rem; }
 /* A label's text with its "!" on the same line. */
 .with-info { display: inline-flex; align-items: center; gap: var(--s2); }
+/* Placed against the window by Info.tsx, which keeps it on screen. */
 .info .tip {
-  position: absolute;
-  top: calc(100% + var(--s2));
-  left: 50%;
-  transform: translateX(-50%);
+  position: fixed;
   z-index: 10;
-  width: 22rem;
+  width: min(20rem, 70vw);
   padding: var(--s2) var(--s3);
   border-radius: var(--radius-sm);
   background: var(--ink);
@@ -1338,7 +1338,10 @@ button.info:hover { background: var(--surface); color: var(--ink); }
   pointer-events: none;
   transition: opacity var(--speed) var(--ease-out), visibility var(--speed);
 }
-.info:hover .tip, .info:focus-visible .tip { opacity: 1; visibility: visible; }
+.info .tip[data-open] { opacity: 1; visibility: visible; }
+/* A pressed button shrinks; on the "!" that would move the window-placed tip
+   with it, since a transformed parent becomes what it is placed against. */
+button.info:active { transform: none; }
 
 /* Where money is written down: boxed and marked so it never reads as part of
    the record above it, with the heading saying what the money is for. */
