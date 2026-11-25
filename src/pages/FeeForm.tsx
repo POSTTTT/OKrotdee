@@ -333,7 +333,7 @@ export default function FeeForm() {
         : feeForm}
       {type === "down" && fee && editingDue && (
         <Modal onClose={() => setEditingDue(false)}>
-          <h2>{t("due_date")}</h2>
+          <h2 className="center">{t("due_date")}</h2>
           {error && <p className="flash">{error}</p>}
           <div className="choice">
             <button

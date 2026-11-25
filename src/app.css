@@ -1287,6 +1287,16 @@ button.party.pick.locked:hover { border-color: var(--line-strong); }
 
 /* Two buttons, one pressed: the filled one is the mode in use. */
 .choice { display: flex; gap: var(--s2); margin: 0 0 var(--s3); }
+/* In a dialog the choice heads what follows: centered, with a rule under it,
+   and the fields it switches centered beneath. */
+dialog.modal h2.center { text-align: center; }
+dialog.modal .choice {
+  justify-content: center;
+  padding-bottom: var(--s4);
+  margin-bottom: var(--s4);
+  border-bottom: 1px solid var(--line);
+}
+dialog.modal .choice ~ .toolbar { justify-content: center; }
 .choice button { padding: 0.45rem var(--s4); border-width: 1px; }
 /* A round "!" that shows what a choice means on hover or focus. */
 .choice button.info {
