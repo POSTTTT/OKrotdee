@@ -57,7 +57,9 @@ CREATE TABLE IF NOT EXISTS contracts (
   -- This contract's late-fee rules, copied from the shop rules when written.
   grace_days         INTEGER NOT NULL DEFAULT 3,
   late_fee_percent   REAL NOT NULL DEFAULT 15,
-  repossess_after    INTEGER NOT NULL DEFAULT 2
+  repossess_after    INTEGER NOT NULL DEFAULT 2,
+  -- The down payment's own percent; NULL means the same as late_fee_percent.
+  down_fee_percent   REAL
 );
 
 -- The shop's late-fee rules: one row, copied onto each new contract.
@@ -65,7 +67,8 @@ CREATE TABLE IF NOT EXISTS rules (
   id               INTEGER PRIMARY KEY CHECK (id = 1),
   grace_days       INTEGER NOT NULL DEFAULT 3,
   late_fee_percent REAL NOT NULL DEFAULT 15,
-  repossess_after  INTEGER NOT NULL DEFAULT 2
+  repossess_after  INTEGER NOT NULL DEFAULT 2,
+  down_fee_percent REAL
 );
 INSERT OR IGNORE INTO rules (id) VALUES (1);
 
@@ -77,6 +80,7 @@ CREATE TABLE IF NOT EXISTS contract_rule_changes (
   grace_days       INTEGER NOT NULL,
   late_fee_percent REAL NOT NULL,
   repossess_after  INTEGER NOT NULL,
+  down_fee_percent REAL,
   created_at       TEXT NOT NULL,
   PRIMARY KEY (contract_id, starts_on)
 );
@@ -252,6 +256,11 @@ export const MIGRATIONS = [
   "ALTER TABLE contracts ADD COLUMN grace_days INTEGER NOT NULL DEFAULT 3",
   "ALTER TABLE contracts ADD COLUMN late_fee_percent REAL NOT NULL DEFAULT 15",
   "ALTER TABLE contracts ADD COLUMN repossess_after INTEGER NOT NULL DEFAULT 2",
+  // The down payment got its own late-fee percent. Left NULL on rows written
+  // before, which keeps fining them at the installment percent as they were.
+  "ALTER TABLE contracts ADD COLUMN down_fee_percent REAL",
+  "ALTER TABLE rules ADD COLUMN down_fee_percent REAL",
+  "ALTER TABLE contract_rule_changes ADD COLUMN down_fee_percent REAL",
 ];
 
 /**

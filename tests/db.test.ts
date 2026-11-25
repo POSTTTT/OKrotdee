@@ -29,6 +29,8 @@ import {
   getCar,
   getClient,
   getContract,
+  contractRules,
+  setContractRules,
   getInstallment,
   deleteFeePayment,
   deleteLateFeePayment,
@@ -1170,6 +1172,28 @@ describe("the down payment's late fee", () => {
     await addFeePayment(db, feeId, "2025-02-19", 1_000_000);
     // 15% of 20,000.00, not of the 10,000.00 that was still owed.
     expect(await downFeeFine(db, contractId, "2025-06-01")).toBe(300_000);
+  });
+
+  it("fines the down payment at its own percent, not the installments'", async () => {
+    const { db, contractId, feeId } = await withDownFee();
+    const contract = (await getContract(db, contractId))!;
+    await setContractRules(
+      db,
+      contractId,
+      { ...contractRules(contract), downFeePercent: 10 },
+      "2000-01-01",
+    );
+    await addFeePayment(db, feeId, "2025-02-19", 2_000_000);
+    // 10% of 20,000.00; the installments stay at 15%.
+    expect(await downFeeFine(db, contractId, "2025-06-01")).toBe(200_000);
+  });
+
+  it("fines a contract written before the down percent at its installment percent", async () => {
+    const { db, contractId, feeId } = await withDownFee();
+    // How a contract saved by an older version reads: no down percent of its own.
+    await db.execute("UPDATE contracts SET down_fee_percent = NULL, late_fee_percent = 12");
+    await addFeePayment(db, feeId, "2025-02-19", 2_000_000);
+    expect(await downFeeFine(db, contractId, "2025-06-01")).toBe(240_000);
   });
 
   it("charges nothing when the client keeps to an agreed split", async () => {

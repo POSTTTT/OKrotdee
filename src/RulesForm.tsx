@@ -39,6 +39,7 @@ export default function RulesForm({
       await onSave({
         graceDays: num("grace_days"),
         feePercent: num("late_fee_percent"),
+        downFeePercent: num("down_fee_percent"),
         repossessAfter: num("repossess_after"),
       }, startsOn === undefined ? undefined : String(form.get("starts_on") ?? ""));
     } catch (e) {
@@ -75,6 +76,18 @@ export default function RulesForm({
           max={100}
           step="any"
           defaultValue={rules.feePercent}
+          required
+        />
+      </label>
+      <label>
+        {t("down_fee_percent")}
+        <input
+          name="down_fee_percent"
+          type="number"
+          min={0}
+          max={100}
+          step="any"
+          defaultValue={rules.downFeePercent}
           required
         />
       </label>

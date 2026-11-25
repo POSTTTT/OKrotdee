@@ -14,6 +14,7 @@ import { dataDir } from "./datadir";
 
 import {
   DEFAULT_RULES,
+  downRules,
   generateSchedule,
   lateFee,
   outstanding,
@@ -172,6 +173,7 @@ export interface ContractRow {
   grace_days: number;
   late_fee_percent: number;
   repossess_after: number;
+  down_fee_percent: number | null;
   first_name?: string;
   last_name?: string;
   brand?: string;
@@ -184,10 +186,12 @@ export function contractRules(c: {
   grace_days: number;
   late_fee_percent: number;
   repossess_after: number;
+  down_fee_percent?: number | null;
 }): Rules {
   return {
     graceDays: c.grace_days,
     feePercent: c.late_fee_percent,
+    downFeePercent: c.down_fee_percent ?? c.late_fee_percent,
     repossessAfter: c.repossess_after,
   };
 }
@@ -198,7 +202,10 @@ export async function shopRules(db: Db): Promise<Rules> {
     grace_days: number;
     late_fee_percent: number;
     repossess_after: number;
-  }>("SELECT grace_days, late_fee_percent, repossess_after FROM rules WHERE id = 1");
+    down_fee_percent: number | null;
+  }>(
+    "SELECT grace_days, late_fee_percent, repossess_after, down_fee_percent FROM rules WHERE id = 1",
+  );
   return row ? contractRules(row) : DEFAULT_RULES;
 }
 
@@ -208,8 +215,10 @@ function checkRules(rules: Rules): void {
   if (!whole(rules.graceDays, 0) || !whole(rules.repossessAfter, 1)) {
     throw new Error("err_rules_invalid");
   }
-  if (!Number.isFinite(rules.feePercent) || rules.feePercent < 0 || rules.feePercent > 100) {
-    throw new Error("err_rules_invalid");
+  for (const percent of [rules.feePercent, rules.downFeePercent]) {
+    if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+      throw new Error("err_rules_invalid");
+    }
   }
 }
 
@@ -217,10 +226,12 @@ function checkRules(rules: Rules): void {
 export async function setShopRules(db: Db, rules: Rules): Promise<void> {
   checkRules(rules);
   await db.execute(
-    "INSERT INTO rules (id, grace_days, late_fee_percent, repossess_after) VALUES (1, ?, ?, ?)" +
+    "INSERT INTO rules (id, grace_days, late_fee_percent, repossess_after, down_fee_percent)" +
+      " VALUES (1, ?, ?, ?, ?)" +
       " ON CONFLICT(id) DO UPDATE SET grace_days = excluded.grace_days," +
-      " late_fee_percent = excluded.late_fee_percent, repossess_after = excluded.repossess_after",
-    [rules.graceDays, rules.feePercent, rules.repossessAfter],
+      " late_fee_percent = excluded.late_fee_percent, repossess_after = excluded.repossess_after," +
+      " down_fee_percent = excluded.down_fee_percent",
+    [rules.graceDays, rules.feePercent, rules.repossessAfter, rules.downFeePercent],
   );
 }
 
@@ -231,8 +242,9 @@ export async function contractRuleChanges(db: Db, contractId: number): Promise<R
     grace_days: number;
     late_fee_percent: number;
     repossess_after: number;
+    down_fee_percent: number | null;
   }>(
-    "SELECT starts_on, grace_days, late_fee_percent, repossess_after" +
+    "SELECT starts_on, grace_days, late_fee_percent, repossess_after, down_fee_percent" +
       " FROM contract_rule_changes WHERE contract_id = ? ORDER BY starts_on",
     [contractId],
   );
@@ -254,11 +266,20 @@ export async function setContractRules(
   if (!/^\d{4}-\d{2}-\d{2}$/.test(startsOn)) throw new Error("err_rules_invalid");
   await db.execute(
     "INSERT INTO contract_rule_changes (contract_id, starts_on, grace_days," +
-      " late_fee_percent, repossess_after, created_at) VALUES (?, ?, ?, ?, ?, ?)" +
+      " late_fee_percent, repossess_after, down_fee_percent, created_at)" +
+      " VALUES (?, ?, ?, ?, ?, ?, ?)" +
       " ON CONFLICT(contract_id, starts_on) DO UPDATE SET grace_days = excluded.grace_days," +
-      " late_fee_percent = excluded.late_fee_percent," +
-      " repossess_after = excluded.repossess_after, created_at = excluded.created_at",
-    [contractId, startsOn, rules.graceDays, rules.feePercent, rules.repossessAfter, nowIso()],
+      " late_fee_percent = excluded.late_fee_percent, repossess_after = excluded.repossess_after," +
+      " down_fee_percent = excluded.down_fee_percent, created_at = excluded.created_at",
+    [
+      contractId,
+      startsOn,
+      rules.graceDays,
+      rules.feePercent,
+      rules.repossessAfter,
+      rules.downFeePercent,
+      nowIso(),
+    ],
   );
 }
 
@@ -677,8 +698,8 @@ export async function createContract(db: Db, fields: ContractFields): Promise<nu
     "INSERT INTO contracts (client_id, car_id, car_price, down_payment," +
       " installment_amount, installment_count, due_day, first_due_date, note," +
       " refinanced_from, status, created_at, grace_days, late_fee_percent," +
-      " repossess_after)" +
-      " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)",
+      " repossess_after, down_fee_percent)" +
+      " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)",
     [
       fields.client_id,
       fields.car_id,
@@ -694,6 +715,7 @@ export async function createContract(db: Db, fields: ContractFields): Promise<nu
       rules.graceDays,
       rules.feePercent,
       rules.repossessAfter,
+      rules.downFeePercent,
     ],
   );
 
@@ -1151,9 +1173,11 @@ export async function downFeeFine(
   const contract = await getContract(db, contractId);
   // The down payment is one charge, so it is fined under the rules of the day
   // it fell due.
-  const rules = contract
-    ? rulesOn(contractRules(contract), await contractRuleChanges(db, contractId), down.due_on)
-    : DEFAULT_RULES;
+  const rules = downRules(
+    contract
+      ? rulesOn(contractRules(contract), await contractRuleChanges(db, contractId), down.due_on)
+      : DEFAULT_RULES,
+  );
   return lateFee(
     down.amount,
     scheduleStrikes(
@@ -1241,6 +1265,7 @@ export interface DashboardRow extends InstallmentRow {
   grace_days: number;
   late_fee_percent: number;
   repossess_after: number;
+  down_fee_percent: number | null;
 }
 
 /** Every installment on every active contract, with who and what it is for. */
@@ -1251,7 +1276,7 @@ export async function activeInstallments(db: Db): Promise<DashboardRow[]> {
       " cl.first_name, cl.last_name, cars.brand, cars.series, cars.plate_number," +
       // The rules in force today: the latest change already started, else the
       // contract's own.
-      ["grace_days", "late_fee_percent", "repossess_after"]
+      ["grace_days", "late_fee_percent", "repossess_after", "down_fee_percent"]
         .map(
           (col) =>
             ` COALESCE((SELECT r.${col} FROM contract_rule_changes r` +

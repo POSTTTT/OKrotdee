@@ -286,6 +286,8 @@ export default function ContractDetail() {
             <b>{t("rule_days").replace("{n}", String(rules.graceDays))}</b>
             <span>{t("rule_fee")}</span>
             <b>{rules.feePercent}%</b>
+            <span>{t("rule_down_fee")}</span>
+            <b>{rules.downFeePercent}%</b>
             <span>{t("rule_after")}</span>
             <b>{t("rule_installments").replace("{n}", String(rules.repossessAfter))}</b>
           </dd>

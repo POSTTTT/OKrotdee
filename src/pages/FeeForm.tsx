@@ -29,6 +29,7 @@ import {
 } from "../db";
 import { isErrorKey } from "../lang";
 import {
+  downRules,
   formatBaht,
   lateFee,
   rulesOn,
@@ -154,18 +155,20 @@ export default function FeeForm() {
   const remaining = fee ? fee.amount - paid : 0;
   // Each promised part is judged against its own date, so an arrangement kept
   // to costs nothing. With no arrangement the whole sum is due at once.
-  const fine = fee
-    ? lateFee(
-        fee.amount,
-        scheduleStrikes(
-          promised.length > 0 ? promised : [{ due_on: fee.due_on, amount: fee.amount }],
-          parts,
-          todayIso(),
-          rulesOn(contractRules(contract), ruleChanges, fee.due_on),
-        ),
-        rulesOn(contractRules(contract), ruleChanges, fee.due_on),
-      )
-    : 0;
+  const downRulesNow = fee && downRules(rulesOn(contractRules(contract), ruleChanges, fee.due_on));
+  const fine =
+    fee && downRulesNow
+      ? lateFee(
+          fee.amount,
+          scheduleStrikes(
+            promised.length > 0 ? promised : [{ due_on: fee.due_on, amount: fee.amount }],
+            parts,
+            todayIso(),
+            downRulesNow,
+          ),
+          downRulesNow,
+        )
+      : 0;
 
   const addPromised = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

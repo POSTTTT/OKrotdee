@@ -21,7 +21,7 @@ import {
 } from "../src/money";
 import { memoryDb } from "./helpers";
 
-const RULES = { graceDays: 5, feePercent: 10, repossessAfter: 3 };
+const RULES = { graceDays: 5, feePercent: 10, downFeePercent: 20, repossessAfter: 3 };
 
 async function seeded() {
   const db = memoryDb();
@@ -168,6 +168,7 @@ describe("shop and contract rules", () => {
       { ...RULES, graceDays: 1.5 },
       { ...RULES, feePercent: 101 },
       { ...RULES, feePercent: NaN },
+      { ...RULES, downFeePercent: -5 },
       { ...RULES, repossessAfter: 0 },
     ]) {
       await expect(setContractRules(db, id, bad, "2026-11-01")).rejects.toThrow(

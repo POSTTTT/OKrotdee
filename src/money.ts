@@ -100,14 +100,26 @@ export function overdueCount(rows: OverdueRow[], today: string): number {
 export interface Rules {
   /** Days a client may pay past the due date without it counting against them. */
   graceDays: number;
-  /** Percent of the charge added for each time it is late. */
+  /** Percent of an installment added for each time it is late. */
   feePercent: number;
+  /** Percent of the down payment added for each time it is late. */
+  downFeePercent: number;
   /** Overdue installments before the contract is flagged for repossession. */
   repossessAfter: number;
 }
 
 /** The rules the shop ran on before they could be changed. */
-export const DEFAULT_RULES: Rules = { graceDays: 3, feePercent: 15, repossessAfter: 2 };
+export const DEFAULT_RULES: Rules = {
+  graceDays: 3,
+  feePercent: 15,
+  downFeePercent: 15,
+  repossessAfter: 2,
+};
+
+/** The same rules, priced at the down payment's own percent. */
+export function downRules(rules: Rules): Rules {
+  return { ...rules, feePercent: rules.downFeePercent };
+}
 
 /** A change to one contract's rules, for charges due on or after startsOn. */
 export interface RuleChange {
