@@ -163,6 +163,8 @@ export default function Calendar() {
           <small>
             {r.first_name} {r.last_name}
           </small>
+          {/* Two contracts for one client are told apart by the car. */}
+          {r.plate_number && <small>{r.plate_number}</small>}
         </Link>
       );
     });
