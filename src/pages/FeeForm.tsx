@@ -376,10 +376,13 @@ export default function FeeForm() {
               <dt>{t("late_fee_down")}</dt>
               <dd>{formatBaht(fine)}</dd>
             </div>
-            <div>
-              <dt>{t("due_date")}</dt>
-              <dd>{formatDate(fee.due_on)}</dd>
-            </div>
+            {/* Once parts are promised, each part's own date decides lateness. */}
+            {promised.length === 0 && (
+              <div>
+                <dt>{t("due_date")}</dt>
+                <dd>{formatDate(fee.due_on)}</dd>
+              </div>
+            )}
           </dl>
 
           {parts.length > 0 && (
