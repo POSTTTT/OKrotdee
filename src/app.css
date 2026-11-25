@@ -1288,7 +1288,6 @@ button.party.pick.locked:hover { border-color: var(--line-strong); }
 /* Two buttons, one pressed: the filled one is the mode in use. */
 .choice { display: flex; gap: var(--s2); margin: 0 0 var(--s3); }
 .choice button { padding: 0.45rem var(--s4); border-width: 1px; }
-.choice button.ghost:disabled:hover { background: transparent; }
 /* A round "!" that shows what a choice means on hover or focus. */
 .choice button.info {
   position: relative;

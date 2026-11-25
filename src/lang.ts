@@ -64,7 +64,7 @@ export const LABELS: Record<LangCode, Record<string, string>> = {
     add_promise: "Add part",
     pay_in_full: "Pay in full",
     pay_in_parts: "Split into parts",
-    parts_block_full: "Delete every part to switch back to paying in full.",
+    confirm_pay_in_full: "Pay in full on this date? Every agreed part will be deleted.",
     promised_hint:
       "Split the down payment into the parts the client promised, each with its own date. A part paid on time is never late. With no parts here the whole sum is due at once.",
     type: "Type",
@@ -270,7 +270,7 @@ export const LABELS: Record<LangCode, Record<string, string>> = {
     add_promise: "เพิ่มงวด",
     pay_in_full: "จ่ายครั้งเดียว",
     pay_in_parts: "แบ่งจ่ายเป็นงวด",
-    parts_block_full: "ลบงวดทั้งหมดก่อน จึงจะเปลี่ยนเป็นจ่ายครั้งเดียวได้",
+    confirm_pay_in_full: "จ่ายครั้งเดียวในวันที่เลือก? งวดที่ตกลงไว้ทั้งหมดจะถูกลบ",
     promised_hint:
       "แบ่งเงินดาวน์เป็นงวดตามที่ตกลงกับลูกค้า พร้อมวันครบกำหนดของแต่ละงวด งวดที่ชำระตรงเวลาไม่คิดค่าปรับ ถ้าไม่ระบุงวด ถือว่าครบกำหนดทั้งก้อนในวันเดียว",
     type: "ประเภท",

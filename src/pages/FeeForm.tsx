@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useState, type FormEvent } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
@@ -67,6 +67,8 @@ export default function FeeForm() {
   const [editingDue, setEditingDue] = useState(false);
   // Paid in one sum on one date, or split into promised parts: one at a time.
   const [split, setSplit] = useState(false);
+  // Read by the confirm dialog, which saves outside the form's own submit.
+  const dueForm = useRef<HTMLFormElement>(null);
 
   const loadParts = useCallback(
     async (feeId: number | null) => {
@@ -207,15 +209,19 @@ export default function FeeForm() {
     }
   };
 
-  const saveDue = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!fee) return;
-    const dueOn = ((new FormData(event.currentTarget).get("due_on") as string) ?? "").trim();
+  // Paying in full on one date: any promised parts would still decide
+  // lateness, so they go once the staff confirm.
+  const saveDue = async (event?: FormEvent<HTMLFormElement>) => {
+    event?.preventDefault();
+    if (!fee || !dueForm.current) return;
+    const dueOn = ((new FormData(dueForm.current).get("due_on") as string) ?? "").trim();
     setError(null);
     setBusy(true);
     try {
       await saveFee(db, contractId, { ...fee, due_on: dueOn }, fee.id);
+      for (const p of promised) await deleteFeeSchedulePart(db, p.id);
       setFee((await getFee(db, fee.id)) ?? null);
+      await loadParts(fee.id);
     } catch (e) {
       setError(e instanceof Error && isErrorKey(e.message) ? t(e.message) : String(e));
     } finally {
@@ -334,8 +340,6 @@ export default function FeeForm() {
               type="button"
               className={split ? "ghost" : ""}
               aria-pressed={!split}
-              // Parts still count until removed, so the single date cannot take over.
-              disabled={promised.length > 0}
               onClick={() => setSplit(false)}
             >
               {t("pay_in_full")}
@@ -351,18 +355,26 @@ export default function FeeForm() {
             {/* The rules in a tip on hover or focus, so the popup stays on the choice. */}
             <button type="button" className="info">
               <span aria-hidden="true">!</span>
-              <span className="tip">
-                {t("promised_hint")}
-                {promised.length > 0 && " " + t("parts_block_full")}
-              </span>
+              <span className="tip">{t("promised_hint")}</span>
             </button>
           </div>
           {!split && (
-            <form className="toolbar" key={fee.due_on} onSubmit={saveDue}>
+            <form className="toolbar" key={fee.due_on} ref={dueForm} onSubmit={saveDue}>
               <DateInput name="due_on" defaultValue={fee.due_on} required />
-              <button type="submit" disabled={busy}>
-                {t("save")}
-              </button>
+              {promised.length > 0 ? (
+                <ConfirmButton
+                  question={t("confirm_pay_in_full")}
+                  className=""
+                  disabled={busy}
+                  onConfirm={() => saveDue()}
+                >
+                  {t("save")}
+                </ConfirmButton>
+              ) : (
+                <button type="submit" disabled={busy}>
+                  {t("save")}
+                </button>
+              )}
             </form>
           )}
           {split && (
