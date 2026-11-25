@@ -1284,3 +1284,45 @@ button.party.pick.locked:hover { border-color: var(--line-strong); }
 @keyframes arrive-prev {
   from { opacity: 0; transform: translateX(-1.25rem); }
 }
+
+/* Two buttons, one pressed: the filled one is the mode in use. */
+.choice { display: flex; gap: var(--s2); margin: 0 0 var(--s3); }
+.choice button { padding: 0.45rem var(--s4); border-width: 1px; }
+.choice button.ghost:disabled:hover { background: transparent; }
+/* A round "!" that shows what a choice means on hover or focus. */
+.choice button.info {
+  position: relative;
+  align-self: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-soft);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+.choice button.info:hover { background: var(--surface); color: var(--ink); }
+.info .tip {
+  position: absolute;
+  top: calc(100% + var(--s2));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  width: 22rem;
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: var(--on-dark);
+  font-weight: 400;
+  line-height: 1.5;
+  text-align: left;
+  white-space: normal;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--speed) var(--ease-out), visibility var(--speed);
+}
+.info:hover .tip, .info:focus-visible .tip { opacity: 1; visibility: visible; }

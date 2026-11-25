@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Fragment, useCallback, useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
@@ -63,6 +63,10 @@ export default function FeeForm() {
   // An existing down payment is corrected from its amount tile, in a dialog,
   // so the page opens on the money owed rather than on a form.
   const [editingDown, setEditingDown] = useState(false);
+  // The due date and the promised parts that replace it are set together.
+  const [editingDue, setEditingDue] = useState(false);
+  // Paid in one sum on one date, or split into promised parts: one at a time.
+  const [split, setSplit] = useState(false);
 
   const loadParts = useCallback(
     async (feeId: number | null) => {
@@ -120,7 +124,8 @@ export default function FeeForm() {
         contractId,
         {
           type,
-          due_on: text("due_on"),
+          // An existing down payment's date is set from its due date tile.
+          due_on: text("due_on") || (fee?.due_on ?? ""),
           paid_on: paidOn,
           amount,
           officer_amount: officerAmount,
@@ -202,6 +207,22 @@ export default function FeeForm() {
     }
   };
 
+  const saveDue = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!fee) return;
+    const dueOn = ((new FormData(event.currentTarget).get("due_on") as string) ?? "").trim();
+    setError(null);
+    setBusy(true);
+    try {
+      await saveFee(db, contractId, { ...fee, due_on: dueOn }, fee.id);
+      setFee((await getFee(db, fee.id)) ?? null);
+    } catch (e) {
+      setError(e instanceof Error && isErrorKey(e.message) ? t(e.message) : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const amountField = (
     <label>
       {t("amount")}
@@ -217,10 +238,12 @@ export default function FeeForm() {
 
   const feeForm = (
     <form className="stack" key={fee?.id ?? "new"} onSubmit={onSubmit}>
-      <label>
-        {t("due_date")}
-        <DateInput name="due_on" defaultValue={fee?.due_on ?? todayIso()} required />
-      </label>
+      {!(type === "down" && fee) && (
+        <label>
+          {t("due_date")}
+          <DateInput name="due_on" defaultValue={fee?.due_on ?? todayIso()} required />
+        </label>
+      )}
       {type === "insurance" ? (
         /* Two fees paid on their own days: each amount keeps the date it was
              paid directly under it, and the two stand side by side. */
@@ -302,57 +325,100 @@ export default function FeeForm() {
             </Modal>
           )
         : feeForm}
+      {type === "down" && fee && editingDue && (
+        <Modal onClose={() => setEditingDue(false)}>
+          <h2>{t("due_date")}</h2>
+          {error && <p className="flash">{error}</p>}
+          <div className="choice">
+            <button
+              type="button"
+              className={split ? "ghost" : ""}
+              aria-pressed={!split}
+              // Parts still count until removed, so the single date cannot take over.
+              disabled={promised.length > 0}
+              onClick={() => setSplit(false)}
+            >
+              {t("pay_in_full")}
+            </button>
+            <button
+              type="button"
+              className={split ? "" : "ghost"}
+              aria-pressed={split}
+              onClick={() => setSplit(true)}
+            >
+              {t("pay_in_parts")}
+            </button>
+            {/* The rules in a tip on hover or focus, so the popup stays on the choice. */}
+            <button type="button" className="info">
+              <span aria-hidden="true">!</span>
+              <span className="tip">
+                {t("promised_hint")}
+                {promised.length > 0 && " " + t("parts_block_full")}
+              </span>
+            </button>
+          </div>
+          {!split && (
+            <form className="toolbar" key={fee.due_on} onSubmit={saveDue}>
+              <DateInput name="due_on" defaultValue={fee.due_on} required />
+              <button type="submit" disabled={busy}>
+                {t("save")}
+              </button>
+            </form>
+          )}
+          {split && (
+            <>
+              {promised.length > 0 && (
+                <table>
+                  <thead>
+                    <tr>
+                      <th>{t("due_date")}</th>
+                      <th className="num">{t("amount")}</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {promised.map((p) => (
+                      <tr key={p.id}>
+                        <td>{formatDate(p.due_on)}</td>
+                        <td className="num">{formatBaht(p.amount)}</td>
+                        <td className="num">
+                          <ConfirmButton
+                            question={t("confirm_delete_promised")}
+                            className="danger"
+                            disabled={busy}
+                            onConfirm={async () => {
+                              await deleteFeeSchedulePart(db, p.id);
+                              await loadParts(fee.id);
+                            }}
+                          >
+                            {t("delete")}
+                          </ConfirmButton>
+                        </td>
+                      </tr>
+                    ))}
+                    <tr>
+                      <td>{t("amount")}</td>
+                      <td className="num">
+                        {formatBaht(promised.reduce((sum, p) => sum + p.amount, 0))}
+                      </td>
+                      <td />
+                    </tr>
+                  </tbody>
+                </table>
+              )}
+              <form className="toolbar" onSubmit={addPromised}>
+                <DateInput name="promise_due_on" defaultValue={todayIso()} required />
+                <input name="promise_amount" placeholder={t("amount")} required />
+                <button type="submit" disabled={busy}>
+                  {t("add_promise")}
+                </button>
+              </form>
+            </>
+          )}
+        </Modal>
+      )}
       {type === "down" && fee && (
         <>
-          <h2>{t("promised_schedule")}</h2>
-          <p className="hint">{t("promised_hint")}</p>
-          {promised.length > 0 && (
-            <table>
-              <thead>
-                <tr>
-                  <th>{t("due_date")}</th>
-                  <th className="num">{t("amount")}</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {promised.map((p) => (
-                  <tr key={p.id}>
-                    <td>{formatDate(p.due_on)}</td>
-                    <td className="num">{formatBaht(p.amount)}</td>
-                    <td className="num">
-                      <ConfirmButton
-                        question={t("confirm_delete_promised")}
-                        className="danger"
-                        disabled={busy}
-                        onConfirm={async () => {
-                          await deleteFeeSchedulePart(db, p.id);
-                          await loadParts(fee.id);
-                        }}
-                      >
-                        {t("delete")}
-                      </ConfirmButton>
-                    </td>
-                  </tr>
-                ))}
-                <tr>
-                  <td>{t("amount")}</td>
-                  <td className="num">
-                    {formatBaht(promised.reduce((sum, p) => sum + p.amount, 0))}
-                  </td>
-                  <td />
-                </tr>
-              </tbody>
-            </table>
-          )}
-          <form className="toolbar" onSubmit={addPromised}>
-            <DateInput name="promise_due_on" defaultValue={todayIso()} required />
-            <input name="promise_amount" placeholder={t("amount")} required />
-            <button type="submit" disabled={busy}>
-              {t("add_promise")}
-            </button>
-          </form>
-
           <h2>{t("payments")}</h2>
           <dl className="facts">
             <div className="editable">
@@ -376,13 +442,35 @@ export default function FeeForm() {
               <dt>{t("late_fee_down")}</dt>
               <dd>{formatBaht(fine)}</dd>
             </div>
-            {/* Once parts are promised, each part's own date decides lateness. */}
-            {promised.length === 0 && (
-              <div>
-                <dt>{t("due_date")}</dt>
+            {/* Once parts are promised, each part's own date decides lateness,
+                so the tile lists them in place of the single date. */}
+            <div className={promised.length > 0 ? "rules" : "editable"}>
+              <dt>
+                {t("due_date")}
+                <button
+                  type="button"
+                  className="ghost edit"
+                  onClick={() => {
+                    setSplit(promised.length > 0);
+                    setEditingDue(true);
+                  }}
+                >
+                  {t("edit")}
+                </button>
+              </dt>
+              {promised.length > 0 ? (
+                <dd>
+                  {promised.map((p) => (
+                    <Fragment key={p.id}>
+                      <span>{formatDate(p.due_on)}</span>
+                      <b>{formatBaht(p.amount)}</b>
+                    </Fragment>
+                  ))}
+                </dd>
+              ) : (
                 <dd>{formatDate(fee.due_on)}</dd>
-              </div>
-            )}
+              )}
+            </div>
           </dl>
 
           {parts.length > 0 && (
