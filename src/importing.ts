@@ -21,7 +21,6 @@ export const FIELDS: Record<ImportKind, string[]> = {
     "model_year",
     "color",
     "plate_number",
-    "registration_no",
     "chassis_no",
     "mileage",
     "cost_price",
@@ -147,7 +146,8 @@ function toCar(cell: (f: string) => string | null): CarFields {
     model_year: year !== null && year > 2400 ? year - 543 : year,
     color: cell("color"),
     plate_number: cell("plate_number"),
-    registration_no: cell("registration_no"),
+    // Not offered: nothing shows it, and staff mistook it for the plate.
+    registration_no: null,
     chassis_no: cell("chassis_no"),
     mileage: or("mileage", whole),
     mileage_unit: "km",

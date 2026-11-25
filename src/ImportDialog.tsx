@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import Info from "./Info";
 import Modal from "./Modal";
 import { useApp } from "./context";
+import { formatDate } from "./dates";
 import { LABELS, isErrorKey } from "./lang";
 import {
   FIELDS,
@@ -14,6 +15,7 @@ import {
   type Mapping,
   type RowError,
 } from "./importing";
+import { formatBaht } from "./money";
 
 /**
  * Clients or cars from a spreadsheet. The staff match columns to fields, see
@@ -39,6 +41,16 @@ export default function ImportDialog({
   const headers = rows[0] ?? [];
   const prepared = useMemo(() => prepare(kind, rows, mapping), [kind, rows, mapping]);
   const message = (key: string) => (isErrorKey(key) ? t(key) : key);
+  // The columns staff matched, in the form order, shown as they will be saved.
+  const shown = FIELDS[kind].filter((f) => f in mapping);
+  const show = (field: string, value: unknown) =>
+    value === null || value === undefined
+      ? ""
+      : field === "cost_price" || field === "asking_price"
+        ? formatBaht(value as number)
+        : field === "insurance_expires_on"
+          ? formatDate(value as string)
+          : String(value);
 
   const onFile = async (file: File | undefined) => {
     setDone(null);
@@ -113,9 +125,13 @@ export default function ImportDialog({
             onChange={(e) => onFile(e.target.files?.[0])}
           />
         </label>
+      </form>
 
-        {headers.length > 0 &&
-          FIELDS[kind].map((field) => (
+      {/* One row of columns to match, scrolling sideways, so the matching
+          reads as one step rather than a page of fields. */}
+      {headers.length > 0 && (
+        <div className="mapping">
+          {FIELDS[kind].map((field) => (
             <label key={field}>
               {t(field)}
               <select
@@ -136,14 +152,42 @@ export default function ImportDialog({
               </select>
             </label>
           ))}
-      </form>
+        </div>
+      )}
 
       {headers.length > 0 && (
         <>
-          <p>
+          <p className="import-summary">
             {prepared.ready.length} {t("import_ready")}
             {prepared.errors.length > 0 && ` · ${prepared.errors.length} ${t("import_skipped")}`}
           </p>
+          {prepared.ready.length > 0 && shown.length > 0 && (
+            <>
+              <h2>{t("import_preview")}</h2>
+              <div className="scroll preview">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>{t("import_row")}</th>
+                      {shown.map((f) => (
+                        <th key={f}>{t(f)}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {prepared.ready.map(({ line, fields }) => (
+                      <tr key={line}>
+                        <td>{line}</td>
+                        {shown.map((f) => (
+                          <td key={f}>{show(f, (fields as Record<string, unknown>)[f])}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
           {errorList(prepared.errors)}
           <div className="toolbar">
             <button disabled={busy || prepared.ready.length === 0} onClick={onImport}>
