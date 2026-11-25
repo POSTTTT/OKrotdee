@@ -54,6 +54,10 @@ describe("guessMapping", () => {
       model_year: 3,
     });
   });
+
+  it("ignores a unit in brackets, so older sheets still match", () => {
+    expect(guessMapping(["เลขไมล์ (กม.)"], "cars", Object.values(LABELS))).toEqual({ mileage: 0 });
+  });
 });
 
 describe("prepare", () => {
@@ -96,6 +100,7 @@ describe("prepare", () => {
       model_year: 2017,
       cost_price: 35000050,
       mileage: 120000,
+      mileage_unit: "km",
       insurance_expires_on: "2026-03-01",
       series: null,
     });

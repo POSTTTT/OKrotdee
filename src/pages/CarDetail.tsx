@@ -93,6 +93,14 @@ export default function CarDetail() {
           <dt>{t("color")}</dt>
           <dd className="text">{car.color ?? "-"}</dd>
         </div>
+        <div>
+          <dt>{t("mileage")}</dt>
+          <dd>
+            {car.mileage != null
+              ? `${car.mileage.toLocaleString("en-US")} ${t(car.mileage_unit)}`
+              : "-"}
+          </dd>
+        </div>
         {/* An insurance that has run out is worth seeing at a glance. */}
         <div className={car.insurance_expires_on && car.insurance_expires_on < todayIso() ? "owing" : ""}>
           <dt>{t("insurance_expires_on")}</dt>

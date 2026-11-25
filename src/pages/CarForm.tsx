@@ -42,18 +42,21 @@ export default function CarForm() {
       const brand = text("brand");
       if (!brand) throw new Error("err_brand_required");
       const modelYear = text("model_year");
+      const mileage = text("mileage")?.replace(/,/g, "") ?? null;
+      if (mileage !== null && !/^\d+$/.test(mileage)) throw new Error("err_mileage");
       const fields = {
         brand,
         series: text("series"),
         plate_number: text("plate_number"),
         model_year: modelYear === null ? null : Number(modelYear),
         color: text("color"),
+        mileage: mileage === null ? null : Number(mileage),
+        mileage_unit: text("mileage_unit") === "mi" ? ("mi" as const) : ("km" as const),
         insurance_expires_on: text("insurance_expires_on"),
         // Not on the form; carried through so an edit does not erase what an
         // older version of the form recorded.
         registration_no: car?.registration_no ?? null,
         chassis_no: car?.chassis_no ?? null,
-        mileage: car?.mileage ?? null,
         cost_price: car?.cost_price ?? null,
         asking_price: car?.asking_price ?? null,
         note: car?.note ?? null,
@@ -114,6 +117,21 @@ export default function CarForm() {
         <label>
           {t("color")}
           <input name="color" defaultValue={car?.color ?? ""} />
+        </label>
+        <label>
+          {t("mileage")}
+          {/* The number and what it counts in, read together as one field. */}
+          <span className="with-unit">
+            <input
+              name="mileage"
+              inputMode="numeric"
+              defaultValue={car?.mileage != null ? car.mileage.toLocaleString("en-US") : ""}
+            />
+            <select name="mileage_unit" defaultValue={car?.mileage_unit ?? "km"}>
+              <option value="km">{t("km")}</option>
+              <option value="mi">{t("mi")}</option>
+            </select>
+          </span>
         </label>
         <label>
           {t("insurance_expires_on")}

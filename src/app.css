@@ -477,7 +477,6 @@ form.stack {
 /* Prose and the buttons that end the form take the whole width. */
 form.stack > label.wide,
 form.stack > div,
-form.stack > .hint { grid-column: 1 / -1; }
 form.stack > label:has(textarea) { grid-column: 1 / -1; }
 /* Side by side when a form asks for them so, not one full-width box each. */
 form.stack.paired > label:has(textarea) { grid-column: auto; }
@@ -514,7 +513,6 @@ p.total strong { color: var(--ink); font-size: 1.05rem; }
   gap: var(--s4) var(--s5);
 }
 .fees > div { display: grid; gap: var(--s4); align-content: start; }
-form.stack .hint { margin: calc(var(--s3) * -1) 0 0; font-size: 0.82rem; color: var(--ink-soft); }
 label {
   display: grid;
   gap: var(--s1);
@@ -1298,8 +1296,8 @@ dialog.modal .choice {
 }
 dialog.modal .choice ~ .toolbar { justify-content: center; }
 .choice button { padding: 0.45rem var(--s4); border-width: 1px; }
-/* A round "!" that shows what a choice means on hover or focus. */
-.choice button.info {
+/* A round "!" that explains what is beside it on hover or focus. */
+button.info {
   position: relative;
   align-self: center;
   width: 1.5rem;
@@ -1311,8 +1309,11 @@ dialog.modal .choice ~ .toolbar { justify-content: center; }
   color: var(--ink-soft);
   font-weight: 700;
   font-size: 0.8rem;
+  flex: none;
 }
-.choice button.info:hover { background: var(--surface); color: var(--ink); }
+button.info:hover { background: var(--surface); color: var(--ink); }
+/* A label's text with its "!" on the same line. */
+.with-info { display: inline-flex; align-items: center; gap: var(--s2); }
 .info .tip {
   position: absolute;
   top: calc(100% + var(--s2));
@@ -1324,7 +1325,10 @@ dialog.modal .choice ~ .toolbar { justify-content: center; }
   border-radius: var(--radius-sm);
   background: var(--ink);
   color: var(--on-dark);
+  font-size: 0.85rem;
   font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
   line-height: 1.5;
   text-align: left;
   white-space: normal;
@@ -1347,3 +1351,24 @@ dialog.modal .choice ~ .toolbar { justify-content: center; }
   box-shadow: var(--shadow);
 }
 .paybox h2 { margin-top: 0; color: var(--ink); }
+
+/* A dropdown stands as tall as the inputs beside it. WebKit draws a native
+   select shorter and ignores its height, so it is drawn plainly with an arrow
+   of our own. */
+form.stack label > select,
+.with-unit select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 2.625rem;
+  padding-right: 2.25rem;
+  background: var(--surface)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%23625f57' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    no-repeat right var(--s3) center;
+  cursor: pointer;
+}
+/* A number and the unit it counts in, as one row the width of a field. */
+.with-unit { display: flex; gap: var(--s2); min-width: 0; }
+/* Zero width, then grow: an input's own default width otherwise pushes the
+   row past the edge of its column. */
+.with-unit input { flex: 1; width: 0; min-width: 0; min-height: 2.625rem; }
+.with-unit select { flex: none; }

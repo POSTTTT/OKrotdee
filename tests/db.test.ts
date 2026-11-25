@@ -196,6 +196,7 @@ const CAR = {
   registration_no: "กท-1234",
   chassis_no: "MR0000000000",
   mileage: 85000,
+  mileage_unit: "km",
   cost_price: 45000000,
   asking_price: 60000000,
   insurance_expires_on: null,
@@ -209,6 +210,15 @@ describe("cars", () => {
     const car = await getCar(db, id);
     expect(car?.status).toBe("available");
     expect(car?.asking_price).toBe(60000000);
+  });
+
+  it("keeps a car's mileage unit through an edit", async () => {
+    const db = memoryDb();
+    const id = await createCar(db, { ...CAR, mileage_unit: "mi" });
+    expect((await getCar(db, id))?.mileage_unit).toBe("mi");
+    await updateCar(db, id, { ...CAR, mileage: 90000, mileage_unit: "km" });
+    const car = await getCar(db, id);
+    expect([car?.mileage, car?.mileage_unit]).toEqual([90000, "km"]);
   });
 
   it("writes an acquired event for a new car", async () => {
@@ -297,6 +307,7 @@ describe("timeline dates", () => {
       registration_no: null,
       chassis_no: null,
       mileage: null,
+      mileage_unit: "km",
       cost_price: null,
       asking_price: null,
       insurance_expires_on: null,
@@ -811,6 +822,7 @@ describe("delete", () => {
     registration_no: null,
     chassis_no: null,
     mileage: null,
+    mileage_unit: "km",
     cost_price: null,
     asking_price: null,
     insurance_expires_on: null,

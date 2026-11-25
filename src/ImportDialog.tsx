@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 
+import Info from "./Info";
 import Modal from "./Modal";
 import { useApp } from "./context";
 import { LABELS, isErrorKey } from "./lang";
@@ -102,13 +103,16 @@ export default function ImportDialog({
 
       <form className="stack" onSubmit={(e) => e.preventDefault()}>
         <label className="wide">
+          <span className="with-info">
+            {t("import_file")}
+            <Info>{t("import_hint")}</Info>
+          </span>
           <input
             type="file"
             accept=".xlsx,.xls,.csv"
             onChange={(e) => onFile(e.target.files?.[0])}
           />
         </label>
-        <p className="hint">{t("import_hint")}</p>
 
         {headers.length > 0 &&
           FIELDS[kind].map((field) => (

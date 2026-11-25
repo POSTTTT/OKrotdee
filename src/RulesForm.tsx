@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 
 import { useApp } from "./context";
 import DateInput from "./DateInput";
+import Info from "./Info";
 import { isErrorKey } from "./lang";
 import type { Rules } from "./money";
 
@@ -52,7 +53,10 @@ export default function RulesForm({
       {intro && <p className="intro">{intro}</p>}
       {error ? <p className="flash">{error}</p> : notice && <p className="flash">{notice}</p>}
       <label>
-        {t("grace_days")}
+        <span className="with-info">
+          {t("grace_days")}
+          <Info>{t("rules_hint")}</Info>
+        </span>
         <input
           name="grace_days"
           type="number"
@@ -87,12 +91,13 @@ export default function RulesForm({
       </label>
       {startsOn !== undefined && (
         <label>
-          {t("rules_starts_on")}
+          <span className="with-info">
+            {t("rules_starts_on")}
+            <Info>{t("rules_starts_on_hint")}</Info>
+          </span>
           <DateInput name="starts_on" defaultValue={startsOn} required />
         </label>
       )}
-      <p className="hint">{t("rules_hint")}</p>
-      {startsOn !== undefined && <p className="hint">{t("rules_starts_on_hint")}</p>}
       <div>
         <button type="submit" disabled={busy}>
           {t("save")}

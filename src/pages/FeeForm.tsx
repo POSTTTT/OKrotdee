@@ -6,6 +6,7 @@ import ConfirmButton from "../ConfirmButton";
 import { useApp } from "../context";
 import { formatDate } from "../dates";
 import DateInput from "../DateInput";
+import Info from "../Info";
 import Modal from "../Modal";
 import {
   addFeePayment,
@@ -257,10 +258,12 @@ export default function FeeForm() {
           <div>
             {amountField}
             <label>
-              {t("payment_date")}
+              <span className="with-info">
+                {t("payment_date")}
+                <Info>{t("unpaid_hint")}</Info>
+              </span>
               <DateInput name="paid_on" defaultValue={fee?.paid_on ?? ""} />
             </label>
-            <p className="hint">{t("unpaid_hint")}</p>
           </div>
           <div>
             <label>
@@ -353,10 +356,7 @@ export default function FeeForm() {
               {t("pay_in_parts")}
             </button>
             {/* The rules in a tip on hover or focus, so the popup stays on the choice. */}
-            <button type="button" className="info">
-              <span aria-hidden="true">!</span>
-              <span className="tip">{t("promised_hint")}</span>
-            </button>
+            <Info>{t("promised_hint")}</Info>
           </div>
           {!split && (
             <form className="toolbar" key={fee.due_on} ref={dueForm} onSubmit={saveDue}>

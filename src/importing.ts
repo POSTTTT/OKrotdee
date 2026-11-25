@@ -65,7 +65,12 @@ export function guessMapping(
   labels: Record<string, string>[],
 ): Mapping {
   const mapping: Mapping = {};
-  const norm = (s: string) => s.toLowerCase().replace(/[\s._-]/g, "");
+  // A unit in brackets is not part of the name: "เลขไมล์ (กม.)" is "เลขไมล์".
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/\(.*?\)/g, "")
+      .replace(/[\s._-]/g, "");
   for (const field of FIELDS[kind]) {
     const names = [field, ...labels.map((l) => l[field])].filter(Boolean).map(norm);
     const index = headers.findIndex((h) => names.includes(norm(h)));
@@ -145,6 +150,7 @@ function toCar(cell: (f: string) => string | null): CarFields {
     registration_no: cell("registration_no"),
     chassis_no: cell("chassis_no"),
     mileage: or("mileage", whole),
+    mileage_unit: "km",
     cost_price: or("cost_price", toSatang),
     asking_price: or("asking_price", toSatang),
     insurance_expires_on: or("insurance_expires_on", toIsoDate),

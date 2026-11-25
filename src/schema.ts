@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS cars (
   registration_no TEXT,
   chassis_no      TEXT,
   mileage         INTEGER,
+  -- What the odometer counts in: 'km' or 'mi'. Imported cars may read in miles.
+  mileage_unit    TEXT NOT NULL DEFAULT 'km',
   cost_price      INTEGER,
   asking_price    INTEGER,
   -- Some cars arrive with insurance already paid for; this is the day it runs out.
@@ -233,6 +235,7 @@ export const MIGRATIONS = [
   // recorded until now was against the installments.
   "ALTER TABLE late_fee_payments ADD COLUMN kind TEXT NOT NULL DEFAULT 'installment'",
   "ALTER TABLE cars ADD COLUMN insurance_expires_on TEXT",
+  "ALTER TABLE cars ADD COLUMN mileage_unit TEXT NOT NULL DEFAULT 'km'",
   // Runs after the v2 rebuild, which recreates contracts without it.
   "ALTER TABLE contracts ADD COLUMN refinanced_from INTEGER REFERENCES contracts(id)",
   // Clients kept no history until now; the turning points of their contracts
