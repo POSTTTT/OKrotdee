@@ -6,6 +6,7 @@ import ConfirmButton from "../ConfirmButton";
 import { useApp } from "../context";
 import { formatDate } from "../dates";
 import DateInput from "../DateInput";
+import Modal from "../Modal";
 import {
   addFeePayment,
   addFeeSchedulePart,
@@ -59,6 +60,9 @@ export default function FeeForm() {
   // One write per click: a second click while the first is in flight would
   // record the money twice.
   const [busy, setBusy] = useState(false);
+  // An existing down payment is corrected from its amount tile, in a dialog,
+  // so the page opens on the money owed rather than on a form.
+  const [editingDown, setEditingDown] = useState(false);
 
   const loadParts = useCallback(
     async (feeId: number | null) => {
@@ -125,7 +129,12 @@ export default function FeeForm() {
         },
         fee?.id ?? null,
       );
-      navigate(`/contracts/${contractId}`);
+      if (type === "down" && fee) {
+        setFee((await getFee(db, fee.id)) ?? null);
+        setEditingDown(false);
+      } else {
+        navigate(`/contracts/${contractId}`);
+      }
     } catch (e) {
       setError(e instanceof Error && isErrorKey(e.message) ? t(e.message) : String(e));
     } finally {
@@ -199,15 +208,66 @@ export default function FeeForm() {
       <input
         name="amount"
         defaultValue={
-          fee
-            ? formatBaht(fee.amount)
-            : type === "down"
-              ? formatBaht(contract.down_payment)
-              : ""
+          fee ? formatBaht(fee.amount) : type === "down" ? formatBaht(contract.down_payment) : ""
         }
         required
       />
     </label>
+  );
+
+  const feeForm = (
+    <form className="stack" key={fee?.id ?? "new"} onSubmit={onSubmit}>
+      <label>
+        {t("due_date")}
+        <DateInput name="due_on" defaultValue={fee?.due_on ?? todayIso()} required />
+      </label>
+      {type === "insurance" ? (
+        /* Two fees paid on their own days: each amount keeps the date it was
+             paid directly under it, and the two stand side by side. */
+        <div className="fees">
+          <div>
+            {amountField}
+            <label>
+              {t("payment_date")}
+              <DateInput name="paid_on" defaultValue={fee?.paid_on ?? ""} />
+            </label>
+            <p className="hint">{t("unpaid_hint")}</p>
+          </div>
+          <div>
+            <label>
+              {t("officer_fee")}
+              <input
+                name="officer_amount"
+                defaultValue={fee?.officer_amount != null ? formatBaht(fee.officer_amount) : ""}
+              />
+            </label>
+            <label>
+              {t("officer_paid_on")}
+              <DateInput name="officer_paid_on" defaultValue={fee?.officer_paid_on ?? ""} />
+            </label>
+          </div>
+        </div>
+      ) : (
+        amountField
+      )}
+      <label>
+        {t("note")}
+        <input name="note" defaultValue={fee?.note ?? ""} />
+      </label>
+      <div className="toolbar">
+        <button type="submit" disabled={busy}>
+          {t("save")}
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            editingDown ? setEditingDown(false) : navigate(`/contracts/${contractId}`)
+          }
+        >
+          {t("cancel")}
+        </button>
+      </div>
+    </form>
   );
 
   return (
@@ -233,54 +293,15 @@ export default function FeeForm() {
         </h1>
       </div>
       {error && <p className="flash">{error}</p>}
-      <form className="stack" key={fee?.id ?? "new"} onSubmit={onSubmit}>
-        <label>
-          {t("due_date")}
-          <DateInput name="due_on" defaultValue={fee?.due_on ?? todayIso()} required />
-        </label>
-        {type === "insurance" ? (
-          /* Two fees paid on their own days: each amount keeps the date it was
-             paid directly under it, and the two stand side by side. */
-          <div className="fees">
-            <div>
-              {amountField}
-              <label>
-                {t("payment_date")}
-                <DateInput name="paid_on" defaultValue={fee?.paid_on ?? ""} />
-              </label>
-              <p className="hint">{t("unpaid_hint")}</p>
-            </div>
-            <div>
-              <label>
-                {t("officer_fee")}
-                <input
-                  name="officer_amount"
-                  defaultValue={fee?.officer_amount != null ? formatBaht(fee.officer_amount) : ""}
-                />
-              </label>
-              <label>
-                {t("officer_paid_on")}
-                <DateInput name="officer_paid_on" defaultValue={fee?.officer_paid_on ?? ""} />
-              </label>
-            </div>
-          </div>
-        ) : (
-          amountField
-        )}
-        <label>
-          {t("note")}
-          <input name="note" defaultValue={fee?.note ?? ""} />
-        </label>
-        <div className="toolbar">
-          <button type="submit" disabled={busy}>
-            {t("save")}
-          </button>
-          <button type="button" onClick={() => navigate(`/contracts/${contractId}`)}>
-            {t("cancel")}
-          </button>
-        </div>
-      </form>
-
+      {type === "down" && fee
+        ? editingDown && (
+            <Modal onClose={() => setEditingDown(false)}>
+              <h2>{t("down_fee")}</h2>
+              {error && <p className="flash">{error}</p>}
+              {feeForm}
+            </Modal>
+          )
+        : feeForm}
       {type === "down" && fee && (
         <>
           <h2>{t("promised_schedule")}</h2>
@@ -334,8 +355,13 @@ export default function FeeForm() {
 
           <h2>{t("payments")}</h2>
           <dl className="facts">
-            <div>
-              <dt>{t("amount")}</dt>
+            <div className="editable">
+              <dt>
+                {t("amount")}
+                <button type="button" className="ghost edit" onClick={() => setEditingDown(true)}>
+                  {t("edit")}
+                </button>
+              </dt>
               <dd>{formatBaht(fee.amount)}</dd>
             </div>
             <div>
@@ -349,6 +375,10 @@ export default function FeeForm() {
             <div>
               <dt>{t("late_fee_down")}</dt>
               <dd>{formatBaht(fine)}</dd>
+            </div>
+            <div>
+              <dt>{t("due_date")}</dt>
+              <dd>{formatDate(fee.due_on)}</dd>
             </div>
           </dl>
 

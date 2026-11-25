@@ -347,13 +347,14 @@ dl.facts dd.sub {
 dl.facts dd small { font-size: 0.85rem; font-weight: 500; color: var(--ink-soft); }
 /* The contract's late-fee rules: three short label–value lines, not a
    sentence wrapping round an edit button. */
-dl.facts > div.rules dt {
+dl.facts > div.rules dt,
+dl.facts > div.editable dt {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: var(--s2);
 }
-dl.facts > div.rules dt button.edit {
+dl.facts dt button.edit {
   padding: 0 var(--s2);
   font-size: 0.75rem;
   line-height: 1.6;
