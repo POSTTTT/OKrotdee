@@ -228,38 +228,43 @@ export default function LateFees() {
         </>
       )}
 
-      <h2>{editing ? t("edit") : t("record_payment")}</h2>
-      <form className="stack" key={editing?.id ?? "new"} onSubmit={onSubmit}>
-        <label>
-          {t("payment_date")}
-          <DateInput name="paid_on" defaultValue={editing?.paid_on ?? today} required />
-        </label>
-        <label>
-          {t("amount")}
-          <input
-            name="amount"
-            defaultValue={formatBaht(editing ? editing.amount : Math.max(0, remaining))}
-            required
-          />
-        </label>
-        <label>
-          {t("note")}
-          <input name="note" defaultValue={editing?.note ?? ""} />
-        </label>
-        <div className="toolbar">
-          <button type="submit" disabled={busy}>
-            {t("save")}
-          </button>
-          {editing && (
-            <button
-              type="button"
-              onClick={() => navigate(`/contracts/${contractId}/late-fees/${kind}`)}
-            >
-              {t("cancel")}
+      <section className="paybox">
+        <h2>
+          {editing ? t("edit") : t("record_payment")} —{" "}
+          {t(kind === "down" ? "late_fee_down" : "late_fee_installments")}
+        </h2>
+        <form className="stack" key={editing?.id ?? "new"} onSubmit={onSubmit}>
+          <label>
+            {t("payment_date")}
+            <DateInput name="paid_on" defaultValue={editing?.paid_on ?? today} required />
+          </label>
+          <label>
+            {t("amount")}
+            <input
+              name="amount"
+              defaultValue={formatBaht(editing ? editing.amount : Math.max(0, remaining))}
+              required
+            />
+          </label>
+          <label>
+            {t("note")}
+            <input name="note" defaultValue={editing?.note ?? ""} />
+          </label>
+          <div className="toolbar">
+            <button type="submit" disabled={busy}>
+              {t("save")}
             </button>
-          )}
-        </div>
-      </form>
+            {editing && (
+              <button
+                type="button"
+                onClick={() => navigate(`/contracts/${contractId}/late-fees/${kind}`)}
+              >
+                {t("cancel")}
+              </button>
+            )}
+          </div>
+        </form>
+      </section>
     </>
   );
 }

@@ -1335,3 +1335,15 @@ dialog.modal .choice ~ .toolbar { justify-content: center; }
   transition: opacity var(--speed) var(--ease-out), visibility var(--speed);
 }
 .info:hover .tip, .info:focus-visible .tip { opacity: 1; visibility: visible; }
+
+/* Where money is written down: boxed and marked so it never reads as part of
+   the record above it, with the heading saying what the money is for. */
+.paybox {
+  margin: var(--s6) 0 0;
+  padding: var(--s4) var(--s5) var(--s5);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.paybox h2 { margin-top: 0; color: var(--ink); }

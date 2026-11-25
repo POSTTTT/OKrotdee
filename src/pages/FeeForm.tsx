@@ -525,19 +525,24 @@ export default function FeeForm() {
             </table>
           )}
 
-          <form className="toolbar" key={`part-${remaining}`} onSubmit={addPart}>
-            <DateInput name="part_paid_on" defaultValue={todayIso()} required />
-            <input
-              name="part_amount"
-              placeholder={t("amount")}
-              defaultValue={remaining > 0 ? formatBaht(remaining) : ""}
-              required
-            />
-            <input name="part_note" placeholder={t("note")} />
-            <button type="submit" disabled={busy}>
-              {t("record_payment")}
-            </button>
-          </form>
+          <section className="paybox">
+            <h2>
+              {t("record_payment")} — {t("down_payment")}
+            </h2>
+            <form className="toolbar" key={`part-${remaining}`} onSubmit={addPart}>
+              <DateInput name="part_paid_on" defaultValue={todayIso()} required />
+              <input
+                name="part_amount"
+                placeholder={t("amount")}
+                defaultValue={remaining > 0 ? formatBaht(remaining) : ""}
+                required
+              />
+              <input name="part_note" placeholder={t("note")} />
+              <button type="submit" disabled={busy}>
+                {t("record_payment")}
+              </button>
+            </form>
+          </section>
         </>
       )}
     </>

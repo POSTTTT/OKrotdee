@@ -194,35 +194,39 @@ export default function PaymentForm({
         </>
       )}
 
-      <h2>{editing ? t("edit") : t("record_payment")}</h2>
-      <form className="stack" key={editing?.id ?? "new"} onSubmit={onSubmit}>
-        <label>
-          {t("payment_date")}
-          <DateInput name="paid_on" defaultValue={paidOn} onChange={setPaidOn} required />
-        </label>
-        <label>
-          {t("amount")}
-          <input
-            name="amount"
-            defaultValue={formatBaht(editing ? editing.amount : balance)}
-            required
-          />
-        </label>
-        <label>
-          {t("note")}
-          <input name="note" defaultValue={editing?.note ?? ""} />
-        </label>
-        <div className="toolbar">
-          <button type="submit" disabled={busy}>
-            {t("save")}
-          </button>
-          {editing && (
-            <button type="button" className="ghost" onClick={() => setEditing(null)}>
-              {t("cancel")}
+      <section className="paybox">
+        <h2>
+          {editing ? t("edit") : t("record_payment")} — {t("seq")} {installment.seq}
+        </h2>
+        <form className="stack" key={editing?.id ?? "new"} onSubmit={onSubmit}>
+          <label>
+            {t("payment_date")}
+            <DateInput name="paid_on" defaultValue={paidOn} onChange={setPaidOn} required />
+          </label>
+          <label>
+            {t("amount")}
+            <input
+              name="amount"
+              defaultValue={formatBaht(editing ? editing.amount : balance)}
+              required
+            />
+          </label>
+          <label>
+            {t("note")}
+            <input name="note" defaultValue={editing?.note ?? ""} />
+          </label>
+          <div className="toolbar">
+            <button type="submit" disabled={busy}>
+              {t("save")}
             </button>
-          )}
-        </div>
-      </form>
+            {editing && (
+              <button type="button" className="ghost" onClick={() => setEditing(null)}>
+                {t("cancel")}
+              </button>
+            )}
+          </div>
+        </form>
+      </section>
     </>
   );
 }
