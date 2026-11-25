@@ -237,7 +237,10 @@ h1 {
 /* A contract names two records at once. Two bordered blocks with the tie
    drawn between them read faster than one run-on line. */
 .pair { display: flex; align-items: stretch; }
-.pagehead.record h1.pair { gap: 0; font-size: 1.3rem; }
+/* Keep the parties on one line: a co-signer plus a long car name used to push
+   the car card under the client card. Names wrap inside their cards instead. */
+.pagehead.record h1.pair { gap: 0; font-size: 1.3rem; flex-wrap: nowrap; }
+.pagehead.record h1.pair > * { min-width: 0; }
 .pair .party {
   display: flex;
   flex-direction: column;
