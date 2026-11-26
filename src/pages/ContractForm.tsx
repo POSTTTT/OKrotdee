@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
@@ -170,7 +171,7 @@ export default function ContractForm() {
           </dl>
         </>
       )}
-      <form className="stack" onSubmit={onSubmit}>
+      <form className="stack" id="contract-form" onSubmit={onSubmit}>
         {/* Who and what the contract ties together, kept apart from the money
             terms below: the client on the left, the car on the right, and
             anyone signing alongside them in a card of the same size beneath. */}
@@ -254,11 +255,16 @@ export default function ContractForm() {
           {t("first_due_date")}
           <DateInput name="first_due_date" required />
         </label>
+      </form>
+      {/* On the page itself, not inside it: a page slides in when it opens,
+          and anything fixed inside a moving block moves with it for that
+          moment. The buttons still submit the form above, by its id. */}
+      {createPortal(
         <div className="toolbar action-bar">
-          <button type="submit" name="action" value="preview" disabled={busy}>
+          <button type="submit" form="contract-form" name="action" value="preview" disabled={busy}>
             {t("preview_schedule")}
           </button>
-          <button type="submit" name="action" value="create" disabled={busy}>
+          <button type="submit" form="contract-form" name="action" value="create" disabled={busy}>
             {t("create_contract")}
           </button>
           {/* Changed their mind: the old contract goes back to running, and
@@ -276,8 +282,9 @@ export default function ContractForm() {
               {t("cancel_refinance")}
             </button>
           )}
-        </div>
-      </form>
+        </div>,
+        document.body,
+      )}
 
       {preview && (
         <>

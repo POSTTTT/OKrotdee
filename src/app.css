@@ -1367,7 +1367,7 @@ dialog.modal .choice ~ .toolbar { justify-content: center; }
   border-top: 1px solid var(--line-strong);
 }
 /* Room at the page's end, so the bar never covers the last row. */
-main:has(.action-bar) { padding-bottom: 4rem; }
+body:has(> .action-bar) main { padding-bottom: 4rem; }
 .choice button { padding: 0.45rem var(--s4); border-width: 1px; }
 /* A round "!" that explains what is beside it on hover or focus. */
 button.info {
