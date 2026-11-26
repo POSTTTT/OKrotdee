@@ -69,6 +69,12 @@ export default function FeeForm() {
   const [editingDue, setEditingDue] = useState(false);
   // Paid in one sum on one date, or split into promised parts: one at a time.
   const [split, setSplit] = useState(false);
+  // A dialog's error belongs to it: closing it clears the error, or it would
+  // linger on the page under a task already left.
+  const close = (setOpen: (open: boolean) => void) => {
+    setOpen(false);
+    setError(null);
+  };
   // Read by the confirm dialog, which saves outside the form's own submit.
   const dueForm = useRef<HTMLFormElement>(null);
 
@@ -301,7 +307,7 @@ export default function FeeForm() {
         <button
           type="button"
           onClick={() =>
-            editingDown ? setEditingDown(false) : navigate(`/contracts/${contractId}`)
+            editingDown ? close(setEditingDown) : navigate(`/contracts/${contractId}`)
           }
         >
           {t("cancel")}
@@ -335,7 +341,7 @@ export default function FeeForm() {
       {error && <p className="flash">{error}</p>}
       {type === "down" && fee
         ? editingDown && (
-            <Modal onClose={() => setEditingDown(false)}>
+            <Modal onClose={() => close(setEditingDown)}>
               <h2>{t("down_fee")}</h2>
               {error && <p className="flash">{error}</p>}
               {feeForm}
@@ -343,7 +349,7 @@ export default function FeeForm() {
           )
         : feeForm}
       {type === "down" && fee && editingDue && (
-        <Modal onClose={() => setEditingDue(false)}>
+        <Modal onClose={() => close(setEditingDue)}>
           <h2 className="center">{t("due_date")}</h2>
           {error && <p className="flash">{error}</p>}
           <div className="choice">
