@@ -1562,3 +1562,6 @@ details.menu .menu-items {
 }
 /* Each action the width of the list, its words at the start. */
 details.menu .menu-items > button { width: 100%; text-align: left; }
+
+/* A table's closing sums read as sums, not as one more row. */
+tbody tr.total td { font-weight: 600; background: var(--paper); }

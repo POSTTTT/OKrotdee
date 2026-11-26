@@ -152,6 +152,10 @@ export default function FeeForm() {
   };
 
   const paid = parts.reduce((sum, p) => sum + p.amount, 0);
+  // Of the down payment, how much the agreed parts already cover, and how
+  // much is still to be given a date.
+  const promisedTotal = promised.reduce((sum, p) => sum + p.amount, 0);
+  const unpromised = fee ? fee.amount - promisedTotal : 0;
   const remaining = fee ? fee.amount - paid : 0;
   // Each promised part is judged against its own date, so an arrangement kept
   // to costs nothing. With no arrangement the whole sum is due at once.
@@ -412,19 +416,31 @@ export default function FeeForm() {
                         </td>
                       </tr>
                     ))}
-                    <tr>
-                      <td>{t("amount")}</td>
-                      <td className="num">
-                        {formatBaht(promised.reduce((sum, p) => sum + p.amount, 0))}
-                      </td>
+                    <tr className="total">
+                      <td>{t("total")}</td>
+                      <td className="num">{formatBaht(promisedTotal)}</td>
+                      <td />
+                    </tr>
+                    {/* What is still to be given a date, so the next part
+                        need not be worked out by hand. */}
+                    <tr className="total">
+                      <td>{t("left_to_promise")}</td>
+                      <td className="num">{formatBaht(unpromised)}</td>
                       <td />
                     </tr>
                   </tbody>
                 </table>
               )}
-              <form className="toolbar" onSubmit={addPromised}>
+              {/* Keyed on what is left, so after each part the amount offered
+                  is the new remainder. */}
+              <form className="toolbar" key={`promise-${unpromised}`} onSubmit={addPromised}>
                 <DateInput name="promise_due_on" defaultValue={todayIso()} required />
-                <input name="promise_amount" placeholder={t("amount")} required />
+                <input
+                  name="promise_amount"
+                  placeholder={t("amount")}
+                  defaultValue={unpromised > 0 ? formatBaht(unpromised) : ""}
+                  required
+                />
                 <button type="submit" disabled={busy}>
                   {t("add_promise")}
                 </button>
