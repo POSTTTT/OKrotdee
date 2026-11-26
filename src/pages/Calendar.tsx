@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 
 import DueRows from "../DueRows";
 import { useApp } from "../context";
@@ -154,21 +153,6 @@ export default function Calendar() {
     );
   };
 
-  const entries = (iso: string) =>
-    (byDay.get(iso) ?? []).map((r) => {
-      const state = installmentState(r.amount_due, r.late_fee, r.paid_total, r.due_date, today);
-      return (
-        <Link key={r.id} className={`tag due ${state}`} to={`/contracts/${r.contract_id}`}>
-          <strong>{formatBaht(outstanding(r.amount_due, r.late_fee, r.paid_total))}</strong>
-          <small>
-            {r.first_name} {r.last_name}
-          </small>
-          {/* Two contracts for one client are told apart by the car. */}
-          {r.plate_number && <small>{r.plate_number}</small>}
-        </Link>
-      );
-    });
-
   return (
     <>
       <div className="pagehead">
@@ -258,12 +242,15 @@ export default function Calendar() {
               );
             })}
           </div>
+        ) : view === "day" ? (
+          /* One day is a list, not a grid of one cell: the same rows the week
+             and month end in, each with its client, car, balance and state. */
+          <div className="scroll">
+            <DueRows items={listed} />
+          </div>
         ) : (
-          <div className={`calendar${view === "day" ? " one" : ""}`}>
-            {(view === "day"
-              ? [intl(lang, { weekday: "short" }).format(Date.UTC(year, mon - 1, Number(at.slice(8))))]
-              : weekdayNames(lang)
-            ).map((name) => (
+          <div className="calendar">
+            {weekdayNames(lang).map((name) => (
               <div key={name} className="weekday">
                 {name}
               </div>
@@ -283,22 +270,22 @@ export default function Calendar() {
               return (
                 <div
                   key={iso}
-                  className={`day${iso === today ? " today" : ""}${view === "day" ? "" : " pick"}`}
-                  role={view === "day" ? undefined : "button"}
-                  tabIndex={view === "day" ? undefined : 0}
+                  className={`day pick${iso === today ? " today" : ""}`}
+                  role="button"
+                  tabIndex={0}
                   onClick={(event) => {
                     // A payment inside the cell opens its contract instead.
-                    if (view === "day" || (event.target as HTMLElement).closest("a")) return;
+                    if ((event.target as HTMLElement).closest("a")) return;
                     pick();
                   }}
                   onKeyDown={(event) => {
-                    if (view === "day" || (event.key !== "Enter" && event.key !== " ")) return;
+                    if (event.key !== "Enter" && event.key !== " ") return;
                     event.preventDefault();
                     pick();
                   }}
                 >
                   <span className="n">{Number(iso.slice(8))}</span>
-                  {view === "day" ? entries(iso) : badge(iso)}
+                  {badge(iso)}
                 </div>
               );
             })}
@@ -308,8 +295,7 @@ export default function Calendar() {
           </div>
         )}
 
-        {/* A single day is already its own list — repeating it underneath says
-            nothing twice. */}
+        {/* A single day is already this list, above. */}
         {view !== "day" && (
           <>
             <h2>{t("installments")}</h2>

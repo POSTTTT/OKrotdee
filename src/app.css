@@ -1246,20 +1246,9 @@ button.party.pick.locked:hover { border-color: var(--line-strong); }
 .calendar .day.pick.today:hover { background: var(--accent-wash); }
 .calendar .day .n { font-size: 0.85rem; color: var(--ink-soft); }
 .calendar .day.today .n { color: var(--accent); font-weight: 700; }
-/* A due payment wears the same status colour it wears in every table; only
-   its shape changes, from a chip on a line to a block in a cell. */
-.calendar .due {
-  display: block; padding: 0.2rem 0.35rem; text-decoration: none;
-  font-size: 0.75rem; line-height: 1.35; white-space: normal;
-}
-.calendar .due strong { display: block; }
 /* The whole day in one mark, in the corner it is read from: how many, and how
    bad the worst of them is. */
 .calendar .tag.count { margin-top: auto; align-self: flex-end; font-size: 0.72rem; }
-.calendar .due small {
-  display: block; font-weight: 400;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
 /* One slice of time at a time: a track holding four slices, with the chosen
    one raised out of it. A border per button would double up against its
    neighbour's; the track draws the only edge. */
@@ -1291,9 +1280,6 @@ button.party.pick.locked:hover { border-color: var(--line-strong); }
    track: the way back, the way home, the way on. */
 .stepper button.ghost { min-width: 2rem; }
 
-/* A single day has the whole width, so it may as well have the height too. */
-.calendar.one { grid-template-columns: 1fr; }
-.calendar.one .day { min-height: 12rem; }
 /* A year is read as twelve totals, not as 365 cells. */
 .calendar.year { grid-template-columns: repeat(4, 1fr); }
 .calendar.year .day {
