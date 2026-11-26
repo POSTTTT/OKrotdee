@@ -68,6 +68,9 @@ export default function Timeline({
   return (
     <>
       <div className="scroll log">
+        {/* Oldest at the top, newest at the bottom beside the row that adds
+            to it: say so at each end, or the order is a guess. */}
+        {entries.length > 0 && <p className="log-end">{t("log_older")}</p>}
         <ul className="timeline">
           {entries.map((e) => (
             <li key={e.id}>
@@ -149,6 +152,7 @@ export default function Timeline({
             </li>
           ))}
         </ul>
+        {entries.length > 0 && <p className="log-end">{t("log_newer")}</p>}
         {entries.length === 0 && <p className="empty">{t("none_yet")}</p>}
       </div>
       <form className="toolbar" onSubmit={add}>

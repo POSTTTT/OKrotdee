@@ -456,6 +456,23 @@ tbody td[colspan] {
 /* The history log in the same frame, with room around its cards. */
 .scroll.log { padding: var(--s4); background: var(--paper); }
 .scroll.log .empty { margin: 0; text-align: center; color: var(--ink-soft); }
+/* "Older" above the first entry, "Newer" below the last: a quiet label
+   between two hairlines, read only when the order is in question. */
+.scroll.log .log-end {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+.scroll.log .log-end::before, .scroll.log .log-end::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--line);
+}
+.scroll.log .log-end:first-child { margin-bottom: var(--s3); }
+.scroll.log .timeline + .log-end { margin-top: var(--s3); }
 /* Whatever follows a framed block stands clear of it — the row that adds to
    it, a form, a second table. Headings keep their own, larger, air. */
 :is(table, .scroll, ul.timeline, dl.facts, .calendar) + :not(h1, h2, h3) { margin-top: var(--s4); }
