@@ -17,6 +17,7 @@ import {
 } from "../db";
 import { isErrorKey } from "../lang";
 import { todayIso } from "../money";
+import { PROVINCES, joinPlate, splitPlate } from "../provinces";
 
 const STATUSES: CarStatus[] = ["available", "on_contract", "sold", "repossessed"];
 
@@ -54,7 +55,7 @@ export default function CarForm({ onClose }: { onClose?: () => void }) {
       const fields = {
         brand,
         series: text("series"),
-        plate_number: text("plate_number"),
+        plate_number: joinPlate(text("plate_number"), text("plate_province")),
         model_year: modelYear === null ? null : Number(modelYear),
         color: text("color"),
         mileage: mileage === null ? null : Number(mileage),
@@ -108,6 +109,7 @@ export default function CarForm({ onClose }: { onClose?: () => void }) {
     }
   };
 
+  const plate = splitPlate(car?.plate_number ?? null);
   const body = (
     <>
       <div className="pagehead">
@@ -126,7 +128,19 @@ export default function CarForm({ onClose }: { onClose?: () => void }) {
         </label>
         <label>
           {t("plate_number")}
-          <input name="plate_number" defaultValue={car?.plate_number ?? ""} />
+          {/* The letters and number, then the province from the list: one
+              spelling for each province, so plates compare and search alike. */}
+          <span className="with-unit plate">
+            <input name="plate_number" defaultValue={plate.number} placeholder="กข1234" />
+            <select name="plate_province" defaultValue={plate.province}>
+              <option value="">{t("province")}</option>
+              {PROVINCES.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </span>
         </label>
         <label>
           {t("model_year")}

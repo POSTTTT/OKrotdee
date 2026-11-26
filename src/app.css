@@ -1398,6 +1398,8 @@ form.stack label > select,
    row past the edge of its column. */
 .with-unit input { flex: 1; width: 0; min-width: 0; min-height: 2.625rem; }
 .with-unit select { flex: none; }
+/* A province name is as long as the plate beside it. */
+.with-unit.plate select { flex: 1; width: 0; min-width: 0; }
 
 /* An import's rows before they go in: short enough to leave the button in
    view, scrolling sideways when a sheet has many columns. */
