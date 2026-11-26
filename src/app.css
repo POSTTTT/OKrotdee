@@ -590,27 +590,23 @@ textarea { resize: vertical; }
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-wash);
 }
-.date-input select {
-  flex: 1;
-  min-width: 3.5rem;
+.date-input { position: relative; }
+.date-input .select { flex: 1; min-width: 3.5rem; }
+.date-input .select + .select { border-left: 1px solid var(--line); }
+.date-input .select:last-of-type { flex: 1.2; min-width: 4.5rem; }
+/* One field, not three dropdowns: no arrow and no frame on each part, the
+   value centred in it. The block takes the focus ring, not the part. */
+.date-input .select-button,
+.date-input .select-button:hover {
+  justify-content: center;
+  height: 100%;
+  min-height: 0;
+  padding: 0 var(--s2);
   border: 0;
   border-radius: 0;
   background: transparent;
-  text-align: center;
-  text-align-last: center;
-  /* One field, not three dropdowns: the native arrow on each part made it
-     read as three controls. Clicking any part still opens its list. */
-  appearance: none;
-  -webkit-appearance: none;
-  cursor: pointer;
+  box-shadow: none;
 }
-/* No day chosen yet: the placeholder reads quieter than a value. */
-.date-input select:has(option[value=""]:checked) { color: var(--ink-faint); }
-/* Keep the divider: zeroing the border here would drop the line the select
-   carries on its left whenever it is hovered or open. */
-.date-input select:hover, .date-input select:focus { border-color: var(--line); box-shadow: none; }
-.date-input select + select { border-left: 1px solid var(--line); }
-.date-input select:last-of-type { flex: 1.2; min-width: 4.5rem; }
 .date-input button.ghost {
   border: 0;
   border-left: 1px solid var(--line);
@@ -891,7 +887,6 @@ ul.timeline li {
 .timeline .card button.danger:hover { background: var(--alarm-wash); }
 /* An entry being corrected: a compact date, the note on the line below. */
 ul.timeline .date-input { height: 36px; min-height: 0; width: auto; }
-ul.timeline .date-input select { height: 100%; padding-block: 0; line-height: 34px; }
 ul.timeline .card > input { height: 36px; }
 ul.timeline .row-end { margin-left: auto; display: flex; gap: var(--s2); }
 ul.timeline a { color: var(--accent); }
@@ -1085,9 +1080,7 @@ dialog.modal::backdrop { background: var(--scrim); }
 /* The date block is one field: it stands as tall as the ones beside it, and
    its parts fill it rather than adding their height to its border. */
 .toolbar .date-input { height: 36px; min-height: 0; width: auto; }
-/* The field's own padding does not fit inside 36px and pushed the text below
-   the middle; one line box the height of the field centres it instead. */
-.toolbar .date-input select { height: 100%; padding-block: 0; line-height: 34px; }
+.toolbar .select-button { height: 36px; min-height: 0; padding-block: 0; }
 .toolbar input[name="q"] { min-width: 16rem; }
 
 /* The people signing alongside the main client, read in a dialog: one per
@@ -1435,29 +1428,93 @@ button.info:active { transform: none; }
 }
 .paybox h2 { margin-top: 0; color: var(--ink); }
 
-/* A dropdown stands as tall as the inputs beside it. WebKit draws a native
-   select shorter and ignores its height, so it is drawn plainly with an arrow
-   of our own. */
-form.stack label > select,
-.with-unit select,
-.mapping select {
-  appearance: none;
-  -webkit-appearance: none;
-  min-height: 2.625rem;
-  padding-right: 2.25rem;
-  background: var(--surface)
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%23625f57' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
-    no-repeat right var(--s3) center;
+/* ---------- Dropdown ---------- */
+
+/* The app's own dropdown (Select.tsx): a field that looks like the inputs
+   beside it, with an arrow, opening a list in the same look. */
+.select { position: relative; display: inline-flex; min-width: 0; }
+.select-button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  padding: var(--s2) 2.25rem var(--s2) var(--s3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  --arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%23625f57' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background: var(--surface) var(--arrow) no-repeat right var(--s3) center;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: border-color var(--speed), box-shadow var(--speed);
+}
+/* Written out in full: a button's hover would otherwise paint over the arrow. */
+.select-button:hover {
+  background: var(--surface) var(--arrow) no-repeat right var(--s3) center;
+  border-color: var(--ink-faint);
+}
+.select-button:active { transform: none; }
+.select-button:focus-visible, .select-button[aria-expanded="true"] {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-wash);
+}
+/* Nothing chosen yet: the placeholder reads quieter than a value. */
+.select-button.empty { color: var(--ink-faint); }
+/* The field the form reads: there to be submitted and checked, not seen. */
+.select-field {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+/* Placed against the window by Select.tsx, so no dialog edge cuts it off. */
+.select-list {
+  position: fixed;
+  z-index: 40;
+  margin: 0;
+  padding: var(--s1);
+  list-style: none;
+  max-height: 16rem;
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 10px rgba(var(--ink-rgb), 0.1), 0 12px 24px rgba(var(--ink-rgb), 0.12);
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+.select-list li {
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
   cursor: pointer;
 }
+.select-list li.active { background: var(--accent-wash); }
+.select-list li[aria-selected="true"] { color: var(--accent); font-weight: 600; }
+/* As tall as the inputs it stands beside in a form. */
+form.stack .select-button, .mapping .select-button { min-height: 2.625rem; }
 /* A number and the unit it counts in, as one row the width of a field. */
 .with-unit { display: flex; gap: var(--s2); min-width: 0; }
 /* Zero width, then grow: an input's own default width otherwise pushes the
    row past the edge of its column. */
 .with-unit input { flex: 1; width: 0; min-width: 0; min-height: 2.625rem; }
-.with-unit select { flex: none; }
+.with-unit .select { flex: none; }
 /* A province name is as long as the plate beside it. */
-.with-unit.plate select { flex: 1; width: 0; min-width: 0; }
+.with-unit.plate .select { flex: 1; width: 0; min-width: 0; }
 
 /* An import's rows before they go in: short enough to leave the button in
    view, scrolling sideways when a sheet has many columns. */

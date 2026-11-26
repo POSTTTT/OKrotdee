@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
+import Select from "./Select";
 import { useApp } from "./context";
 import { daysInMonth, parts, toIso } from "./dates";
 
 /**
  * A date field staff can read: Thai month names and Buddhist Era years. The
- * chosen date is written to a hidden input as an ISO string, so forms keep
- * reading it out of FormData like any other field.
+ * chosen date is written to a field of its own as an ISO string, so forms
+ * keep reading it out of FormData like any other field.
  */
 export default function DateInput({
   name,
@@ -31,6 +32,7 @@ export default function DateInput({
     onChange?.(next);
   };
   const chosen = parts(iso);
+  const field = useRef<HTMLSpanElement>(null);
 
   // A window wide enough for a 72-month contract and for looking back at old ones.
   const thisYear = new Date().getFullYear();
@@ -48,43 +50,46 @@ export default function DateInput({
   };
 
   return (
-    <span className="date-input">
-      <input type="hidden" name={name} value={iso} required={required} />
-      <select
-        aria-label={t("day")}
-        value={chosen?.day ?? ""}
-        onChange={(e) => change({ day: Number(e.target.value) || undefined })}
+    <span className="date-input" ref={field}>
+      {/* What the form reads. Invisible but not hidden, so `required` is
+          still checked; the browser's prompt then points at the day. */}
+      <input
+        className="select-field"
+        tabIndex={-1}
+        aria-hidden="true"
+        name={name}
+        value={iso}
         required={required}
-      >
-        <option value="">{t("day")}</option>
-        {Array.from({ length: daysInMonth(year, month) }, (_, i) => i + 1).map((d) => (
-          <option key={d} value={d}>
-            {d}
-          </option>
-        ))}
-      </select>
-      <select
+        onChange={() => {}}
+        onFocus={() => field.current?.querySelector("button")?.focus()}
+      />
+      <Select
+        aria-label={t("day")}
+        value={String(chosen?.day ?? "")}
+        onChange={(v) => change({ day: Number(v) || undefined })}
+        options={[
+          { value: "", label: t("day") },
+          ...Array.from({ length: daysInMonth(year, month) }, (_, i) => ({
+            value: String(i + 1),
+            label: String(i + 1),
+          })),
+        ]}
+      />
+      <Select
         aria-label={t("month")}
-        value={month}
-        onChange={(e) => change({ month: Number(e.target.value) })}
-      >
-        {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-          <option key={m} value={m}>
-            {monthName.format(Date.UTC(2000, m - 1, 1))}
-          </option>
-        ))}
-      </select>
-      <select
+        value={String(month)}
+        onChange={(v) => change({ month: Number(v) })}
+        options={Array.from({ length: 12 }, (_, i) => ({
+          value: String(i + 1),
+          label: monthName.format(Date.UTC(2000, i, 1)),
+        }))}
+      />
+      <Select
         aria-label={t("year")}
-        value={year}
-        onChange={(e) => change({ year: Number(e.target.value) })}
-      >
-        {years.map((y) => (
-          <option key={y} value={y}>
-            {y}
-          </option>
-        ))}
-      </select>
+        value={String(year)}
+        onChange={(v) => change({ year: Number(v) })}
+        options={years.map((y) => ({ value: String(y), label: String(y) }))}
+      />
       {!required && iso && (
         <button type="button" className="ghost" onClick={() => setIso("")}>
           {t("clear")}

@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import BackButton from "../BackButton";
 import DateInput from "../DateInput";
 import Modal from "../Modal";
+import Select from "../Select";
 import { useApp } from "../context";
 import {
   activeContractForCar,
@@ -132,14 +133,15 @@ export default function CarForm({ onClose }: { onClose?: () => void }) {
               spelling for each province, so plates compare and search alike. */}
           <span className="with-unit plate">
             <input name="plate_number" defaultValue={plate.number} placeholder="กข1234" />
-            <select name="plate_province" defaultValue={plate.province}>
-              <option value="">{t("province")}</option>
-              {PROVINCES.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
+            <Select
+              name="plate_province"
+              aria-label={t("province")}
+              defaultValue={plate.province}
+              options={[
+                { value: "", label: t("province") },
+                ...PROVINCES.map((p) => ({ value: p, label: p })),
+              ]}
+            />
           </span>
         </label>
         <label>
@@ -159,10 +161,15 @@ export default function CarForm({ onClose }: { onClose?: () => void }) {
               inputMode="numeric"
               defaultValue={car?.mileage != null ? car.mileage.toLocaleString("en-US") : ""}
             />
-            <select name="mileage_unit" defaultValue={car?.mileage_unit ?? "km"}>
-              <option value="km">{t("km")}</option>
-              <option value="mi">{t("mi")}</option>
-            </select>
+            <Select
+              name="mileage_unit"
+              aria-label={t("mileage")}
+              defaultValue={car?.mileage_unit ?? "km"}
+              options={[
+                { value: "km", label: t("km") },
+                { value: "mi", label: t("mi") },
+              ]}
+            />
           </span>
         </label>
         <label>
@@ -172,13 +179,12 @@ export default function CarForm({ onClose }: { onClose?: () => void }) {
         {car && (
           <label>
             {t("status")}
-            <select name="status" defaultValue={car.status}>
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {t(s)}
-                </option>
-              ))}
-            </select>
+            <Select
+              name="status"
+              aria-label={t("status")}
+              defaultValue={car.status}
+              options={STATUSES.map((s) => ({ value: s, label: t(s) }))}
+            />
           </label>
         )}
         <div className="form-end">

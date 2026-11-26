@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 
 import Info from "./Info";
 import Modal from "./Modal";
+import Select from "./Select";
 import { useApp } from "./context";
 import { formatDate } from "./dates";
 import { LABELS, isErrorKey } from "./lang";
@@ -165,22 +166,23 @@ export default function ImportDialog({
           {FIELDS[kind].map((field) => (
             <label key={field}>
               {t(field)}
-              <select
-                value={mapping[field] ?? ""}
-                onChange={(e) => {
+              <Select
+                aria-label={t(field)}
+                value={String(mapping[field] ?? "")}
+                onChange={(v) => {
                   const next = { ...mapping };
-                  if (e.target.value === "") delete next[field];
-                  else next[field] = Number(e.target.value);
+                  if (v === "") delete next[field];
+                  else next[field] = Number(v);
                   setMapping(next);
                 }}
-              >
-                <option value="">{t("import_not_used")}</option>
-                {headers.map((h, i) => (
-                  <option key={i} value={i}>
-                    {h || `${t("import_column")} ${i + 1}`}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: "", label: t("import_not_used") },
+                  ...headers.map((h, i) => ({
+                    value: String(i),
+                    label: h || `${t("import_column")} ${i + 1}`,
+                  })),
+                ]}
+              />
             </label>
           ))}
         </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import RowLink from "../RowLink";
+import Select from "../Select";
 import { useChains } from "../chains";
 import ConfirmButton from "../ConfirmButton";
 import { useApp } from "../context";
@@ -34,14 +35,15 @@ export default function Contracts() {
       </div>
       {error && <p className="flash alarm">{error}</p>}
       <div className="toolbar">
-        <select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">{t("status")}</option>
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {t(s)}
-            </option>
-          ))}
-        </select>
+        <Select
+          aria-label={t("status")}
+          value={status}
+          onChange={setStatus}
+          options={[
+            { value: "", label: t("status") },
+            ...STATUSES.map((s) => ({ value: s, label: t(s) })),
+          ]}
+        />
       </div>
       <div className="scroll page">
         <table>

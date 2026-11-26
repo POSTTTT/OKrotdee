@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import ImportDialog from "../ImportDialog";
 import CarForm from "./CarForm";
 import RowLink from "../RowLink";
+import Select from "../Select";
 import { useApp } from "../context";
 import { listCars, type Car } from "../db";
 
@@ -40,14 +41,15 @@ export default function Cars() {
           placeholder={t("search")}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">{t("status")}</option>
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {t(s)}
-            </option>
-          ))}
-        </select>
+        <Select
+          aria-label={t("status")}
+          value={status}
+          onChange={setStatus}
+          options={[
+            { value: "", label: t("status") },
+            ...STATUSES.map((s) => ({ value: s, label: t(s) })),
+          ]}
+        />
       </div>
       <div className="scroll page">
         <table>
