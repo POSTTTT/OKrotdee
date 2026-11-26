@@ -10,14 +10,16 @@ import {
   FIELDS,
   guessMapping,
   importRows,
+  importTwins,
   prepare,
   readSheet,
   type ImportKind,
   type Mapping,
+  type Prepared,
   type RowError,
 } from "./importing";
 import { formatBaht } from "./money";
-import { listClients, similarClients, type Client, type ClientFields } from "./db";
+import { listClients, type Client, type ClientFields } from "./db";
 
 /**
  * Clients or cars from a spreadsheet. The staff match columns to fields, see
@@ -54,9 +56,15 @@ export default function ImportDialog({
     else next.add(line);
     setLeft(next);
   };
-  const twins = (fields: unknown) =>
-    kind === "clients" ? similarClients(saved, fields as ClientFields) : [];
-  const maybeSaved = chosen.filter((r) => twins(r.fields).length > 0).length;
+  const twins = useMemo(
+    () =>
+      kind === "clients"
+        ? importTwins(saved, prepared.ready as Prepared<ClientFields>["ready"])
+        : new Map<number, string[]>(),
+    [kind, saved, prepared],
+  );
+  // All of them, ticked or not: they start unticked, and the count says why.
+  const maybeSaved = twins.size;
   const message = (key: string) => (isErrorKey(key) ? t(key) : key);
   // The columns staff matched, in the form order, shown as they will be saved.
   const shown = FIELDS[kind].filter((f) => f in mapping);
@@ -85,12 +93,12 @@ export default function ImportDialog({
       // the same list twice should not double every client.
       setLeft(
         new Set(
-          prepare(kind, sheet, guessed)
-            .ready.filter(
-              (r) =>
-                kind === "clients" && similarClients(existing, r.fields as ClientFields).length,
-            )
-            .map((r) => r.line),
+          kind === "clients"
+            ? importTwins(
+                existing,
+                prepare(kind, sheet, guessed).ready as Prepared<ClientFields>["ready"],
+              ).keys()
+            : [],
         ),
       );
     } catch (e) {
@@ -238,13 +246,8 @@ export default function ImportDialog({
                         </td>
                         <td>
                           {line}
-                          {twins(fields).length > 0 && (
-                            <span
-                              className="tag warn"
-                              title={twins(fields)
-                                .map((c) => `${c.first_name} ${c.last_name}`)
-                                .join(", ")}
-                            >
+                          {twins.has(line) && (
+                            <span className="tag warn" title={twins.get(line)!.join(", ")}>
                               {t("maybe_dup")}
                             </span>
                           )}

@@ -13,6 +13,8 @@ import {
   type CarFields,
   type ClientFields,
   type Db,
+  similarClients,
+  type Client,
 } from "./db";
 import { toSatang } from "./money";
 import { thaiId } from "./validate";
@@ -224,4 +226,25 @@ export async function importRows(
     }
   }
   return { imported, errors };
+}
+
+/**
+ * For each client row, who it may duplicate: a client already saved, or an
+ * earlier row of the same file (a row pasted twice). Keyed by line; the
+ * names say what it was matched against.
+ */
+export function importTwins(
+  saved: Client[],
+  ready: Prepared<ClientFields>["ready"],
+): Map<number, string[]> {
+  const twins = new Map<number, string[]>();
+  ready.forEach(({ line, fields }, i) => {
+    // Earlier rows stand in as clients, numbered below any real one.
+    const earlier = ready.slice(0, i).map((r) => ({ ...r.fields, id: -r.line }) as Client);
+    const found = similarClients([...saved, ...earlier], fields).map(
+      (c) => `${c.first_name} ${c.last_name}` + (c.id < 0 ? ` (${-c.id})` : ""),
+    );
+    if (found.length > 0) twins.set(line, found);
+  });
+  return twins;
 }

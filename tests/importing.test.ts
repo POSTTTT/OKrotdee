@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 import { utils, write } from "xlsx";
 
 import { getCar, listCars, listClients } from "../src/db";
-import { guessMapping, importRows, prepare, readSheet, toIsoDate } from "../src/importing";
+import {
+  guessMapping,
+  importRows,
+  importTwins,
+  prepare,
+  readSheet,
+  toIsoDate,
+} from "../src/importing";
 import { LABELS } from "../src/lang";
 import { memoryDb } from "./helpers";
 
@@ -134,5 +141,32 @@ describe("importRows", () => {
       { line: 3, error: "err_thai_id_taken" },
     ]);
     expect(await listClients(db)).toHaveLength(1);
+  });
+});
+
+describe("importTwins", () => {
+  const row = (line: number, first_name: string, phone: string | null = null) => ({
+    line,
+    fields: {
+      first_name,
+      last_name: "Jaidee",
+      nickname: null,
+      thai_id: null,
+      phone,
+      address: null,
+      lo_work: null,
+      note: null,
+    },
+  });
+
+  it("marks a row like a saved client, and a row repeating an earlier one", () => {
+    const saved = [{ id: 1, first_name: "Somchai", last_name: "Jaidee", phone: null }] as never[];
+    const twins = importTwins(saved, [row(2, "somchai"), row(3, "Malee"), row(4, "Malee")]);
+    expect([...twins.keys()]).toEqual([2, 4]);
+    expect(twins.get(4)).toEqual(["Malee Jaidee (3)"]);
+  });
+
+  it("leaves rows that are all different alone", () => {
+    expect(importTwins([], [row(2, "A", "0811111111"), row(3, "B", "0822222222")]).size).toBe(0);
   });
 });
