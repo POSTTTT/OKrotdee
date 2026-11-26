@@ -235,7 +235,8 @@ export default function FeeForm() {
 
   const amountField = (
     <label>
-      {t("amount")}
+      {/* Beside the police fine, "amount" did not say which of the two it was. */}
+      {type === "insurance" ? t("insurance_fee") : t("amount")}
       <input
         name="amount"
         defaultValue={
@@ -262,7 +263,7 @@ export default function FeeForm() {
             {amountField}
             <label>
               <span className="with-info">
-                {t("payment_date")}
+                {t("insurance_paid_on")}
                 <Info>{t("unpaid_hint")}</Info>
               </span>
               <DateInput name="paid_on" defaultValue={fee?.paid_on ?? ""} />
@@ -285,7 +286,7 @@ export default function FeeForm() {
       ) : (
         amountField
       )}
-      <label>
+      <label className="wide">
         {t("note")}
         <input name="note" defaultValue={fee?.note ?? ""} />
       </label>
