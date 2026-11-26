@@ -77,8 +77,24 @@ export async function settleInterruptedRebuilds(db: Db): Promise<void> {
   }
 }
 
-/** Open the application database, enable foreign keys, and apply the schema. */
-export async function openDatabase(): Promise<Db> {
+let opening: Promise<Db> | undefined;
+
+/**
+ * Open the application database, enable foreign keys, and apply the schema.
+ * Only once: React's StrictMode starts the app twice in development, and two
+ * rebuilds running side by side rename each other's tables out from under
+ * them.
+ */
+export function openDatabase(): Promise<Db> {
+  opening ??= openOnce().catch((e) => {
+    // Let a later try (say, once the drive is plugged in) start afresh.
+    opening = undefined;
+    throw e;
+  });
+  return opening;
+}
+
+async function openOnce(): Promise<Db> {
   const dir = await dataDir();
   // An external disk that is not plugged in would otherwise be treated as an
   // empty folder, and the shop would be handed a new, empty database.
