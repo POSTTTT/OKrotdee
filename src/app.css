@@ -272,7 +272,8 @@ a.party:hover { border-color: var(--accent); }
 
 /* The same pairing beside a form's title, where it only has to say which
    record is being edited: one line, quiet, out of the way of the heading. */
-.pair.inline { gap: var(--s1); font-size: 0.85rem; font-weight: 400; }
+/* Wraps under the title rather than running past the edge of a dialog. */
+.pair.inline { flex-wrap: wrap; gap: var(--s1); font-size: 0.85rem; font-weight: 400; }
 .pair.inline .party {
   flex-direction: row;
   align-items: baseline;
@@ -1015,7 +1016,9 @@ dialog.modal {
   box-shadow: 0 4px 10px rgba(var(--ink-rgb), 0.1), 0 24px 48px rgba(var(--ink-rgb), 0.16);
   overflow: auto;
 }
-dialog.modal .pagehead { padding-bottom: var(--s3); }
+/* The title keeps clear of the close button in the corner; the rule under it
+   still runs the full width. */
+dialog.modal .pagehead { padding-bottom: var(--s3); padding-right: 2.25rem; }
 dialog.modal h1 { font-size: 1.25rem; }
 dialog.modal form.stack { grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
 /* Adding a client or a car: two even columns, so each pair (first and last
@@ -1356,6 +1359,22 @@ dialog.modal .choice {
   border-bottom: 1px solid var(--line);
 }
 dialog.modal .choice ~ .toolbar { justify-content: center; }
+/* A long form's buttons held at the foot of the window, under a rule like the
+   one under the menu: always in reach, however far the schedule below runs. */
+.toolbar.action-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  justify-content: center;
+  margin: 0;
+  padding: var(--s3) var(--s5);
+  background: var(--paper);
+  border-top: 1px solid var(--line-strong);
+}
+/* Room at the page's end, so the bar never covers the last row. */
+main:has(.action-bar) { padding-bottom: 4rem; }
 .choice button { padding: 0.45rem var(--s4); border-width: 1px; }
 /* A round "!" that explains what is beside it on hover or focus. */
 button.info {

@@ -254,7 +254,7 @@ export default function ContractForm() {
           {t("first_due_date")}
           <DateInput name="first_due_date" required />
         </label>
-        <div className="toolbar">
+        <div className="toolbar action-bar">
           <button type="submit" name="action" value="preview" disabled={busy}>
             {t("preview_schedule")}
           </button>
