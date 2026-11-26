@@ -122,7 +122,8 @@ CREATE TABLE IF NOT EXISTS car_events (
   event_date  TEXT NOT NULL,
   type        TEXT NOT NULL
               CHECK (type IN ('acquired','contract_started','contract_completed',
-                              'repossessed','refinanced','sold','note')),
+                              'repossessed','refinanced','sold','status_changed',
+                              'note')),
   contract_id INTEGER REFERENCES contracts(id),
   note        TEXT
 );
@@ -351,6 +352,25 @@ export const REBUILDS = [
     "DROP TABLE client_events",
     "ALTER TABLE client_events_rebuilt RENAME TO client_events",
     "CREATE INDEX IF NOT EXISTS idx_client_events_client ON client_events(client_id)",
+  ],
+  // v4: a status set by hand on the car form is written to the car's log.
+  [
+    `CREATE TABLE car_events_rebuilt (
+       id          INTEGER PRIMARY KEY,
+       car_id      INTEGER NOT NULL REFERENCES cars(id),
+       event_date  TEXT NOT NULL,
+       type        TEXT NOT NULL
+                   CHECK (type IN ('acquired','contract_started','contract_completed',
+                                   'repossessed','refinanced','sold','status_changed',
+                                   'note')),
+       contract_id INTEGER REFERENCES contracts(id),
+       note        TEXT
+     )`,
+    "INSERT INTO car_events_rebuilt SELECT id, car_id, event_date, type," +
+      " contract_id, note FROM car_events",
+    "DROP TABLE car_events",
+    "ALTER TABLE car_events_rebuilt RENAME TO car_events",
+    "CREATE INDEX IF NOT EXISTS idx_car_events_car ON car_events(car_id)",
   ],
 ];
 

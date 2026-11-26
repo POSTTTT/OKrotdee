@@ -667,7 +667,8 @@ button.danger:disabled:hover { background: var(--alarm); }
 .tag.PAID, .tag.OK, .tag.available, .tag.completed, .tag.sold, .tag.contract_completed {
   background: var(--good-wash); color: var(--good); border-color: var(--good-edge);
 }
-.tag.UPCOMING, .tag.on_contract, .tag.cancelled, .tag.refinanced, .tag.note {
+.tag.UPCOMING, .tag.on_contract, .tag.cancelled, .tag.refinanced, .tag.note,
+.tag.status_changed {
   background: var(--idle-wash); color: var(--ink-soft); border-color: var(--line-strong);
 }
 .tag.active, .tag.contract_started, .tag.acquired {

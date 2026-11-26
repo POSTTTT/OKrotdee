@@ -50,7 +50,7 @@ function beforeRefinancing(): Database.Database {
   const old = new Database(":memory:");
   old.exec(
     SCHEMA.replace("'cancelled','refinanced'", "'cancelled'")
-      .replace("'repossessed','refinanced','sold','note'", "'repossessed','sold','note'")
+      .replace("'refinanced','sold','status_changed',", "'sold',")
       .replace("'repossessed','refinanced','note'", "'repossessed','note'")
       .replace("  refinanced_from    INTEGER REFERENCES contracts(id),\n", ""),
   );
@@ -129,6 +129,15 @@ describe("the rebuilds refinancing needed", () => {
         .prepare(
           "INSERT INTO client_events (client_id, event_date, type, contract_id)" +
             " VALUES (1, '2026-09-03', 'refinanced', 7)",
+        )
+        .run(),
+    ).not.toThrow();
+    // So does the entry a status set by hand writes to the car's log.
+    expect(() =>
+      old
+        .prepare(
+          "INSERT INTO car_events (car_id, event_date, type, note)" +
+            " VALUES (1, '2026-09-03', 'status_changed', 'Available → Sold')",
         )
         .run(),
     ).not.toThrow();

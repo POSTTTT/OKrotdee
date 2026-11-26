@@ -6,6 +6,7 @@ import DateInput from "../DateInput";
 import { useApp } from "../context";
 import {
   activeContractForCar,
+  addCarEvent,
   createCar,
   getCar,
   setCarStatus,
@@ -14,6 +15,7 @@ import {
   type CarStatus,
 } from "../db";
 import { isErrorKey } from "../lang";
+import { todayIso } from "../money";
 
 const STATUSES: CarStatus[] = ["available", "on_contract", "sold", "repossessed"];
 
@@ -71,7 +73,18 @@ export default function CarForm() {
           throw new Error("err_car_has_active_contract");
         }
         await updateCar(db, carId, fields);
-        if (changingStatus) await setCarStatus(db, carId, status!);
+        if (changingStatus) {
+          await setCarStatus(db, carId, status!);
+          // Written in the language in use, like a note typed by hand.
+          await addCarEvent(
+            db,
+            carId,
+            todayIso(),
+            "status_changed",
+            null,
+            `${t(car!.status)} → ${t(status!)}`,
+          );
+        }
         navigate(`/cars/${carId}`);
       } else {
         navigate(`/cars/${await createCar(db, fields)}`);
