@@ -4,6 +4,7 @@ import { startupBackup } from "./backup";
 import { clearDataDir } from "./datadir";
 import { openDatabase, type Db } from "./db";
 import { DEFAULT_LANG, isErrorKey, t as translate, type LangCode } from "./lang";
+import { applyTheme, savedTheme, type ThemeChoice } from "./theme";
 
 interface AppValue {
   db: Db;
@@ -12,6 +13,8 @@ interface AppValue {
   /** History logs list the newest entry first instead of last. */
   newestFirst: boolean;
   setNewestFirst: (on: boolean) => void;
+  theme: ThemeChoice;
+  setTheme: (choice: ThemeChoice) => void;
   t: (key: string) => string;
 }
 
@@ -47,6 +50,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("newestFirst", on ? "1" : "0");
     setNewestFirstState(on);
   };
+  const [theme, setThemeState] = useState(savedTheme);
+  const setTheme = (choice: ThemeChoice) => {
+    localStorage.setItem("theme", choice);
+    applyTheme(choice);
+    setThemeState(choice);
+  };
 
   if (error) {
     // Usually the drive holding the data is simply not plugged in. The way
@@ -74,6 +83,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setLang,
         newestFirst,
         setNewestFirst,
+        theme,
+        setTheme,
         t: (key: string) => translate(key, lang),
       }}
     >

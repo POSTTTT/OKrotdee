@@ -86,10 +86,52 @@
   --speed: 150ms;
   /* Stronger than the built-in curves: movement starts at once, then settles. */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  color-scheme: light;
+  /* A dropdown's arrow, drawn in the soft ink. */
+  --arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%23625f57' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 
   /* Georgia for the display line only. It carries no Thai, so a Thai heading
      falls through to the same face the rest of the app is set in. */
   --display: Georgia, "Times New Roman", "Sarabun", "Noto Serif Thai", serif;
+}
+
+/* The same sheet at night: warm charcoal paper, cream ink. The pen turns a
+   lighter slate so it still reads as the one thing to act on, and a filled
+   button prints dark on it rather than light. Every colour in the app comes
+   from these names, so this block is the whole of the dark look. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #1b1a18;
+  --surface: #252320;
+  --line: #3a3732;
+  --line-strong: #4f4b44;
+  --ink: #ece7dc;
+  --ink-soft: #b4ad9f;
+  --ink-faint: #8b8579;
+  /* Shadows and scrims are black at night, not ink: cream would glow. */
+  --ink-rgb: 0, 0, 0;
+  --row-hover: #2c2a26;
+  --on-dark: #14181b;
+  --glass: #252320b3;
+  --accent: #7ea3bc;
+  --accent-deep: #97b8cd;
+  --accent-wash: #27323a;
+  --accent-edge: #3f5667;
+  --good: #63c79d;
+  --good-wash: #1c3229;
+  --good-edge: #2f5a47;
+  --warn: #efa565;
+  --warn-wash: #392a1b;
+  --warn-edge: #6a4a2b;
+  --warn-ink: #f3b67f;
+  --alarm: #e4766a;
+  --alarm-deep: #ee9085;
+  --alarm-wash: #3a2320;
+  --alarm-edge: #6c3b35;
+  --alarm-ink: #f1a198;
+  --idle-wash: #2f2d29;
+  --scrim: rgba(0, 0, 0, 0.55);
+  --arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%23b4ad9f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
 * { box-sizing: border-box; }
@@ -1427,7 +1469,6 @@ button.info:active { transform: none; }
   padding: var(--s2) 2.25rem var(--s2) var(--s3);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
-  --arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%23625f57' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background: var(--surface) var(--arrow) no-repeat right var(--s3) center;
   color: var(--ink);
   font: inherit;
@@ -1551,3 +1592,8 @@ details.menu .menu-items > button { width: 100%; text-align: left; }
 
 /* A table's closing sums read as sums, not as one more row. */
 tbody tr.total td { font-weight: 600; background: var(--paper); }
+
+/* Settings' three kinds, as the same track the calendar's views sit in. */
+.views.settings-tabs { display: flex; margin-bottom: var(--s2); }
+/* The full width of the dialog, each kind an equal share, its name centred. */
+.views.settings-tabs button { flex: 1; justify-content: center; }
