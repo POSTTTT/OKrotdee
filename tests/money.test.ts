@@ -9,7 +9,7 @@ import {
   lateFee,
   outstanding,
   overdueCount,
-  scheduleStrikes,
+  scheduleFee,
   settledOn,
   toSatang,
 } from "../src/money";
@@ -265,7 +265,7 @@ describe("the shop's down payment case", () => {
   });
 });
 
-describe("scheduleStrikes", () => {
+describe("scheduleFee", () => {
   const today = "2025-06-01";
 
   it("collects nothing when the client keeps to the arrangement", () => {
@@ -278,8 +278,7 @@ describe("scheduleStrikes", () => {
       { paid_on: "2025-02-15", amount: 1_000_000 },
       { paid_on: "2025-02-19", amount: 1_000_000 },
     ];
-    expect(scheduleStrikes(promised, payments, today)).toBe(0);
-    expect(lateFee(2_000_000, scheduleStrikes(promised, payments, today))).toBe(0);
+    expect(scheduleFee(promised, payments, today)).toBe(0);
   });
 
   it("still charges when the whole sum was due at once", () => {
@@ -289,8 +288,8 @@ describe("scheduleStrikes", () => {
       { paid_on: "2025-02-15", amount: 1_000_000 },
       { paid_on: "2025-02-19", amount: 1_000_000 },
     ];
-    expect(scheduleStrikes(promised, payments, today)).toBe(1);
-    expect(lateFee(2_000_000, scheduleStrikes(promised, payments, today))).toBe(300_000);
+    // 15% of the whole 20,000, once.
+    expect(scheduleFee(promised, payments, today)).toBe(300_000);
   });
 
   it("charges only the part that was missed", () => {
@@ -303,7 +302,8 @@ describe("scheduleStrikes", () => {
       { paid_on: "2025-02-15", amount: 1_000_000 },
       { paid_on: "2025-03-25", amount: 1_000_000 },
     ];
-    expect(scheduleStrikes(promised, payments, today)).toBe(2);
+    // Two strikes, each 15% of the missed 10,000 part only.
+    expect(scheduleFee(promised, payments, today)).toBe(300_000);
   });
 
   it("keeps counting a promised part that has not arrived", () => {
@@ -314,9 +314,18 @@ describe("scheduleStrikes", () => {
     const payments = [{ paid_on: "2025-02-15", amount: 1_000_000 }];
     // Nothing since. The second part was promised on the 19th, so its strikes
     // land on 23 February, 23 March and 23 April: three by 19 May.
-    expect(scheduleStrikes(promised, payments, "2025-05-19")).toBe(3);
+    expect(scheduleFee(promised, payments, "2025-05-19")).toBe(3 * 150_000);
     // The fourth arrives on 23 May.
-    expect(scheduleStrikes(promised, payments, "2025-05-23")).toBe(4);
+    expect(scheduleFee(promised, payments, "2025-05-23")).toBe(4 * 150_000);
+  });
+
+  it("charges each late part a percent of its own amount", () => {
+    // 10,000 on 26 Nov and 15,000 on 30 Nov, neither paid: one strike each.
+    const promised = [
+      { due_on: "2026-11-26", amount: 1_000_000 },
+      { due_on: "2026-11-30", amount: 1_500_000 },
+    ];
+    expect(scheduleFee(promised, [], "2026-12-05")).toBe(150_000 + 225_000);
   });
 
   it("reads the parts in date order however they were entered", () => {
@@ -328,6 +337,6 @@ describe("scheduleStrikes", () => {
       { paid_on: "2025-02-15", amount: 1_000_000 },
       { paid_on: "2025-02-19", amount: 1_000_000 },
     ];
-    expect(scheduleStrikes(promised, payments, today)).toBe(0);
+    expect(scheduleFee(promised, payments, today)).toBe(0);
   });
 });

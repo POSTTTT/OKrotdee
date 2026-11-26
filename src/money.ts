@@ -205,25 +205,26 @@ export function settledOn(
 }
 
 /**
- * How many strikes a charge has collected, when it was promised in parts.
+ * The late fee on a charge promised in parts: a percent of each part for every
+ * time that part is late.
  *
  * Payments cover the promised parts in date order, so a part counts as met on
  * the day the money reaching it arrives. Keeping to the arrangement — 10,000
- * on the 15th and 10,000 on the 19th, both promised — collects nothing.
+ * on the 15th and 10,000 on the 19th, both promised — costs nothing.
  */
-export function scheduleStrikes(
+export function scheduleFee(
   promised: { due_on: string; amount: number }[],
   payments: { paid_on: string; amount: number }[],
   today: string,
   rules: Rules = DEFAULT_RULES,
 ): number {
   let target = 0;
-  let strikes = 0;
+  let fee = 0;
   for (const part of [...promised].sort((a, b) => a.due_on.localeCompare(b.due_on))) {
     target += part.amount;
-    strikes += lateCount(part.due_on, settledOn(target, payments) ?? today, rules);
+    fee += lateFee(part.amount, lateCount(part.due_on, settledOn(target, payments) ?? today, rules), rules);
   }
-  return strikes;
+  return fee;
 }
 
 /**

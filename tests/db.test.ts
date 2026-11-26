@@ -1219,7 +1219,8 @@ describe("the down payment's late fee", () => {
     await addFeePayment(db, feeId, "2025-02-15", 1_000_000);
     await addFeePayment(db, feeId, "2025-03-12", 1_000_000);
 
-    expect(await downFeeFine(db, contractId, "2025-06-01")).toBe(300_000);
+    // One strike, on the missed 10,000 part only.
+    expect(await downFeeFine(db, contractId, "2025-06-01")).toBe(150_000);
   });
 
   it("keeps counting while any of it is still owed", async () => {

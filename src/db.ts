@@ -16,10 +16,9 @@ import {
   DEFAULT_RULES,
   downRules,
   generateSchedule,
-  lateFee,
   outstanding,
   rulesOn,
-  scheduleStrikes,
+  scheduleFee,
   todayIso,
   type OverdueRow,
   type RuleChange,
@@ -1240,8 +1239,8 @@ export async function deleteFeePayment(db: Db, id: number): Promise<void> {
 }
 
 /**
- * The late fee owed on the down payment: the contract's percent of the whole
- * charge for every strike, counted until the last part of it is in.
+ * The late fee owed on the down payment: the contract's percent of each
+ * promised part for every strike that part collects.
  */
 export async function downFeeFine(
   db: Db,
@@ -1259,15 +1258,11 @@ export async function downFeeFine(
       ? rulesOn(contractRules(contract), await contractRuleChanges(db, contractId), down.due_on)
       : DEFAULT_RULES,
   );
-  return lateFee(
-    down.amount,
-    scheduleStrikes(
-      // With no arrangement on file, the whole down payment is due at once.
-      promised.length > 0 ? promised : [{ due_on: down.due_on, amount: down.amount }],
-      await feePayments(db, down.id),
-      today,
-      rules,
-    ),
+  return scheduleFee(
+    // With no arrangement on file, the whole down payment is due at once.
+    promised.length > 0 ? promised : [{ due_on: down.due_on, amount: down.amount }],
+    await feePayments(db, down.id),
+    today,
     rules,
   );
 }

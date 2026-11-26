@@ -31,9 +31,8 @@ import { isErrorKey } from "../lang";
 import {
   downRules,
   formatBaht,
-  lateFee,
   rulesOn,
-  scheduleStrikes,
+  scheduleFee,
   toSatang,
   todayIso,
   type RuleChange,
@@ -168,14 +167,10 @@ export default function FeeForm() {
   const downRulesNow = fee && downRules(rulesOn(contractRules(contract), ruleChanges, fee.due_on));
   const fine =
     fee && downRulesNow
-      ? lateFee(
-          fee.amount,
-          scheduleStrikes(
-            promised.length > 0 ? promised : [{ due_on: fee.due_on, amount: fee.amount }],
-            parts,
-            todayIso(),
-            downRulesNow,
-          ),
+      ? scheduleFee(
+          promised.length > 0 ? promised : [{ due_on: fee.due_on, amount: fee.amount }],
+          parts,
+          todayIso(),
           downRulesNow,
         )
       : 0;
