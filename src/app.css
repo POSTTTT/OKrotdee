@@ -1599,3 +1599,29 @@ tbody tr.total td { font-weight: 600; background: var(--paper); }
 .views.settings-tabs { display: flex; margin-bottom: var(--s2); }
 /* The full width of the dialog, each kind an equal share, its name centred. */
 .views.settings-tabs button { flex: 1; justify-content: center; }
+
+/* Something read, not typed, standing in a form's grid as a field would:
+   a label-style head on the labels' line, a box under it. */
+form.stack > .field { display: grid; gap: var(--s1); min-width: 0; }
+.field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+.field-head button.edit { padding: 0 var(--s2); font-size: 0.75rem; line-height: 1.6; }
+.rules-box {
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: space-between;
+  gap: 0.15rem var(--s3);
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 0.9rem;
+}
+.rules-box span { color: var(--ink-soft); }
+.rules-box b { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }

@@ -21,6 +21,8 @@ export const LABELS: Record<LangCode, Record<string, string>> = {
     expand: "Expand",
     contract_actions: "Contract",
     settings_general: "General",
+    rules_this_contract:
+      "For this contract only. The shop's rules, used for new contracts, stay as they are.",
     settings_visual: "Appearance",
     settings_data: "Data",
     theme: "Appearance",
@@ -260,6 +262,7 @@ export const LABELS: Record<LangCode, Record<string, string>> = {
     expand: "ขยาย",
     contract_actions: "จัดการสัญญา",
     settings_general: "ทั่วไป",
+    rules_this_contract: "ใช้กับสัญญานี้เท่านั้น ข้อกำหนดของร้านสำหรับสัญญาใหม่ยังคงเดิม",
     settings_visual: "การแสดงผล",
     settings_data: "ข้อมูล",
     theme: "ธีม",

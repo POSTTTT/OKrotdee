@@ -11,18 +11,22 @@ import { phoneList } from "../phone";
 import {
   addContractCoClient,
   availableCars,
+  checkRules,
   createContract,
   getContract,
   undoRefinance,
   installmentsFor,
   listClients,
+  shopRules,
   type Car,
   type Client,
   type ContractFields,
   type ContractRow,
 } from "../db";
 import { isErrorKey } from "../lang";
-import { formatBaht, generateSchedule, outstanding, toSatang } from "../money";
+import { formatBaht, generateSchedule, outstanding, toSatang, type Rules } from "../money";
+import Modal from "../Modal";
+import RulesForm from "../RulesForm";
 
 export default function ContractForm() {
   const { db, t } = useApp();
@@ -46,9 +50,15 @@ export default function ContractForm() {
   // insert a second contract and charge the client twice.
   const [busy, setBusy] = useState(false);
 
+  // The late-fee rules this contract will be written under: the shop's,
+  // unless changed here for this one contract before it is created.
+  const [rules, setRules] = useState<Rules | null>(null);
+  const [editRules, setEditRules] = useState(false);
+
   useEffect(() => {
     listClients(db).then(setClients);
     availableCars(db).then(setCars);
+    shopRules(db).then(setRules);
   }, [db]);
 
   useEffect(() => {
@@ -113,7 +123,7 @@ export default function ContractForm() {
         setPreview({ dates, amount: fields.installment_amount });
         return;
       }
-      const id = await createContract(db, fields);
+      const id = await createContract(db, fields, rules ?? undefined);
       for (const co of coIds) {
         if (co) await addContractCoClient(db, id, co);
       }
@@ -255,7 +265,45 @@ export default function ContractForm() {
           {t("first_due_date")}
           <DateInput name="first_due_date" required />
         </label>
+        {rules && (
+          /* Laid out as a field: its name on the labels' line, its box
+             starting where the inputs beside it start. */
+          <section className="field">
+            <span className="field-head">
+              {t("contract_rules")}
+              <button type="button" className="ghost edit" onClick={() => setEditRules(true)}>
+                {t("edit")}
+              </button>
+            </span>
+            <div className="rules-box">
+              <span>{t("rule_grace")}</span>
+              <b>{t("rule_days").replace("{n}", String(rules.graceDays))}</b>
+              <span>{t("rule_fee")}</span>
+              <b>{rules.feePercent}%</b>
+              <span>{t("rule_down_fee")}</span>
+              <b>{rules.downFeePercent}%</b>
+              <span>{t("rule_after")}</span>
+              <b>{t("rule_installments").replace("{n}", String(rules.repossessAfter))}</b>
+            </div>
+          </section>
+        )}
       </form>
+      {/* Outside the contract's form: the rules have a form of their own. */}
+      {rules && editRules && (
+        <Modal onClose={() => setEditRules(false)}>
+          <h2>{t("contract_rules")}</h2>
+          <RulesForm
+            rules={rules}
+            intro={t("rules_this_contract")}
+            onSave={async (next) => {
+              // Refused here, where it can be fixed, not when the contract is created.
+              checkRules(next);
+              setRules(next);
+              setEditRules(false);
+            }}
+          />
+        </Modal>
+      )}
       {/* On the page itself, not inside it: a page slides in when it opens,
           and anything fixed inside a moving block moves with it for that
           moment. The buttons still submit the form above, by its id. */}

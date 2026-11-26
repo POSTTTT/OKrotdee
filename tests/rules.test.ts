@@ -129,6 +129,16 @@ describe("shop and contract rules", () => {
     expect(contractRules((await getContract(db, after))!)).toEqual(RULES);
   });
 
+  it("writes a contract under rules set for it alone", async () => {
+    const db = await seeded();
+    const id = await createContract(db, CONTRACT, RULES);
+    expect(contractRules((await getContract(db, id))!)).toEqual(RULES);
+    expect(await shopRules(db)).toEqual(DEFAULT_RULES);
+    await expect(
+      createContract(db, { ...CONTRACT, car_id: 2 }, { ...RULES, feePercent: 101 }),
+    ).rejects.toThrow("err_rules_invalid");
+  });
+
   it("changes one contract only from the chosen due date on", async () => {
     const db = await seeded();
     const id = await createContract(db, CONTRACT);

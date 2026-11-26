@@ -245,7 +245,7 @@ export async function shopRules(db: Db): Promise<Rules> {
 }
 
 /** Turn down rules that would charge nonsense, before anything is written. */
-function checkRules(rules: Rules): void {
+export function checkRules(rules: Rules): void {
   const whole = (n: number, min: number) => Number.isInteger(n) && n >= min;
   if (!whole(rules.graceDays, 0) || !whole(rules.repossessAfter, 1)) {
     throw new Error("err_rules_invalid");
@@ -748,7 +748,16 @@ export async function listContracts(db: Db, status?: string): Promise<ContractRo
   return db.select<ContractRow>(sql + " ORDER BY c.created_at DESC", params);
 }
 
-export async function createContract(db: Db, fields: ContractFields): Promise<number> {
+/**
+ * Writes a contract under the shop's late-fee rules, or under `rules` when the
+ * staff set this one its own as they wrote it.
+ */
+export async function createContract(
+  db: Db,
+  fields: ContractFields,
+  given?: Rules,
+): Promise<number> {
+  if (given) checkRules(given);
   const car = await getCar(db, fields.car_id);
   if (!car || car.status !== "available") throw new Error("err_car_not_available");
   // A car's status can be edited by hand; the contracts table is the truth
@@ -765,7 +774,7 @@ export async function createContract(db: Db, fields: ContractFields): Promise<nu
     fields.due_day,
   );
 
-  const rules = await shopRules(db);
+  const rules = given ?? (await shopRules(db));
   const { lastInsertId } = await db.execute(
     "INSERT INTO contracts (client_id, car_id, car_price, down_payment," +
       " installment_amount, installment_count, due_day, first_due_date, note," +
