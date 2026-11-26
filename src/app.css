@@ -985,6 +985,17 @@ button.chain-toggle:hover { background: var(--accent-wash); color: var(--accent)
 
 tbody tr.clickable { cursor: pointer; }
 tbody tr.clickable:hover { background: var(--paper); }
+/* A contract's installments folded into one row: the count is the way in. */
+button.disclose {
+  padding: 0.2rem 0.5rem;
+  border: 0;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+/* Opened, its months sit under it, set back and on the page colour, so they
+   read as part of the row above rather than more clients. */
+tbody tr.in-group td { background: var(--paper); font-size: 0.92rem; }
+tbody tr.in-group td:first-child { padding-left: var(--s6); }
 
 /* ---------- Dialog ---------- */
 
