@@ -862,7 +862,7 @@ ul.timeline li {
 .timeline .card button.danger:hover { background: var(--alarm-wash); }
 /* An entry being corrected: a compact date, the note on the line below. */
 ul.timeline .date-input { height: 36px; min-height: 0; width: auto; }
-ul.timeline .date-input select { height: 100%; }
+ul.timeline .date-input select { height: 100%; padding-block: 0; line-height: 34px; }
 ul.timeline .card > input { height: 36px; }
 ul.timeline .row-end { margin-left: auto; display: flex; gap: var(--s2); }
 ul.timeline a { color: var(--accent); }
