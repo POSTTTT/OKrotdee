@@ -1482,3 +1482,26 @@ form.stack label > select,
 /* An unticked import row stays listed but reads as left out. */
 .scroll.preview tr.left-out td:not(:first-child) { opacity: 0.4; }
 .scroll.preview td .tag { margin-left: var(--s2); }
+
+/* ---------- Menu ---------- */
+
+/* A button holding a few actions, listed under it on demand. */
+details.menu { position: relative; }
+details.menu > summary { list-style: none; cursor: pointer; }
+details.menu > summary::-webkit-details-marker { display: none; }
+details.menu .menu-items {
+  position: absolute;
+  top: calc(100% + var(--s1));
+  right: 0;
+  z-index: 20;
+  display: grid;
+  gap: var(--s1);
+  min-width: 11rem;
+  padding: var(--s2);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 10px rgba(var(--ink-rgb), 0.1), 0 12px 24px rgba(var(--ink-rgb), 0.12);
+}
+/* Each action the width of the list, its words at the start. */
+details.menu .menu-items > button { width: 100%; text-align: left; }

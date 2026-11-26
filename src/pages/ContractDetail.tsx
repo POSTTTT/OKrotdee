@@ -8,6 +8,7 @@ import RowLink from "../RowLink";
 import { phoneList } from "../phone";
 import RulesForm from "../RulesForm";
 import ConfirmButton from "../ConfirmButton";
+import Menu from "../Menu";
 import { useApp } from "../context";
 import { formatDate } from "../dates";
 import {
@@ -172,8 +173,10 @@ export default function ContractDetail() {
               {t("next_contract")}
             </Link>
           )}
+          {/* The ways a running contract ends, under one button: each is rare,
+              and three loud buttons in the head read as the page's purpose. */}
           {contract.status === "active" && (
-            <>
+            <Menu label={<>{t("contract_actions")} ▾</>}>
               {/* The client keeps the car and starts again on new terms: this
                   contract closes and the next one is written from it. */}
               <ConfirmButton
@@ -207,7 +210,7 @@ export default function ContractDetail() {
               >
                 {t("cancel_contract")}
               </ConfirmButton>
-            </>
+            </Menu>
           )}
           {/* Refinancing flags the contract before the new one is written, so
               coming back here without finishing must lead to the form again. */}
