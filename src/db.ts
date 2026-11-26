@@ -317,6 +317,34 @@ export async function getClient(db: Db, id: number): Promise<Client | undefined>
   return (await db.select<Client>("SELECT * FROM clients WHERE id = ?", [id]))[0];
 }
 
+/**
+ * Saved clients who may be the same person: the same first and last name, or
+ * a phone number in common. Only a warning, never a refusal: two people can
+ * share a name, and a family can share a phone.
+ */
+export function similarClients(
+  existing: Client[],
+  fields: Pick<ClientFields, "first_name" | "last_name" | "phone">,
+  exceptId: number | null = null,
+): Client[] {
+  const name = (s: string) => s.trim().toLowerCase();
+  // Digits only, so "081-234-5678" and "0812345678" are one number. Too short
+  // to be a phone number is left out: it would match by chance.
+  const numbers = (phone: string | null) =>
+    (phone ?? "")
+      .split("\n")
+      .map((p) => p.replace(/\D/g, ""))
+      .filter((p) => p.length >= 6);
+  const theirs = new Set(numbers(fields.phone));
+  return existing.filter(
+    (c) =>
+      c.id !== exceptId &&
+      ((name(c.first_name) === name(fields.first_name) &&
+        name(c.last_name) === name(fields.last_name)) ||
+        numbers(c.phone).some((p) => theirs.has(p))),
+  );
+}
+
 export async function createClient(db: Db, fields: ClientFields): Promise<number> {
   const { lastInsertId } = await db.execute(
     "INSERT INTO clients (first_name, last_name, nickname, thai_id, phone," +

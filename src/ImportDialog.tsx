@@ -16,6 +16,7 @@ import {
   type RowError,
 } from "./importing";
 import { formatBaht } from "./money";
+import { listClients, similarClients, type Client, type ClientFields } from "./db";
 
 /**
  * Clients or cars from a spreadsheet. The staff match columns to fields, see
@@ -40,6 +41,8 @@ export default function ImportDialog({
   // Rows staff untick to leave out, by line: a file imported again after a
   // fix need only bring in the rows that were fixed.
   const [left, setLeft] = useState<Set<number>>(new Set());
+  // Clients already saved, to warn of rows that may be one of them.
+  const [saved, setSaved] = useState<Client[]>([]);
 
   const headers = rows[0] ?? [];
   const prepared = useMemo(() => prepare(kind, rows, mapping), [kind, rows, mapping]);
@@ -50,6 +53,9 @@ export default function ImportDialog({
     else next.add(line);
     setLeft(next);
   };
+  const twins = (fields: unknown) =>
+    kind === "clients" ? similarClients(saved, fields as ClientFields) : [];
+  const maybeSaved = chosen.filter((r) => twins(r.fields).length > 0).length;
   const message = (key: string) => (isErrorKey(key) ? t(key) : key);
   // The columns staff matched, in the form order, shown as they will be saved.
   const shown = FIELDS[kind].filter((f) => f in mapping);
@@ -69,9 +75,23 @@ export default function ImportDialog({
     if (!file) return;
     try {
       const sheet = readSheet(new Uint8Array(await file.arrayBuffer()), file.name);
+      const guessed = guessMapping(sheet[0] ?? [], kind, Object.values(LABELS));
+      const existing = kind === "clients" ? await listClients(db) : [];
+      setSaved(existing);
       setRows(sheet);
-      setLeft(new Set());
-      setMapping(guessMapping(sheet[0] ?? [], kind, Object.values(LABELS)));
+      setMapping(guessed);
+      // Rows that look like a client already saved start unticked: importing
+      // the same list twice should not double every client.
+      setLeft(
+        new Set(
+          prepare(kind, sheet, guessed)
+            .ready.filter(
+              (r) =>
+                kind === "clients" && similarClients(existing, r.fields as ClientFields).length,
+            )
+            .map((r) => r.line),
+        ),
+      );
     } catch (e) {
       setRows([]);
       setError(String(e));
@@ -174,6 +194,7 @@ export default function ImportDialog({
               : prepared.ready.length}{" "}
             {t("import_ready")}
             {prepared.errors.length > 0 && ` · ${prepared.errors.length} ${t("import_skipped")}`}
+            {maybeSaved > 0 && ` · ${maybeSaved} ${t("import_maybe_dup")}`}
           </p>
           {prepared.ready.length > 0 && shown.length > 0 && (
             <>
@@ -213,7 +234,19 @@ export default function ImportDialog({
                             onChange={() => toggle(line)}
                           />
                         </td>
-                        <td>{line}</td>
+                        <td>
+                          {line}
+                          {twins(fields).length > 0 && (
+                            <span
+                              className="tag warn"
+                              title={twins(fields)
+                                .map((c) => `${c.first_name} ${c.last_name}`)
+                                .join(", ")}
+                            >
+                              {t("maybe_dup")}
+                            </span>
+                          )}
+                        </td>
                         {shown.map((f) => (
                           <td key={f}>{show(f, (fields as Record<string, unknown>)[f])}</td>
                         ))}

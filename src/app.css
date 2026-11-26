@@ -644,6 +644,10 @@ button.danger:disabled:hover { background: var(--alarm); }
   color: var(--warn-ink);
   font-size: 0.92rem;
 }
+/* The clients a new one may duplicate, each a way to go and look. */
+.flash.duplicate p { margin: 0 0 var(--s2); }
+.flash.duplicate ul { margin: 0; padding-left: var(--s5); }
+.flash.duplicate small { margin-left: var(--s2); color: var(--ink-soft); }
 /* A failed backup is not the same class of event as a typo in a form. */
 .flash.alarm {
   background: var(--alarm-wash);
@@ -674,7 +678,7 @@ button.danger:disabled:hover { background: var(--alarm); }
 .tag.active, .tag.contract_started, .tag.acquired {
   background: var(--accent-wash); color: var(--accent); border-color: var(--accent-edge);
 }
-.tag.PARTIAL, .tag.OVERDUE, .tag.unpaid {
+.tag.PARTIAL, .tag.OVERDUE, .tag.unpaid, .tag.warn {
   background: var(--warn-wash); color: var(--warn); border-color: var(--warn-edge);
 }
 /* The loudest thing on the screen, because of what it means. */
@@ -1417,3 +1421,4 @@ form.stack label > select,
 .mapping label { flex: none; width: 10rem; }
 /* An unticked import row stays listed but reads as left out. */
 .scroll.preview tr.left-out td:not(:first-child) { opacity: 0.4; }
+.scroll.preview td .tag { margin-left: var(--s2); }

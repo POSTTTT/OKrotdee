@@ -67,6 +67,8 @@ import {
   toDollarPlaceholders,
   updateCar,
   updateClient,
+  similarClients,
+  type Client,
 } from "../src/db";
 import { contractFlag, outstanding, overdueCount, todayIso } from "../src/money";
 import { MIGRATIONS } from "../src/schema";
@@ -1262,5 +1264,35 @@ describe("co-signers", () => {
     await removeContractCoClient(db, id, 2);
     expect(await contractCoClients(db, id)).toHaveLength(0);
     expect(await clientContracts(db, 2)).toHaveLength(0);
+  });
+});
+
+describe("similarClients", () => {
+  const saved = [
+    { id: 1, first_name: "Somchai", last_name: "Jaidee", phone: "081-234-5678\n02-111-2222" },
+    { id: 2, first_name: "Malee", last_name: "Rakthai", phone: null },
+  ] as Client[];
+
+  it("finds the same name, whatever the case and spaces", () => {
+    const found = similarClients(saved, {
+      first_name: " somchai",
+      last_name: "JAIDEE ",
+      phone: null,
+    });
+    expect(found.map((c) => c.id)).toEqual([1]);
+  });
+
+  it("finds a phone in common, written either way", () => {
+    const found = similarClients(saved, { first_name: "A", last_name: "B", phone: "0812345678" });
+    expect(found.map((c) => c.id)).toEqual([1]);
+  });
+
+  it("leaves out the client being edited and anyone unalike", () => {
+    expect(
+      similarClients(saved, { first_name: "Somchai", last_name: "Jaidee", phone: null }, 1),
+    ).toEqual([]);
+    expect(similarClients(saved, { first_name: "Malee", last_name: "Other", phone: "12" })).toEqual(
+      [],
+    );
   });
 });

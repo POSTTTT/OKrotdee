@@ -1,10 +1,17 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
 import Modal from "../Modal";
 import { useApp } from "../context";
-import { createClient, getClient, updateClient, type Client } from "../db";
+import {
+  createClient,
+  getClient,
+  listClients,
+  similarClients,
+  updateClient,
+  type Client,
+} from "../db";
 import { ValidationError } from "../validate";
 
 /**
@@ -23,6 +30,9 @@ export default function ClientForm({ onClose }: { onClose?: () => void }) {
   const [phones, setPhones] = useState<string[]>([""]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Clients this one may duplicate, shown until staff save anyway.
+  const [similar, setSimilar] = useState<Client[]>([]);
+  const saveAnyway = useRef(false);
 
   useEffect(() => {
     if (clientId)
@@ -61,6 +71,12 @@ export default function ClientForm({ onClose }: { onClose?: () => void }) {
         thai_id: client?.thai_id ?? null,
         note: client?.note ?? null,
       };
+      if (!saveAnyway.current) {
+        const found = similarClients(await listClients(db), fields, clientId);
+        setSimilar(found);
+        if (found.length > 0) return;
+      }
+      saveAnyway.current = false;
       if (clientId) {
         await updateClient(db, clientId, fields);
         navigate(`/clients/${clientId}`);
@@ -136,15 +152,37 @@ export default function ClientForm({ onClose }: { onClose?: () => void }) {
           {t("lo_work")}
           <textarea name="lo_work" rows={3} defaultValue={client?.lo_work ?? ""} />
         </label>
+        {similar.length > 0 && (
+          <div className="flash duplicate">
+            <p>{t("dup_client")}</p>
+            <ul>
+              {similar.map((c) => (
+                <li key={c.id}>
+                  <Link to={`/clients/${c.id}`}>
+                    {c.first_name} {c.last_name}
+                    {c.nickname && ` (${c.nickname})`}
+                  </Link>
+                  {c.phone && <small>{c.phone.split("\n").join(", ")}</small>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div className="form-end">
           {onClose && (
             <button type="button" className="ghost" onClick={onClose}>
               {t("cancel")}
             </button>
           )}
-          <button type="submit" disabled={busy}>
-            {t("save")}
-          </button>
+          {similar.length > 0 ? (
+            <button type="submit" disabled={busy} onClick={() => (saveAnyway.current = true)}>
+              {t("save_anyway")}
+            </button>
+          ) : (
+            <button type="submit" disabled={busy}>
+              {t("save")}
+            </button>
+          )}
         </div>
       </form>
     </>
