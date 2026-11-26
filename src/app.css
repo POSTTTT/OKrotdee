@@ -288,7 +288,7 @@ a.party:hover { border-color: var(--accent); }
 
 /* A heading that carries the way to add one of the things it names. */
 h2.with-action { display: flex; align-items: center; gap: var(--s3); }
-.button.add {
+.button.add, button.add {
   padding: 0.1rem 0.5rem;
   font-size: 1rem;
   line-height: 1.4;
@@ -456,6 +456,17 @@ tbody td[colspan] {
 /* The history log in the same frame, with room around its cards. */
 .scroll.log { padding: var(--s4); background: var(--paper); }
 .scroll.log .empty { margin: 0; text-align: center; color: var(--ink-soft); }
+button.add svg { display: block; }
+/* The log opened large: the dialog widens and grows with the window, and the
+   log fills it rather than stopping at the height it has on the page. */
+dialog.modal:has(.expanded-log) {
+  width: min(72rem, calc(100vw - var(--s8)));
+  height: calc(100vh - var(--s8));
+  max-height: none;
+}
+dialog.modal:has(.expanded-log)[open] { display: flex; flex-direction: column; }
+.expanded-log { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.expanded-log .scroll.log { flex: 1; max-height: none; }
 /* "Older" above the first entry, "Newer" below the last: a quiet label
    between two hairlines, read only when the order is in question. */
 .scroll.log .log-end {

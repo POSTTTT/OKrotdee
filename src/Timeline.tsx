@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import ConfirmButton from "./ConfirmButton";
 import DateInput from "./DateInput";
+import Modal from "./Modal";
 import { useApp } from "./context";
 import { monthYear, parts } from "./dates";
 import { todayIso } from "./money";
@@ -22,12 +23,15 @@ export interface LogEntry {
  * through the same component.
  */
 export default function Timeline({
+  title,
   entries,
   contractLabel,
   onAdd,
   onSave,
   onDelete,
 }: {
+  /** The heading over the log, repeated on the larger view of it. */
+  title: string;
   entries: LogEntry[];
   /** What to call the contract an entry belongs to — the client, or the car. */
   contractLabel: (contractId: number) => string | null;
@@ -35,12 +39,14 @@ export default function Timeline({
   onSave: (id: number, eventDate: string, note: string | null) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
 }) {
-  const { lang, t } = useApp();
+  const { lang, t, newestFirst } = useApp();
   const [busy, setBusy] = useState(false);
   // The entry open for correction, and what it is being changed to.
   const [editing, setEditing] = useState<number | null>(null);
   const [editDate, setEditDate] = useState("");
   const [editNote, setEditNote] = useState("");
+  // The same log in a dialog nearly the size of the window, for a long history.
+  const [expanded, setExpanded] = useState(false);
 
   const run = async (job: () => Promise<void>) => {
     setBusy(true);
@@ -65,14 +71,18 @@ export default function Timeline({
     });
   };
 
-  return (
+  // Stored oldest first; turned round when the staff chose newest on top.
+  const shown = newestFirst ? [...entries].reverse() : entries;
+  const top = t(newestFirst ? "log_newer" : "log_older");
+  const bottom = t(newestFirst ? "log_older" : "log_newer");
+
+  const log = (
     <>
       <div className="scroll log">
-        {/* Oldest at the top, newest at the bottom beside the row that adds
-            to it: say so at each end, or the order is a guess. */}
-        {entries.length > 0 && <p className="log-end">{t("log_older")}</p>}
+        {/* Which end is which, said at each end, or the order is a guess. */}
+        {entries.length > 0 && <p className="log-end">{top}</p>}
         <ul className="timeline">
-          {entries.map((e) => (
+          {shown.map((e) => (
             <li key={e.id}>
               <span className="when">
                 <strong>{parts(e.event_date)?.day ?? ""}</strong>
@@ -152,7 +162,7 @@ export default function Timeline({
             </li>
           ))}
         </ul>
-        {entries.length > 0 && <p className="log-end">{t("log_newer")}</p>}
+        {entries.length > 0 && <p className="log-end">{bottom}</p>}
         {entries.length === 0 && <p className="empty">{t("none_yet")}</p>}
       </div>
       <form className="toolbar" onSubmit={add}>
@@ -162,6 +172,43 @@ export default function Timeline({
           {t("add_note")}
         </button>
       </form>
+    </>
+  );
+
+  return (
+    <>
+      <h2 className="with-action">
+        {title}
+        <button
+          type="button"
+          className="ghost add"
+          onClick={() => setExpanded(true)}
+          aria-label={t("expand")}
+          title={t("expand")}
+        >
+          {/* Two corners pulled outward: "make this bigger". */}
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <path
+              d="M10 2h4v4M6 14H2v-4M14 2l-5 5M2 14l5-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      </h2>
+      {expanded ? (
+        <Modal onClose={() => setExpanded(false)}>
+          <div className="pagehead">
+            <h1>{title}</h1>
+          </div>
+          <div className="expanded-log">{log}</div>
+        </Modal>
+      ) : (
+        log
+      )}
     </>
   );
 }

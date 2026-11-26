@@ -9,6 +9,9 @@ interface AppValue {
   db: Db;
   lang: LangCode;
   setLang: (code: LangCode) => void;
+  /** History logs list the newest entry first instead of last. */
+  newestFirst: boolean;
+  setNewestFirst: (on: boolean) => void;
   t: (key: string) => string;
 }
 
@@ -37,6 +40,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("lang", code);
     setLangState(code);
   };
+  // A preference of this machine's staff, like the language, not shop data.
+  // Newest on top unless they chose otherwise.
+  const [newestFirst, setNewestFirstState] = useState(localStorage.getItem("newestFirst") !== "0");
+  const setNewestFirst = (on: boolean) => {
+    localStorage.setItem("newestFirst", on ? "1" : "0");
+    setNewestFirstState(on);
+  };
 
   if (error) {
     // Usually the drive holding the data is simply not plugged in. The way
@@ -58,7 +68,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider
-      value={{ db, lang, setLang, t: (key: string) => translate(key, lang) }}
+      value={{
+        db,
+        lang,
+        setLang,
+        newestFirst,
+        setNewestFirst,
+        t: (key: string) => translate(key, lang),
+      }}
     >
       {backupError && (
         <p className="flash alarm">

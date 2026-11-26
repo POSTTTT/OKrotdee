@@ -154,8 +154,8 @@ export default function CarDetail() {
         </tbody>
       </table>
 
-      <h2>{t("timeline")}</h2>
       <Timeline
+        title={t("timeline")}
         entries={events}
         contractLabel={signer}
         onAdd={async (date, note) => {

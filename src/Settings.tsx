@@ -15,7 +15,7 @@ import { useApp } from "./context";
  * doing, because none of it is a place you go to.
  */
 export default function Settings({ onClose }: { onClose: () => void }) {
-  const { db, t, lang, setLang } = useApp();
+  const { db, t, lang, setLang, newestFirst, setNewestFirst } = useApp();
   const [version, setVersion] = useState("");
   const [folder, setFolder] = useState("");
   const [backups, setBackups] = useState("");
@@ -60,6 +60,16 @@ export default function Settings({ onClose }: { onClose: () => void }) {
         </button>
         <button className={lang === "en" ? undefined : "ghost"} onClick={() => setLang("en")}>
           English
+        </button>
+      </div>
+
+      <h2>{t("log_order")}</h2>
+      <div className="toolbar">
+        <button className={newestFirst ? "ghost" : undefined} onClick={() => setNewestFirst(false)}>
+          {t("log_oldest_first")}
+        </button>
+        <button className={newestFirst ? undefined : "ghost"} onClick={() => setNewestFirst(true)}>
+          {t("log_newest_first")}
         </button>
       </div>
 

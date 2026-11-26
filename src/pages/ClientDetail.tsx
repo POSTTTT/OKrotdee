@@ -156,8 +156,8 @@ export default function ClientDetail() {
         </tbody>
       </table>
 
-      <h2>{t("history")}</h2>
       <Timeline
+        title={t("history")}
         entries={events}
         contractLabel={subject}
         onAdd={async (date, note) => {
