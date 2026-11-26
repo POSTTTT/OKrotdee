@@ -145,7 +145,14 @@ export default function Select({
         aria-controls={open ? id : undefined}
         aria-activedescendant={open ? `${id}-${active}` : undefined}
         aria-label={ariaLabel}
-        onClick={() => (open ? setOpen(false) : show())}
+        onClick={() => {
+          // WebKit does not focus a button on click, so the keys meant for
+          // the open list (arrows, Enter, Escape) would go past it to the
+          // page, and Escape would close the dialog around it.
+          button.current?.focus();
+          if (open) setOpen(false);
+          else show();
+        }}
         onKeyDown={onKeyDown}
       >
         {chosen?.label ?? ""}
