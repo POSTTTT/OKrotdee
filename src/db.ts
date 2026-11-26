@@ -152,7 +152,26 @@ async function openOnce(): Promise<Db> {
   for (const statement of MIGRATIONS) {
     await database.execute(statement).catch(() => {});
   }
+  await joinPlates(db);
   return db;
+}
+
+/**
+ * Plates saved before they were joined on save. Cheap to run on every start:
+ * only plates that still have a gap are looked at. One already taken by its
+ * joined spelling is left as it is rather than refused.
+ */
+export async function joinPlates(db: Db): Promise<void> {
+  const cars = await db.select<{ id: number; plate_number: string }>(
+    "SELECT id, plate_number FROM cars WHERE plate_number LIKE '% %'",
+  );
+  for (const { id, plate_number } of cars) {
+    const joined = normalizePlate(plate_number);
+    if (joined === plate_number) continue;
+    await db
+      .execute("UPDATE cars SET plate_number = ? WHERE id = ?", [joined, id])
+      .catch(() => {});
+  }
 }
 
 export interface Client {
@@ -531,12 +550,21 @@ export interface CarEvent {
   note: string | null;
 }
 
+/**
+ * A plate as the shop writes it: the letters and the number joined, "ฆม4290
+ * ชลบุรี", not "ฆม 4290 ชลบุรี". One spelling, so the duplicate check and
+ * search find a plate however it was typed.
+ */
+export function normalizePlate(plate: string | null): string | null {
+  return plate && plate.replace(/([\u0E00-\u0E7FA-Za-z])\s+(\d)/g, "$1$2");
+}
+
 const CAR_VALUES = (f: CarFields) => [
   f.brand,
   f.series,
   f.model_year,
   f.color,
-  f.plate_number,
+  normalizePlate(f.plate_number),
   f.registration_no,
   f.chassis_no,
   f.mileage,
@@ -556,7 +584,7 @@ export async function listCars(db: Db, status?: string, q?: string): Promise<Car
   }
   if (q) {
     sql += " AND (brand LIKE ? OR series LIKE ? OR plate_number LIKE ?)";
-    params.push(`%${q}%`, `%${q}%`, `%${q}%`);
+    params.push(`%${q}%`, `%${q}%`, `%${normalizePlate(q)}%`);
   }
   return db.select<Car>(sql + " ORDER BY brand, series", params);
 }

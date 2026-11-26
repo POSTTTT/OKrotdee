@@ -69,6 +69,8 @@ import {
   updateClient,
   similarClients,
   type Client,
+  joinPlates,
+  normalizePlate,
 } from "../src/db";
 import { contractFlag, outstanding, overdueCount, todayIso } from "../src/money";
 import { MIGRATIONS } from "../src/schema";
@@ -1294,5 +1296,35 @@ describe("similarClients", () => {
     expect(similarClients(saved, { first_name: "Malee", last_name: "Other", phone: "12" })).toEqual(
       [],
     );
+  });
+});
+
+describe("plates", () => {
+  it("joins the letters to the number, and nothing else", () => {
+    expect(normalizePlate("ฆม 4290 ชลบุรี")).toBe("ฆม4290 ชลบุรี");
+    expect(normalizePlate("2ขข  7155 ชลบุรี")).toBe("2ขข7155 ชลบุรี");
+    expect(normalizePlate("บว1518")).toBe("บว1518");
+    expect(normalizePlate(null)).toBeNull();
+  });
+
+  it("saves a plate joined and finds it however it is typed", async () => {
+    const db = memoryDb();
+    const id = await createCar(db, { ...CAR, plate_number: "ฆม 4290 ชลบุรี" });
+    expect((await getCar(db, id))?.plate_number).toBe("ฆม4290 ชลบุรี");
+    expect(await listCars(db, undefined, "ฆม 4290")).toHaveLength(1);
+    await expect(createCar(db, { ...CAR, plate_number: "ฆม4290 ชลบุรี" })).rejects.toThrow();
+  });
+
+  it("joins plates saved before, leaving one whose joined spelling is taken", async () => {
+    const db = memoryDb();
+    const a = await createCar(db, { ...CAR, plate_number: "x" });
+    const b = await createCar(db, { ...CAR, plate_number: "ขค1 ชลบุรี" });
+    await db.execute("UPDATE cars SET plate_number = 'ขค 2481 ชลบุรี' WHERE id = ?", [a]);
+    await db.execute("UPDATE cars SET plate_number = 'ขค1 ชลบุรี' WHERE id = ?", [b]);
+    const c = await createCar(db, { ...CAR, plate_number: "y" });
+    await db.execute("UPDATE cars SET plate_number = 'ขค 1 ชลบุรี' WHERE id = ?", [c]);
+    await joinPlates(db);
+    expect((await getCar(db, a))?.plate_number).toBe("ขค2481 ชลบุรี");
+    expect((await getCar(db, c))?.plate_number).toBe("ขค 1 ชลบุรี");
   });
 });

@@ -6,7 +6,14 @@
 
 import { read, utils } from "xlsx";
 
-import { createCar, createClient, type CarFields, type ClientFields, type Db } from "./db";
+import {
+  createCar,
+  createClient,
+  normalizePlate,
+  type CarFields,
+  type ClientFields,
+  type Db,
+} from "./db";
 import { toSatang } from "./money";
 import { thaiId } from "./validate";
 
@@ -145,7 +152,7 @@ function toCar(cell: (f: string) => string | null): CarFields {
     series: cell("series"),
     model_year: year !== null && year > 2400 ? year - 543 : year,
     color: cell("color"),
-    plate_number: cell("plate_number"),
+    plate_number: normalizePlate(cell("plate_number")),
     // Not offered: nothing shows it, and staff mistook it for the plate.
     registration_no: null,
     chassis_no: cell("chassis_no"),
