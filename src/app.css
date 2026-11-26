@@ -529,7 +529,9 @@ dialog.modal:has(.expanded-log)[open] { display: flex; flex-direction: column; }
 .scroll.log .timeline + .log-end { margin-top: var(--s3); }
 /* Whatever follows a framed block stands clear of it — the row that adds to
    it, a form, a second table. Headings keep their own, larger, air. */
-:is(table, .scroll, ul.timeline, dl.facts, .calendar) + :not(h1, h2, h3) { margin-top: var(--s4); }
+/* Never a dialog: its margin is what centres it, and a top margin here hung
+   every dialog opened after a list from the top of the window. */
+:is(table, .scroll, ul.timeline, dl.facts, .calendar) + :not(h1, h2, h3, dialog) { margin-top: var(--s4); }
 
 /* ---------- Forms ---------- */
 
