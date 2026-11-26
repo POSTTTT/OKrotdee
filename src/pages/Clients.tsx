@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import ImportDialog from "../ImportDialog";
+import ClientForm from "./ClientForm";
 import RowLink from "../RowLink";
 import { useApp } from "../context";
 import { phoneList } from "../phone";
@@ -11,6 +12,7 @@ export default function Clients() {
   const { db, t } = useApp();
   const [query, setQuery] = useState("");
   const [importing, setImporting] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [reload, setReload] = useState(0);
   const [clients, setClients] = useState<Client[]>([]);
 
@@ -26,9 +28,7 @@ export default function Clients() {
           <button className="ghost" onClick={() => setImporting(true)}>
             {t("import")}
           </button>
-          <Link className="button" to="/clients/new">
-            + {t("new")}
-          </Link>
+          <button onClick={() => setAdding(true)}>+ {t("new")}</button>
         </span>
       </div>
       <div className="toolbar">
@@ -68,6 +68,7 @@ export default function Clients() {
           </tbody>
         </table>
       </div>
+      {adding && <ClientForm onClose={() => setAdding(false)} />}
       {importing && (
         <ImportDialog
           kind="clients"

@@ -887,6 +887,8 @@ td small { display: block; font-size: 0.82rem; color: var(--ink-faint); }
 /* A field that takes more than one value: the box, and the way to drop it. */
 .repeat { display: flex; align-items: center; gap: var(--s1); }
 .repeat input { flex: 1; }
+/* A small "+ another" under a repeated field, not a button the size of Save. */
+button.add-more { justify-self: start; padding: var(--s1) var(--s2); font-size: 0.85rem; }
 
 /* The installments folded under an overdue contract: quieter than the row
    that carries them, and set in from it. */
@@ -973,6 +975,21 @@ dialog.modal {
 dialog.modal .pagehead { padding-bottom: var(--s3); }
 dialog.modal h1 { font-size: 1.25rem; }
 dialog.modal form.stack { grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
+/* Adding a client or a car: two even columns, so each pair (first and last
+   name, address and workplace) shares a row, and every box fills its column
+   instead of keeping its own width and running past the dialog's edge. */
+dialog.modal form.stack:has(> .form-end) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+dialog.modal form.stack > label { min-width: 0; }
+dialog.modal form.stack > label > :is(input, textarea, select) { width: 100%; min-width: 0; }
+/* The way out and the way on, together at the bottom right, under a line. */
+dialog.modal form.stack > .form-end {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s2);
+  margin-top: var(--s2);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--line);
+}
 /* The first heading inside the dialog has the head above it already. */
 dialog.modal h2 { margin-top: var(--s5); }
 /* A square on the title's own line, not a button-shaped thing floating above

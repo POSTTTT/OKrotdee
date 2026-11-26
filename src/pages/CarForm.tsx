@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
 import DateInput from "../DateInput";
+import Modal from "../Modal";
 import { useApp } from "../context";
 import {
   activeContractForCar,
@@ -19,7 +20,11 @@ import { todayIso } from "../money";
 
 const STATUSES: CarStatus[] = ["available", "on_contract", "sold", "repossessed"];
 
-export default function CarForm() {
+/**
+ * Adds a record when given onClose, as a dialog over the list; edits one on
+ * its own page otherwise.
+ */
+export default function CarForm({ onClose }: { onClose?: () => void }) {
   const { db, t } = useApp();
   const navigate = useNavigate();
   const { id } = useParams();
@@ -103,11 +108,11 @@ export default function CarForm() {
     }
   };
 
-  return (
+  const body = (
     <>
       <div className="pagehead">
-        <BackButton />
-        <h1>{t("cars")}</h1>
+        {!onClose && <BackButton />}
+        <h1>{onClose ? t("add_car") : t("cars")}</h1>
       </div>
       {error && <p className="flash">{error}</p>}
       <form className="stack" key={car?.id ?? "new"} onSubmit={onSubmit}>
@@ -162,7 +167,12 @@ export default function CarForm() {
             </select>
           </label>
         )}
-        <div>
+        <div className="form-end">
+          {onClose && (
+            <button type="button" className="ghost" onClick={onClose}>
+              {t("cancel")}
+            </button>
+          )}
           <button type="submit" disabled={busy}>
             {t("save")}
           </button>
@@ -170,4 +180,5 @@ export default function CarForm() {
       </form>
     </>
   );
+  return onClose ? <Modal onClose={onClose}>{body}</Modal> : body;
 }

@@ -2,11 +2,16 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
+import Modal from "../Modal";
 import { useApp } from "../context";
 import { createClient, getClient, updateClient, type Client } from "../db";
 import { ValidationError } from "../validate";
 
-export default function ClientForm() {
+/**
+ * Adds a record when given onClose, as a dialog over the list; edits one on
+ * its own page otherwise.
+ */
+export default function ClientForm({ onClose }: { onClose?: () => void }) {
   const { db, t } = useApp();
   const navigate = useNavigate();
   const { id } = useParams();
@@ -70,11 +75,11 @@ export default function ClientForm() {
     }
   };
 
-  return (
+  const body = (
     <>
       <div className="pagehead">
-        <BackButton />
-        <h1>{t("clients")}</h1>
+        {!onClose && <BackButton />}
+        <h1>{onClose ? t("add_client") : t("clients")}</h1>
       </div>
       {error && <p className="flash">{error}</p>}
       <form className="stack paired" key={client?.id ?? "new"} onSubmit={onSubmit}>
@@ -114,7 +119,11 @@ export default function ClientForm() {
             </span>
           ))}
           <span>
-            <button type="button" className="ghost" onClick={() => setPhones([...phones, ""])}>
+            <button
+              type="button"
+              className="ghost add-more"
+              onClick={() => setPhones([...phones, ""])}
+            >
               + {t("phone")}
             </button>
           </span>
@@ -127,7 +136,12 @@ export default function ClientForm() {
           {t("lo_work")}
           <textarea name="lo_work" rows={3} defaultValue={client?.lo_work ?? ""} />
         </label>
-        <div>
+        <div className="form-end">
+          {onClose && (
+            <button type="button" className="ghost" onClick={onClose}>
+              {t("cancel")}
+            </button>
+          )}
           <button type="submit" disabled={busy}>
             {t("save")}
           </button>
@@ -135,4 +149,5 @@ export default function ClientForm() {
       </form>
     </>
   );
+  return onClose ? <Modal onClose={onClose}>{body}</Modal> : body;
 }

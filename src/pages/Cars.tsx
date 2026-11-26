@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import ImportDialog from "../ImportDialog";
+import CarForm from "./CarForm";
 import RowLink from "../RowLink";
 import { useApp } from "../context";
 import { listCars, type Car } from "../db";
@@ -12,6 +13,7 @@ export default function Cars() {
   const { db, t } = useApp();
   const [query, setQuery] = useState("");
   const [importing, setImporting] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [reload, setReload] = useState(0);
   const [status, setStatus] = useState("");
   const [cars, setCars] = useState<Car[]>([]);
@@ -28,9 +30,7 @@ export default function Cars() {
           <button className="ghost" onClick={() => setImporting(true)}>
             {t("import")}
           </button>
-          <Link className="button" to="/cars/new">
-            + {t("new")}
-          </Link>
+          <button onClick={() => setAdding(true)}>+ {t("new")}</button>
         </span>
       </div>
       <div className="toolbar">
@@ -84,6 +84,7 @@ export default function Cars() {
           </tbody>
         </table>
       </div>
+      {adding && <CarForm onClose={() => setAdding(false)} />}
       {importing && (
         <ImportDialog
           kind="cars"

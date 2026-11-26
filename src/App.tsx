@@ -68,11 +68,9 @@ export default function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/clients" element={<Clients />} />
-            <Route path="/clients/new" element={<ClientForm />} />
             <Route path="/clients/:id" element={<ClientDetail />} />
             <Route path="/clients/:id/edit" element={<ClientForm />} />
             <Route path="/cars" element={<Cars />} />
-            <Route path="/cars/new" element={<CarForm />} />
             <Route path="/cars/:id" element={<CarDetail />} />
             <Route path="/cars/:id/edit" element={<CarForm />} />
             <Route path="/contracts" element={<Contracts />} />
