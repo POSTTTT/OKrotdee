@@ -1677,7 +1677,7 @@ article.update > .title {
   padding-bottom: var(--s4);
   border-bottom: 1px solid var(--line);
 }
-article.update > .title h1 { margin: 0; color: var(--accent); }
+article.update > .title h1 { margin: 0; justify-content: center; color: var(--accent); }
 article.update > .title p { margin: var(--s1) 0 0; color: var(--ink-soft); }
 article.update h2 {
   margin: var(--s6) 0 var(--s3);
