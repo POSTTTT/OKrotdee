@@ -255,7 +255,7 @@ export default function ContractDetail() {
           <dt>{t("late_total")}</dt>
           <dd>{lateTotal}</dd>
         </div>
-        {/* Installment fines first; the down payment's fine, if any, below them. */}
+        {/* Installment fines first; the down payment's fine below them. */}
         <div>
           <dt>{t("late_fee_installments")}</dt>
           <dd>
@@ -268,16 +268,12 @@ export default function ContractDetail() {
               </small>
             )}
           </dd>
-          {downFine > 0 && (
-            <>
-              <dt className="split">{t("late_fee_down")}</dt>
-              <dd>
-                <Link to={`/contracts/${contract.id}/late-fees/down`}>
-                  {formatBaht(downFine - downFinePaid)}
-                </Link>
-              </dd>
-            </>
-          )}
+          <dt className="split">{t("late_fee_down")}</dt>
+          <dd>
+            <Link to={`/contracts/${contract.id}/late-fees/down`}>
+              {formatBaht(downFine - downFinePaid)}
+            </Link>
+          </dd>
         </div>
         <div className="rules">
           <dt>
