@@ -1647,3 +1647,43 @@ form.stack > .field { display: grid; gap: var(--s1); min-width: 0; }
 }
 .rules-box span { color: var(--ink-soft); }
 .rules-box b { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---------- Update notes ---------- */
+
+/* One version per sheet, read like the printed notes it replaces: a centred
+   title, then numbered changes, each with its screenshot above the words. */
+article.update {
+  max-width: 52rem;
+  margin: 0 auto var(--s7);
+  padding: var(--s6);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+article.update > .title {
+  text-align: center;
+  padding-bottom: var(--s4);
+  border-bottom: 1px solid var(--line);
+}
+article.update > .title h1 { margin: 0; color: var(--accent); }
+article.update > .title p { margin: var(--s1) 0 0; color: var(--ink-soft); }
+article.update h2 {
+  margin: var(--s6) 0 var(--s3);
+  text-align: center;
+  text-decoration: underline;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 1.15rem;
+  color: var(--ink);
+}
+article.update h3 { margin: var(--s3) 0 var(--s2); font-size: 1.05rem; }
+article.update li { margin: var(--s1) 0; }
+article.update > div:not(.title) > ol > li { margin-bottom: var(--s5); }
+article.update img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: var(--s3) 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}

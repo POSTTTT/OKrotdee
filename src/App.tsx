@@ -18,6 +18,7 @@ import Dashboard from "./pages/Dashboard";
 import PaymentForm from "./pages/PaymentForm";
 import Rules from "./pages/Rules";
 import Settings from "./Settings";
+import Updates from "./pages/Updates";
 import UpdatePrompt from "./UpdatePrompt";
 
 export default function App() {
@@ -80,6 +81,8 @@ export default function App() {
             <Route path="/contracts/:id/late-fees/:kind" element={<LateFees />} />
             <Route path="/installments/:id/pay" element={<PaymentForm />} />
             <Route path="/rules" element={<Rules />} />
+            <Route path="/updates" element={<Updates />} />
+            <Route path="/updates/:version" element={<Updates />} />
           </Routes>
         </div>
       </main>

@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { appConfigDir, join } from "@tauri-apps/api/path";
 import { getVersion } from "@tauri-apps/api/app";
 import { open } from "@tauri-apps/plugin-dialog";
+import { Link } from "react-router-dom";
 
 import Modal from "./Modal";
 import { backupTo, moveDataTo, showBackups } from "./backup";
@@ -103,6 +104,14 @@ export default function Settings({ onClose }: { onClose: () => void }) {
             <div>
               <dt>{t("app_name")}</dt>
               <dd className="text">{version ? `${t("version")} ${version}` : "…"}</dd>
+            </div>
+            <div>
+              <dt>{t("updates")}</dt>
+              <dd className="text">
+                <Link to="/updates" onClick={onClose}>
+                  {t("view_updates")}
+                </Link>
+              </dd>
             </div>
           </dl>
         </>
