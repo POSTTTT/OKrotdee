@@ -15,10 +15,16 @@ import {
 import { thaiId, ValidationError } from "../validate";
 
 /**
- * Adds a record when given onClose, as a dialog over the list; edits one on
- * its own page otherwise.
+ * Given onClose, renders as a dialog: adding over the list, or editing over
+ * the client's page (onSaved then reloads it). Without, edits on its own page.
  */
-export default function ClientForm({ onClose }: { onClose?: () => void }) {
+export default function ClientForm({
+  onClose,
+  onSaved,
+}: {
+  onClose?: () => void;
+  onSaved?: () => void;
+}) {
   const { db, t } = useApp();
   const navigate = useNavigate();
   const { id } = useParams();
@@ -80,7 +86,10 @@ export default function ClientForm({ onClose }: { onClose?: () => void }) {
       saveAnyway.current = false;
       if (clientId) {
         await updateClient(db, clientId, fields);
-        navigate(`/clients/${clientId}`);
+        if (onClose) {
+          onSaved?.();
+          onClose();
+        } else navigate(`/clients/${clientId}`);
       } else {
         const newId = await createClient(db, fields);
         navigate(`/clients/${newId}`);
@@ -102,7 +111,7 @@ export default function ClientForm({ onClose }: { onClose?: () => void }) {
     <>
       <div className="pagehead">
         {!onClose && <BackButton />}
-        <h1>{onClose ? t("add_client") : t("clients")}</h1>
+        <h1>{onClose && !clientId ? t("add_client") : onClose ? t("edit") : t("clients")}</h1>
       </div>
       {error && <p className="flash">{error}</p>}
       <form className="stack paired" key={client?.id ?? "new"} onSubmit={onSubmit}>

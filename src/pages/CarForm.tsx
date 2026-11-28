@@ -23,10 +23,16 @@ import { PROVINCES, joinPlate, splitPlate } from "../provinces";
 const STATUSES: CarStatus[] = ["available", "on_contract", "sold", "repossessed"];
 
 /**
- * Adds a record when given onClose, as a dialog over the list; edits one on
- * its own page otherwise.
+ * Given onClose, renders as a dialog: adding over the list, or editing over
+ * the car's page (onSaved then reloads it). Without, edits on its own page.
  */
-export default function CarForm({ onClose }: { onClose?: () => void }) {
+export default function CarForm({
+  onClose,
+  onSaved,
+}: {
+  onClose?: () => void;
+  onSaved?: () => void;
+}) {
   const { db, t } = useApp();
   const navigate = useNavigate();
   const { id } = useParams();
@@ -92,7 +98,10 @@ export default function CarForm({ onClose }: { onClose?: () => void }) {
             `${t(car!.status)} → ${t(status!)}`,
           );
         }
-        navigate(`/cars/${carId}`);
+        if (onClose) {
+          onSaved?.();
+          onClose();
+        } else navigate(`/cars/${carId}`);
       } else {
         navigate(`/cars/${await createCar(db, fields)}`);
       }
@@ -115,7 +124,7 @@ export default function CarForm({ onClose }: { onClose?: () => void }) {
     <>
       <div className="pagehead">
         {!onClose && <BackButton />}
-        <h1>{onClose ? t("add_car") : t("cars")}</h1>
+        <h1>{onClose && !carId ? t("add_car") : onClose ? t("edit") : t("cars")}</h1>
       </div>
       {error && <p className="flash">{error}</p>}
       <form className="stack" key={car?.id ?? "new"} onSubmit={onSubmit}>

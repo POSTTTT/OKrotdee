@@ -6,6 +6,7 @@ import RowLink from "../RowLink";
 import { useChains } from "../chains";
 import Timeline from "../Timeline";
 import ConfirmButton from "../ConfirmButton";
+import ClientForm from "./ClientForm";
 import { useApp } from "../context";
 import { phoneList } from "../phone";
 import {
@@ -33,6 +34,7 @@ export default function ClientDetail() {
   const { rows, toggle } = useChains(contracts);
   const [events, setEvents] = useState<ClientEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
 
   const load = useCallback(async () => {
     setClient((await getClient(db, clientId)) ?? null);
@@ -62,9 +64,9 @@ export default function ClientDetail() {
           {client.nickname ? ` (${client.nickname})` : ""}
         </h1>
         <span className="actions">
-          <Link className="button" to={`/clients/${client.id}/edit`}>
+          <button type="button" onClick={() => setEditing(true)}>
             {t("edit")}
-          </Link>
+          </button>
           <ConfirmButton
             question={t("confirm_delete_client")}
             className="danger"
@@ -81,6 +83,7 @@ export default function ClientDetail() {
           </ConfirmButton>
         </span>
       </div>
+      {editing && <ClientForm onClose={() => setEditing(false)} onSaved={load} />}
       {error && <p className="flash">{error}</p>}
       <dl className="facts">
         <div>

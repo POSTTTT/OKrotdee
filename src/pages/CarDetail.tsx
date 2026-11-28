@@ -6,6 +6,7 @@ import RowLink from "../RowLink";
 import { useChains } from "../chains";
 import Timeline from "../Timeline";
 import ConfirmButton from "../ConfirmButton";
+import CarForm from "./CarForm";
 import { useApp } from "../context";
 import { formatDate } from "../dates";
 import {
@@ -33,6 +34,7 @@ export default function CarDetail() {
   const [contracts, setContracts] = useState<ContractRow[]>([]);
   const { rows, toggle } = useChains(contracts);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
 
   const load = useCallback(async () => {
     setCar((await getCar(db, carId)) ?? null);
@@ -61,9 +63,9 @@ export default function CarDetail() {
           {car.brand} {car.series ?? ""} {car.model_year ?? ""}
         </h1>
         <span className="actions">
-          <Link className="button" to={`/cars/${car.id}/edit`}>
+          <button type="button" onClick={() => setEditing(true)}>
             {t("edit")}
-          </Link>
+          </button>
           <ConfirmButton
             question={t("confirm_delete_car")}
             className="danger"
@@ -83,6 +85,7 @@ export default function CarDetail() {
       <div className="subhead">
         <span className={`tag ${car.status}`}>{t(car.status)}</span>
       </div>
+      {editing && <CarForm onClose={() => setEditing(false)} onSaved={load} />}
       {error && <p className="flash">{error}</p>}
       <dl className="facts">
         <div>
