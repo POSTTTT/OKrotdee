@@ -1038,6 +1038,14 @@ button.disclose {
   font-size: 0.9rem;
   white-space: nowrap;
 }
+/* A heading that folds its list away reads as the heading, not a button. */
+h2 button.disclose {
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+}
 /* Opened, its months sit under it, set back and on the page colour, so they
    read as part of the row above rather than more clients. */
 tbody tr.in-group td { background: var(--paper); font-size: 0.92rem; }
@@ -1298,7 +1306,15 @@ button.party.pick.locked:hover { border-color: var(--line-strong); }
 .calendar .day.today .n { color: var(--accent); font-weight: 700; }
 /* The whole day in one mark, in the corner it is read from: how many, and how
    bad the worst of them is. */
-.calendar .tag.count { margin-top: auto; align-self: flex-end; font-size: 0.72rem; }
+.calendar .day .counts {
+  margin-top: auto;
+  align-self: flex-end;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+}
+.calendar .tag.count { font-size: 0.72rem; }
 /* One slice of time at a time: a track holding four slices, with the chosen
    one raised out of it. A border per button would double up against its
    neighbour's; the track draws the only edge. */

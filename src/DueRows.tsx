@@ -18,7 +18,18 @@ import {
 const WORST_FIRST: InstallmentState[] = ["OVERDUE", "PARTIAL", "UPCOMING", "PAID"];
 
 /** What a fee row is for, beside its date. */
-const FEE_LABEL = { down: "down_payment", insurance: "insurance_fee", officer: "officer_fee" };
+export const FEE_LABEL = {
+  down: "down_payment",
+  insurance: "insurance_fee",
+  officer: "officer_fee",
+  expiry: "insurance_expires_on",
+};
+
+/** Where a row stands. An insurance expiry owes nothing: it is due, or past. */
+export function rowState(i: DashboardRow, today: string): InstallmentState {
+  if (i.kind === "expiry") return i.due_date < today ? "OVERDUE" : "UPCOMING";
+  return installmentState(i.amount_due, i.late_fee, i.paid_total, i.due_date, today);
+}
 
 /**
  * A list of installments, read as money owed: when, by whom, on what, how
@@ -30,13 +41,18 @@ export default function DueRows({ items }: { items: DashboardRow[] }) {
   const { t } = useApp();
   const today = todayIso();
   const [open, setOpen] = useState<Set<number>>(new Set());
-  const state = (i: DashboardRow) =>
-    installmentState(i.amount_due, i.late_fee, i.paid_total, i.due_date, today);
+  const state = (i: DashboardRow) => rowState(i, today);
   const owed = (i: DashboardRow) => outstanding(i.amount_due, i.late_fee, i.paid_total);
 
-  // Grouped by contract, each group where its first installment fell.
+  // Grouped by contract, each group where its first installment fell. An
+  // insurance expiry stands alone: its car may have no contract.
   const groups = new Map<number, DashboardRow[]>();
-  for (const i of items) groups.set(i.contract_id, [...(groups.get(i.contract_id) ?? []), i]);
+  for (const i of items) {
+    const key = i.kind === "expiry" ? i.id : i.contract_id;
+    groups.set(key, [...(groups.get(key) ?? []), i]);
+  }
+  const link = (i: DashboardRow) =>
+    i.kind === "expiry" ? `/cars/${i.car_id}` : `/contracts/${i.contract_id}`;
 
   const toggle = (id: number) => {
     const next = new Set(open);
@@ -48,7 +64,7 @@ export default function DueRows({ items }: { items: DashboardRow[] }) {
   const row = (i: DashboardRow, inGroup: boolean) => (
     <RowLink
       key={i.id}
-      to={`/contracts/${i.contract_id}`}
+      to={link(i)}
       className={inGroup ? "in-group" : undefined}
     >
       <td>
@@ -56,16 +72,18 @@ export default function DueRows({ items }: { items: DashboardRow[] }) {
         {i.kind && <small> · {t(FEE_LABEL[i.kind])}</small>}
       </td>
       <td>
-        {!inGroup && (
+        {!inGroup && i.contract_id > 0 && (
           <Link to={`/contracts/${i.contract_id}`}>
             {i.first_name} {i.last_name}
           </Link>
         )}
       </td>
       <td>{!inGroup && `${i.brand} ${i.plate_number ?? ""}`}</td>
-      <td className="num">{formatBaht(owed(i))}</td>
+      <td className="num">{i.kind === "expiry" ? "-" : formatBaht(owed(i))}</td>
       <td>
-        <span className={`tag ${state(i)}`}>{t(state(i))}</span>
+        <span className={`tag ${state(i)}`}>
+          {t(i.kind === "expiry" ? "insurance_expires_on" : state(i))}
+        </span>
       </td>
     </RowLink>
   );

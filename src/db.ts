@@ -1401,7 +1401,9 @@ export interface DashboardRow extends InstallmentRow {
   repossess_after: number;
   down_fee_percent: number | null;
   /** Set on a fee rather than an installment: which money falls due. */
-  kind?: "down" | "insurance" | "officer";
+  kind?: "down" | "insurance" | "officer" | "expiry";
+  /** Set on an insurance expiry: the car whose insurance runs out. */
+  car_id?: number;
 }
 
 /** Every installment on every active contract, with who and what it is for. */
@@ -1495,6 +1497,29 @@ export async function activeFeeDues(db: Db): Promise<DashboardRow[]> {
       }
     }
   }
+  return rows;
+}
+
+/**
+ * The day each car's insurance runs out, for every car not yet sold, as rows
+ * the calendar reads beside the money: nothing owed, the client of the car's
+ * active contract if it has one (contract_id 0 and no name when it has none).
+ * Ids sit far below the fee rows' so the two never clash.
+ */
+export async function insuranceExpiries(db: Db): Promise<DashboardRow[]> {
+  const rows = await db.select<DashboardRow>(
+    "SELECT -1000000000 - cars.id AS id, cars.id AS car_id, 'expiry' AS kind," +
+      " cars.insurance_expires_on AS due_date, cars.brand, cars.series, cars.plate_number," +
+      " COALESCE(c.id, 0) AS contract_id, COALESCE(cl.first_name, '') AS first_name," +
+      " COALESCE(cl.last_name, '') AS last_name, 0 AS seq, 0 AS amount_due, 0 AS late_fee," +
+      " 0 AS paid_total, NULL AS last_paid_on, COALESCE(c.grace_days, 0) AS grace_days," +
+      " COALESCE(c.late_fee_percent, 0) AS late_fee_percent," +
+      " COALESCE(c.repossess_after, 0) AS repossess_after, c.down_fee_percent" +
+      " FROM cars LEFT JOIN contracts c ON c.car_id = cars.id AND c.status = 'active'" +
+      " LEFT JOIN clients cl ON cl.id = c.client_id" +
+      " WHERE cars.insurance_expires_on IS NOT NULL AND cars.insurance_expires_on != ''" +
+      " AND cars.status != 'sold' ORDER BY cars.insurance_expires_on, cars.id",
+  );
   return rows;
 }
 

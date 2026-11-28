@@ -5,6 +5,7 @@ import {
   activeContractForCar,
   activeFeeDues,
   ensureDownFee,
+  insuranceExpiries,
   activeInstallments,
   addCarEvent,
   addPayment,
@@ -1417,5 +1418,23 @@ describe("activeFeeDues", () => {
     ]);
     expect(new Set(rows.map((r) => r.id)).size).toBe(4);
     expect(rows.every((r) => r.id < 0)).toBe(true);
+  });
+});
+
+describe("insuranceExpiries", () => {
+  it("lists unsold cars with an expiry, naming the client of an active contract", async () => {
+    const { db, id } = await contracted();
+    await db.execute("UPDATE cars SET insurance_expires_on = '2027-03-01' WHERE id = 1");
+    const [row] = await insuranceExpiries(db);
+    expect(row).toMatchObject({
+      kind: "expiry",
+      car_id: 1,
+      contract_id: id,
+      due_date: "2027-03-01",
+      first_name: "Somchai",
+      amount_due: 0,
+    });
+    await db.execute("UPDATE cars SET status = 'sold' WHERE id = 1");
+    expect(await insuranceExpiries(db)).toHaveLength(0);
   });
 });

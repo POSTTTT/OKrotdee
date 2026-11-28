@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 
-import DueRows from "../DueRows";
+import DueRows, { FEE_LABEL, rowState } from "../DueRows";
 import { useApp } from "../context";
 import { daysInMonth, formatDate, monthYear, toIso } from "../dates";
-import { activeFeeDues, activeInstallments, type DashboardRow } from "../db";
+import {
+  activeFeeDues,
+  activeInstallments,
+  insuranceExpiries,
+  type DashboardRow,
+} from "../db";
 import {
   formatBaht,
-  installmentState,
   outstanding,
   todayIso,
   type InstallmentState,
@@ -59,12 +63,12 @@ export default function Calendar() {
   // Which way the last move through time went, so the sheet arrives from the
   // side it came from. Cleared by anything that is not a step.
   const [dir, setDir] = useState("");
+  // List categories the reader has folded away.
+  const [folded, setFolded] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    Promise.all([activeInstallments(db), activeFeeDues(db)]).then(([installments, fees]) =>
-      setRows(
-        [...installments, ...fees].sort((a, b) => a.due_date.localeCompare(b.due_date)),
-      ),
+    Promise.all([activeInstallments(db), activeFeeDues(db), insuranceExpiries(db)]).then(
+      (lists) => setRows(lists.flat().sort((a, b) => a.due_date.localeCompare(b.due_date))),
     );
   }, [db]);
 
@@ -113,6 +117,38 @@ export default function Calendar() {
     return rows.filter((r) => r.due_date >= from && r.due_date <= to);
   }, [rows, days, year, view]);
 
+  /* The list read one kind of money at a time, each under a heading that
+     folds it away. An empty slice still says so under the installments. */
+  const labelOf = (r: DashboardRow) => (r.kind ? FEE_LABEL[r.kind] : "installments");
+  const categories = ["installments", ...Object.values(FEE_LABEL)]
+    .map((label) => [label, listed.filter((r) => labelOf(r) === label)] as const)
+    .filter(([label, rows]) => rows.length > 0 || (label === "installments" && listed.length === 0));
+  const fold = (label: string) => {
+    const next = new Set(folded);
+    if (next.has(label)) next.delete(label);
+    else next.add(label);
+    setFolded(next);
+  };
+  const sections = categories.map(([label, rows]) => (
+    <section key={label}>
+      <h2>
+        <button
+          type="button"
+          className="ghost disclose"
+          aria-expanded={!folded.has(label)}
+          onClick={() => fold(label)}
+        >
+          <span aria-hidden="true">{folded.has(label) ? "▸" : "▾"}</span> {t(label)} ({rows.length})
+        </button>
+      </h2>
+      {!folded.has(label) && (
+        <div className="scroll">
+          <DueRows items={rows} />
+        </div>
+      )}
+    </section>
+  ));
+
   // The month rarely ends on a Saturday; without the tail the last week is a
   // hole in the grid rather than a row of days that have not come yet.
   const tail = view === "month" ? (7 - ((blanks + days.length) % 7)) % 7 : 0;
@@ -142,17 +178,27 @@ export default function Calendar() {
   /* A cell in a week or a month says how many payments land on it, in the
      colour of the worst of them. The list underneath carries the names and
      the figures, so the grid stays a shape the eye can count. */
+  // One count per kind of money, so a down payment is not read as an installment.
   const badge = (iso: string) => {
     const list = byDay.get(iso) ?? [];
     if (list.length === 0) return null;
-    const states = list.map((r) =>
-      installmentState(r.amount_due, r.late_fee, r.paid_total, r.due_date, today),
-    );
+    const kinds = new Map<string, DashboardRow[]>();
+    for (const r of list) {
+      const label = r.kind ? FEE_LABEL[r.kind] : "installments";
+      kinds.set(label, [...(kinds.get(label) ?? []), r]);
+    }
     const rank: InstallmentState[] = ["OVERDUE", "PARTIAL", "UPCOMING", "PAID"];
-    const worst = rank.find((state) => states.includes(state)) ?? "PAID";
     return (
-      <span className={`tag count ${worst}`}>
-        {list.length} {t("installments")}
+      <span className="counts">
+        {[...kinds].map(([label, rows]) => {
+          const states = rows.map((r) => rowState(r, today));
+          const worst = rank.find((state) => states.includes(state)) ?? "PAID";
+          return (
+            <span key={label} className={`tag count ${worst}`}>
+              {rows.length} {t(label)}
+            </span>
+          );
+        })}
       </span>
     );
   };
@@ -240,7 +286,7 @@ export default function Calendar() {
                   <span className="n">{intl(lang, { month: "long" }).format(Date.UTC(year, i, 1))}</span>
                   <strong>{formatBaht(owed)}</strong>
                   <small>
-                    {list.length} {t("installments")}
+                    {list.filter((r) => r.kind !== "expiry").length} {t("installments")}
                   </small>
                 </button>
               );
@@ -249,9 +295,7 @@ export default function Calendar() {
         ) : view === "day" ? (
           /* One day is a list, not a grid of one cell: the same rows the week
              and month end in, each with its client, car, balance and state. */
-          <div className="scroll">
-            <DueRows items={listed} />
-          </div>
+          sections
         ) : (
           <div className="calendar">
             {weekdayNames(lang).map((name) => (
@@ -300,14 +344,7 @@ export default function Calendar() {
         )}
 
         {/* A single day is already this list, above. */}
-        {view !== "day" && (
-          <>
-            <h2>{t("installments")}</h2>
-            <div className="scroll">
-              <DueRows items={listed} />
-            </div>
-          </>
-        )}
+        {view !== "day" && sections}
       </div>
     </>
   );
