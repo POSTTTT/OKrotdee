@@ -40,28 +40,37 @@ function notesFor(version: string, lang: LangCode): string | undefined {
   return notes?.[lang] ?? notes?.th ?? notes?.en;
 }
 
+/** One version's log, as a sheet: on its own page, or in a dialog. */
+export function UpdateNotes({ version }: { version: string }) {
+  const { lang } = useApp();
+  const html = notesFor(version, lang);
+  if (!html) return null;
+  return (
+    <article className="update">
+      {/* Not a <header>: that is styled as the app's own bar. */}
+      <div className="title">
+        <h1>OKrotdee</h1>
+        <p>Version {version} - update logs</p>
+      </div>
+      <div dangerouslySetInnerHTML={{ __html: html }} />
+    </article>
+  );
+}
+
 /** Every version with notes, newest first; each opens its own log. */
 export default function Updates() {
-  const { t, lang } = useApp();
+  const { t } = useApp();
   const { version } = useParams();
 
   if (version) {
-    const html = notesFor(version, lang);
-    if (!html) return <p>{t("not_found")}</p>;
+    if (!VERSIONS.includes(version)) return <p>{t("not_found")}</p>;
     return (
       <>
         <div className="pagehead">
           <BackButton />
           <h1>{t("updates")}</h1>
         </div>
-        <article className="update">
-          {/* Not a <header>: that is styled as the app's own bar. */}
-          <div className="title">
-            <h1>OKrotdee</h1>
-            <p>Version {version} - update logs</p>
-          </div>
-          <div dangerouslySetInnerHTML={{ __html: html }} />
-        </article>
+        <UpdateNotes version={version} />
       </>
     );
   }

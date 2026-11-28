@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
 
 import { useApp } from "./context";
@@ -18,13 +19,25 @@ import Dashboard from "./pages/Dashboard";
 import PaymentForm from "./pages/PaymentForm";
 import Rules from "./pages/Rules";
 import Settings from "./Settings";
-import Updates from "./pages/Updates";
+import Modal from "./Modal";
+import Updates, { UpdateNotes, VERSIONS } from "./pages/Updates";
 import UpdatePrompt from "./UpdatePrompt";
 
 export default function App() {
   const { t } = useApp();
   const { pathname } = useLocation();
   const [settings, setSettings] = useState(false);
+  // The version whose notes pop up on its first open, until closed.
+  const [fresh, setFresh] = useState<string | null>(null);
+
+  // The first open of a new version shows what changed in it, once.
+  useEffect(() => {
+    getVersion().then((version) => {
+      if (localStorage.getItem("seenVersion") === version) return;
+      localStorage.setItem("seenVersion", version);
+      if (VERSIONS.includes(version)) setFresh(version);
+    }, () => {});
+  }, []);
   const navClass = ({ isActive }: { isActive: boolean }) => (isActive ? "on" : "");
 
   return (
@@ -87,6 +100,11 @@ export default function App() {
         </div>
       </main>
       {settings && <Settings onClose={() => setSettings(false)} />}
+      {fresh && (
+        <Modal onClose={() => setFresh(null)}>
+          <UpdateNotes version={fresh} />
+        </Modal>
+      )}
       <UpdatePrompt />
     </>
   );

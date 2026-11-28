@@ -1660,6 +1660,8 @@ article.update {
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
+/* In a dialog the dialog is already the sheet. */
+dialog.modal article.update { max-width: none; margin: 0; padding: 0; border: 0; }
 article.update > .title {
   text-align: center;
   padding-bottom: var(--s4);
