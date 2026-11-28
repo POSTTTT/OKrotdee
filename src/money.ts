@@ -181,6 +181,9 @@ function addMonths(iso: string, months: number): string {
  * still owing, in which case the count keeps climbing.
  */
 export function lateCount(dueDate: string, asOf: string, rules: Rules = DEFAULT_RULES): number {
+  // A date that is not a date (typed into the database by hand) is never
+  // late, rather than taking the whole page down with it.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate) || Number.isNaN(Date.parse(dueDate))) return 0;
   let count = 0;
   // The date each successive strike lands on: due + grace + 1 day, then the
   // same day of each following month.

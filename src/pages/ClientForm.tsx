@@ -66,7 +66,9 @@ export default function ClientForm({
         first_name,
         last_name,
         nickname: value("nickname"),
-        thai_id: idText ? thaiId(idText) : null,
+        // An ID already on file is kept as it is: one saved by an older
+        // version must not stop the staff correcting a phone number.
+        thai_id: !idText ? null : idText === client?.thai_id ? idText : thaiId(idText),
         phone:
           form
             .getAll("phone")
