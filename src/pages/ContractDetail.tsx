@@ -393,7 +393,9 @@ export default function ContractDetail() {
         </thead>
         <tbody>
           {installments.map((i) => {
-            const balance = outstanding(i.amount_due, i.late_fee, i.paid_total);
+            // An overpayment reads as a minus here, the amount taken off the next ones.
+            const balance =
+              outstanding(i.amount_due, i.late_fee, i.paid_total) - (i.carried_out ?? 0);
             const state = installmentState(
               i.amount_due,
               i.late_fee,

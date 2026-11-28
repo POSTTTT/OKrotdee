@@ -538,6 +538,29 @@ describe("payments", () => {
     expect(await carEvents(db, 1)).toHaveLength(3);
   });
 
+  it("credits an overpayment to the next installments, keeping it as entered", async () => {
+    const { db, id } = await contracted();
+    const [first, second] = await installmentsFor(db, id);
+    await addPayment(db, second.id, "2026-09-01", 100000, "cash", null);
+    await addPayment(db, first.id, "2026-09-15", 1540000 + 1500000, "cash", null);
+    const [a, b, c] = await installmentsFor(db, id);
+    expect(a.paid_total).toBe(1540000);
+    expect(a.carried_out).toBe(1500000);
+    expect(b.paid_total).toBe(1540000);
+    expect(b.last_paid_on).toBe("2026-09-15");
+    expect(c.paid_total).toBe(60000);
+    expect((await getInstallment(db, c.id))?.paid_total).toBe(60000);
+    expect((await paymentsFor(db, first.id)).map((p) => p.amount)).toEqual([3040000]);
+  });
+
+  it("keeps money past the last installment on the last one", async () => {
+    const { db, id } = await contracted();
+    const rows = await installmentsFor(db, id);
+    const last = rows[rows.length - 1];
+    await addPayment(db, last.id, "2026-09-15", 2000000, "cash", null);
+    expect((await getInstallment(db, last.id))?.paid_total).toBe(2000000);
+  });
+
   it("keeps an unpaid late fee from completing the contract", async () => {
     const { db, id } = await contracted();
     const installments = await installmentsFor(db, id);

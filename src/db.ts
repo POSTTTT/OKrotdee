@@ -823,6 +823,8 @@ export interface InstallmentRow {
   paid_total: number;
   /** The most recent payment date, or null while nothing has been paid. */
   last_paid_on: string | null;
+  /** Paid here past what it owes and credited to the next installments. */
+  carried_out?: number;
 }
 
 export interface Payment {
@@ -863,12 +865,49 @@ export async function getContract(db: Db, id: number): Promise<ContractRow | und
   )[0];
 }
 
+/**
+ * Money paid past what an installment owes counts toward the next ones of the
+ * same contract, in order: 12,000 paid on a 10,000 installment leaves 2,000
+ * less owed on the next. The payments stay as entered; only paid_total (and
+ * last_paid_on, where the carried money is the latest) is what each
+ * installment is credited with. The last installment keeps any money past it.
+ * Rows come back in the order given.
+ */
+export function carryOverpayments<T extends InstallmentRow>(rows: T[]): T[] {
+  const out = rows.map((r) => ({ ...r }));
+  const byContract = new Map<number, T[]>();
+  for (const r of out) byContract.set(r.contract_id, [...(byContract.get(r.contract_id) ?? []), r]);
+  for (const list of byContract.values()) {
+    list.sort((a, b) => a.seq - b.seq);
+    let carry = 0;
+    let carryOn: string | null = null;
+    for (const [index, r] of list.entries()) {
+      if (carry > 0 && carryOn && (!r.last_paid_on || carryOn > r.last_paid_on)) {
+        r.last_paid_on = carryOn;
+      }
+      const available = r.paid_total + carry;
+      const owed = Math.max(r.amount_due + r.late_fee, 0);
+      r.paid_total = index === list.length - 1 ? available : Math.min(available, owed);
+      carry = available - r.paid_total;
+      r.carried_out = carry;
+      if (carry > 0) carryOn = r.last_paid_on;
+    }
+  }
+  return out;
+}
+
 export async function installmentsFor(db: Db, contractId: number): Promise<InstallmentRow[]> {
-  return db.select<InstallmentRow>(INSTALLMENTS_SQL("i.contract_id = ?"), [contractId]);
+  return carryOverpayments(
+    await db.select<InstallmentRow>(INSTALLMENTS_SQL("i.contract_id = ?"), [contractId]),
+  );
 }
 
 export async function getInstallment(db: Db, id: number): Promise<InstallmentRow | undefined> {
-  return (await db.select<InstallmentRow>(INSTALLMENTS_SQL("i.id = ?"), [id]))[0];
+  const [row] = await db.select<{ contract_id: number }>(
+    "SELECT contract_id FROM installments WHERE id = ?",
+    [id],
+  );
+  return row && (await installmentsFor(db, row.contract_id)).find((i) => i.id === id);
 }
 
 export async function paymentsFor(db: Db, installmentId: number): Promise<Payment[]> {
@@ -1346,7 +1385,7 @@ export interface DashboardRow extends InstallmentRow {
 
 /** Every installment on every active contract, with who and what it is for. */
 export async function activeInstallments(db: Db): Promise<DashboardRow[]> {
-  return db.select<DashboardRow>(
+  const rows = await db.select<DashboardRow>(
     "SELECT i.*, COALESCE(SUM(p.amount), 0) AS paid_total," +
       " MAX(p.paid_on) AS last_paid_on," +
       " cl.first_name, cl.last_name, cars.brand, cars.series, cars.plate_number," +
@@ -1368,6 +1407,7 @@ export async function activeInstallments(db: Db): Promise<DashboardRow[]> {
       " WHERE c.status = 'active'" +
       " GROUP BY i.id ORDER BY i.due_date, i.id",
   );
+  return carryOverpayments(rows);
 }
 
 /** Satang received between two ISO dates, inclusive. */

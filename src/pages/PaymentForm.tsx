@@ -189,7 +189,8 @@ export default function PaymentForm({
           {/* The sum belongs to the table, not in it: it sits under the rows,
               at the end, where the eye already is after reading the amounts. */}
           <p className="total">
-            {t("paid")} <strong>{formatBaht(installment.paid_total)}</strong>
+            {t("paid")}{" "}
+            <strong>{formatBaht(payments.reduce((sum, p) => sum + p.amount, 0))}</strong>
           </p>
         </>
       )}
