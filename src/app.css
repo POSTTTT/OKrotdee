@@ -1679,6 +1679,52 @@ article.update > .title {
 }
 article.update > .title h1 { margin: 0; justify-content: center; color: var(--accent); }
 article.update > .title p { margin: var(--s1) 0 0; color: var(--ink-soft); }
+/* What the notes hold, before the notes: sections with their changes under
+   them, each a way straight to it. */
+nav.outline {
+  margin: var(--s5) 0 0;
+  padding: var(--s4) var(--s5);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+nav.outline > p { margin: 0 0 var(--s2); font-weight: 600; }
+nav.outline ol { margin: 0; padding-left: var(--s5); }
+nav.outline ol ol { margin: var(--s1) 0 var(--s2); }
+nav.outline li { margin: 0.1rem 0; }
+nav.outline button.ghost {
+  padding: 0.1rem 0.25rem;
+  border: 0;
+  text-align: left;
+  white-space: normal;
+  font-weight: 600;
+  color: var(--accent);
+}
+nav.outline ol ol button.ghost { font-weight: 400; color: var(--ink); }
+nav.outline button.ghost:hover { text-decoration: underline; background: none; }
+article.update [id^="note-"] { scroll-margin-top: 4.5rem; }
+/* On its own page: the outline in a column of its own, kept in view while the
+   notes scroll past. A narrow window puts it back above them. */
+.update-layout {
+  display: grid;
+  grid-template-columns: 16rem minmax(0, 52rem);
+  justify-content: center;
+  align-items: start;
+  gap: var(--s5);
+}
+.update-layout article.update { margin: 0 0 var(--s7); }
+nav.outline.side {
+  position: sticky;
+  top: 4.5rem;
+  margin: 0;
+  max-height: calc(100vh - 6rem);
+  overflow-y: auto;
+  font-size: 0.92rem;
+}
+@media (max-width: 62rem) {
+  .update-layout { grid-template-columns: minmax(0, 1fr); }
+  nav.outline.side { position: static; max-height: none; }
+}
 article.update h2 {
   margin: var(--s6) 0 var(--s3);
   text-align: center;

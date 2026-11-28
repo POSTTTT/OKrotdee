@@ -1,3 +1,4 @@
+import { useMemo, useRef } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
@@ -40,20 +41,88 @@ function notesFor(version: string, lang: LangCode): string | undefined {
   return notes?.[lang] ?? notes?.th ?? notes?.en;
 }
 
+interface Section {
+  id: string;
+  text: string;
+  items: { id: string; text: string }[];
+}
+
+/**
+ * The notes' own headings as an outline: each section (h2) with the changes
+ * under it (h3). Read from the HTML, so a new note needs nothing extra, and
+ * each heading is given an id to jump to.
+ */
+function outlined(html: string): { html: string; outline: Section[] } {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const outline: Section[] = [];
+  doc.body.querySelectorAll("h2, h3").forEach((heading, index) => {
+    // A change's screenshot sits above its heading: jump to the picture, so
+    // it is not scrolled away.
+    const before = heading.previousElementSibling;
+    const target = heading.tagName === "H3" && before?.tagName === "IMG" ? before : heading;
+    target.id = `note-${index}`;
+    const entry = { id: target.id, text: heading.textContent?.trim() ?? "" };
+    if (heading.tagName === "H2") outline.push({ ...entry, items: [] });
+    else outline[outline.length - 1]?.items.push(entry);
+  });
+  return { html: doc.body.innerHTML, outline };
+}
+
 /** One version's log, as a sheet: on its own page, or in a dialog. */
-export function UpdateNotes({ version }: { version: string }) {
-  const { lang } = useApp();
-  const html = notesFor(version, lang);
-  if (!html) return null;
-  return (
+export function UpdateNotes({ version, sidebar = false }: { version: string; sidebar?: boolean }) {
+  const { lang, t } = useApp();
+  const raw = notesFor(version, lang);
+  const notes = useMemo(() => (raw ? outlined(raw) : null), [raw]);
+  const sheet = useRef<HTMLDivElement>(null);
+  if (!notes) return null;
+  // Scrolled to in place: an anchor link would change the app's own route.
+  const jump = (id: string) =>
+    sheet.current?.querySelector(`#${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const outline = notes.outline.length > 0 && (
+        <nav className={sidebar ? "outline side" : "outline"} aria-label={t("outline")}>
+          <p>{t("outline")}</p>
+          <ol>
+            {notes.outline.map((section) => (
+              <li key={section.id}>
+                <button type="button" className="ghost" onClick={() => jump(section.id)}>
+                  {section.text}
+                </button>
+                {section.items.length > 0 && (
+                  <ol>
+                    {section.items.map((item) => (
+                      <li key={item.id}>
+                        <button type="button" className="ghost" onClick={() => jump(item.id)}>
+                          {item.text}
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </li>
+            ))}
+          </ol>
+        </nav>
+  );
+  const article = (
     <article className="update">
       {/* Not a <header>: that is styled as the app's own bar. */}
       <div className="title">
         <h1>OKrotdee</h1>
         <p>Version {version} - update logs</p>
       </div>
-      <div dangerouslySetInnerHTML={{ __html: html }} />
+      {!sidebar && outline}
+      <div ref={sheet} dangerouslySetInnerHTML={{ __html: notes.html }} />
     </article>
+  );
+  // On its own page the outline stays in view beside the notes; in a dialog
+  // there is no room beside them, so it leads instead.
+  return sidebar ? (
+    <div className="update-layout">
+      {outline}
+      {article}
+    </div>
+  ) : (
+    article
   );
 }
 
@@ -70,7 +139,7 @@ export default function Updates() {
           <BackButton />
           <h1>{t("updates")}</h1>
         </div>
-        <UpdateNotes version={version} />
+        <UpdateNotes version={version} sidebar />
       </>
     );
   }
