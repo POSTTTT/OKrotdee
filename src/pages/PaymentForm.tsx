@@ -14,6 +14,7 @@ import {
   getPayment,
   paymentsFor,
   syncContractStatus,
+  updateInstallment,
   updatePayment,
   type Payment,
   type ContractRow,
@@ -228,6 +229,55 @@ export default function PaymentForm({
           </div>
         </form>
       </section>
+
+      {/* This one month only: the client sometimes agrees another day or
+          amount for it, and the rest of the schedule stays as it was. */}
+      {!editing && (
+        <section className="paybox">
+          <h2>
+            {t("edit_installment")} — {t("seq")} {installment.seq}
+          </h2>
+          <form
+            className="stack"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              const form = new FormData(event.currentTarget);
+              setError(null);
+              setBusy(true);
+              try {
+                await updateInstallment(
+                  db,
+                  installment.id,
+                  String(form.get("due_date") ?? ""),
+                  toSatang(String(form.get("amount_due") ?? "")),
+                );
+                await syncContractStatus(db, installment.contract_id);
+                done();
+              } catch (e) {
+                setError(
+                  e instanceof Error ? (isErrorKey(e.message) ? t(e.message) : e.message) : String(e),
+                );
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <label>
+              {t("due_date")}
+              <DateInput name="due_date" defaultValue={installment.due_date} required />
+            </label>
+            <label>
+              {t("amount_due")}
+              <input name="amount_due" defaultValue={formatBaht(installment.amount_due)} required />
+            </label>
+            <div className="toolbar">
+              <button type="submit" disabled={busy}>
+                {t("save")}
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
     </>
   );
 }

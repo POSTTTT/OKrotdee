@@ -6,6 +6,7 @@ import {
   activeFeeDues,
   ensureDownFee,
   insuranceExpiries,
+  updateInstallment,
   activeInstallments,
   addCarEvent,
   addPayment,
@@ -1436,5 +1437,19 @@ describe("insuranceExpiries", () => {
     });
     await db.execute("UPDATE cars SET status = 'sold' WHERE id = 1");
     expect(await insuranceExpiries(db)).toHaveLength(0);
+  });
+});
+
+describe("updateInstallment", () => {
+  it("moves one installment and changes its amount, leaving the rest", async () => {
+    const { db, id } = await contracted();
+    const [first, second] = await installmentsFor(db, id);
+    await updateInstallment(db, first.id, "2026-09-20", 1000000);
+    const [a, b] = await installmentsFor(db, id);
+    expect([a.due_date, a.amount_due]).toEqual(["2026-09-20", 1000000]);
+    expect([b.due_date, b.amount_due]).toEqual([second.due_date, second.amount_due]);
+    await expect(updateInstallment(db, first.id, "2026-09-20", 0)).rejects.toThrow(
+      "err_installment_amount_positive",
+    );
   });
 });

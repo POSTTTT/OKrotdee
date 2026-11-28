@@ -919,6 +919,25 @@ export async function paymentsFor(db: Db, installmentId: number): Promise<Paymen
   );
 }
 
+/**
+ * Move one installment to another day, or change what it asks for, when the
+ * client agrees a different arrangement for that month. The rest of the
+ * schedule stays as it was.
+ */
+export async function updateInstallment(
+  db: Db,
+  installmentId: number,
+  dueDate: string,
+  amountDue: number,
+): Promise<void> {
+  if (!(amountDue > 0)) throw new Error("err_installment_amount_positive");
+  await db.execute("UPDATE installments SET due_date = ?, amount_due = ? WHERE id = ?", [
+    dueDate,
+    amountDue,
+    installmentId,
+  ]);
+}
+
 export async function setLateFee(db: Db, installmentId: number, lateFee: number): Promise<void> {
   await db.execute("UPDATE installments SET late_fee = ? WHERE id = ?", [
     lateFee,
