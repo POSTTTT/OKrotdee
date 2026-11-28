@@ -17,6 +17,9 @@ import {
 // contract overdue, however many are paid.
 const WORST_FIRST: InstallmentState[] = ["OVERDUE", "PARTIAL", "UPCOMING", "PAID"];
 
+/** What a fee row is for, beside its date. */
+const FEE_LABEL = { down: "down_payment", insurance: "insurance_fee", officer: "officer_fee" };
+
 /**
  * A list of installments, read as money owed: when, by whom, on what, how
  * much, and where it stands. The dashboard and the calendar both end in one.
@@ -48,7 +51,10 @@ export default function DueRows({ items }: { items: DashboardRow[] }) {
       to={`/contracts/${i.contract_id}`}
       className={inGroup ? "in-group" : undefined}
     >
-      <td>{formatDate(i.due_date)}</td>
+      <td>
+        {formatDate(i.due_date)}
+        {i.kind && <small> · {t(FEE_LABEL[i.kind])}</small>}
+      </td>
       <td>
         {!inGroup && (
           <Link to={`/contracts/${i.contract_id}`}>

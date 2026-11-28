@@ -1381,6 +1381,8 @@ export interface DashboardRow extends InstallmentRow {
   late_fee_percent: number;
   repossess_after: number;
   down_fee_percent: number | null;
+  /** Set on a fee rather than an installment: which money falls due. */
+  kind?: "down" | "insurance" | "officer";
 }
 
 /** Every installment on every active contract, with who and what it is for. */
@@ -1408,6 +1410,73 @@ export async function activeInstallments(db: Db): Promise<DashboardRow[]> {
       " GROUP BY i.id ORDER BY i.due_date, i.id",
   );
   return carryOverpayments(rows);
+}
+
+/**
+ * The fees on every active contract, as rows shaped like installments so the
+ * calendar reads them the same way: each promised part of a down payment (or
+ * the whole of it, with no arrangement), each insurance fee and the police
+ * fine that comes with it. Down payment money covers the parts in date order.
+ * Ids are negative, so they never clash with an installment's.
+ */
+export async function activeFeeDues(db: Db): Promise<DashboardRow[]> {
+  const fees = await db.select<Fee & Omit<DashboardRow, keyof InstallmentRow | "kind">>(
+    "SELECT f.*, cl.first_name, cl.last_name, cars.brand, cars.series, cars.plate_number," +
+      " c.grace_days, c.late_fee_percent, c.repossess_after, c.down_fee_percent" +
+      " FROM fees f JOIN contracts c ON c.id = f.contract_id" +
+      " JOIN clients cl ON cl.id = c.client_id JOIN cars ON cars.id = c.car_id" +
+      " WHERE c.status = 'active' ORDER BY f.due_on, f.id",
+  );
+  const rows: DashboardRow[] = [];
+  const due = (
+    f: (typeof fees)[number],
+    kind: DashboardRow["kind"],
+    due_date: string,
+    amount_due: number,
+    paid_total: number,
+    last_paid_on: string | null,
+  ) => {
+    rows.push({
+      id: -(rows.length + 1),
+      contract_id: f.contract_id,
+      seq: 0,
+      due_date,
+      amount_due,
+      late_fee: 0,
+      paid_total,
+      last_paid_on,
+      first_name: f.first_name,
+      last_name: f.last_name,
+      brand: f.brand,
+      series: f.series,
+      plate_number: f.plate_number,
+      grace_days: f.grace_days,
+      late_fee_percent: f.late_fee_percent,
+      repossess_after: f.repossess_after,
+      down_fee_percent: f.down_fee_percent,
+      kind,
+    });
+  };
+  for (const f of fees) {
+    if (f.type === "down") {
+      const parts = await feeSchedule(db, f.id);
+      const paid = await feePayments(db, f.id);
+      let left = paid.reduce((sum, p) => sum + p.amount, 0);
+      const lastOn = paid.length ? paid[paid.length - 1].paid_on : null;
+      for (const part of parts.length ? parts : [{ due_on: f.due_on, amount: f.amount }]) {
+        const covered = Math.min(left, part.amount);
+        left -= covered;
+        due(f, "down", part.due_on, part.amount, covered, covered > 0 ? lastOn : null);
+      }
+    } else {
+      due(f, "insurance", f.due_on, f.amount, f.paid_on ? f.amount : 0, f.paid_on);
+      if (f.officer_amount) {
+        const paidOn = f.officer_paid_on;
+        due(f, "officer", f.due_on, f.officer_amount, paidOn ? f.officer_amount : 0, paidOn);
+      }
+    }
+  }
+  return rows;
 }
 
 /** Satang received between two ISO dates, inclusive. */

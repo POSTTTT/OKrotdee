@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import DueRows from "../DueRows";
 import { useApp } from "../context";
 import { daysInMonth, formatDate, monthYear, toIso } from "../dates";
-import { activeInstallments, type DashboardRow } from "../db";
+import { activeFeeDues, activeInstallments, type DashboardRow } from "../db";
 import {
   formatBaht,
   installmentState,
@@ -61,7 +61,11 @@ export default function Calendar() {
   const [dir, setDir] = useState("");
 
   useEffect(() => {
-    activeInstallments(db).then(setRows);
+    Promise.all([activeInstallments(db), activeFeeDues(db)]).then(([installments, fees]) =>
+      setRows(
+        [...installments, ...fees].sort((a, b) => a.due_date.localeCompare(b.due_date)),
+      ),
+    );
   }, [db]);
 
   const [year, mon] = at.split("-").map(Number);
@@ -82,7 +86,7 @@ export default function Calendar() {
     ];
   }, [at, month, year, mon, view]);
 
-  /** Every installment on the screen, filed under the day it falls due. */
+  /** Every installment and fee on the screen, filed under the day it falls due. */
   const byDay = useMemo(() => {
     const map = new Map<string, DashboardRow[]>();
     for (const row of rows) map.set(row.due_date, [...(map.get(row.due_date) ?? []), row]);
