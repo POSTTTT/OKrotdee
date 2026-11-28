@@ -11,7 +11,7 @@ import Modal from "../Modal";
 import {
   addFeePayment,
   addFeeSchedulePart,
-  contractFees,
+  ensureDownFee,
   deleteFeePayment,
   deleteFeeSchedulePart,
   feePayments,
@@ -97,8 +97,7 @@ export default function FeeForm() {
       // A contract has one down payment, so this page always corrects it
       // rather than adding a second one. Insurance is paid again every year
       // and starts blank.
-      contractFees(db, contractId).then((rows) => {
-        const down = rows.find((f) => f.type === "down") ?? null;
+      ensureDownFee(db, contractId).then((down) => {
         setFee(down);
         loadParts(down?.id ?? null);
       });

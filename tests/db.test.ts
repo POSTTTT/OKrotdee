@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   addContractCoClient,
   activeContractForCar,
+  activeFeeDues,
+  ensureDownFee,
   activeInstallments,
   addCarEvent,
   addPayment,
@@ -951,6 +953,9 @@ describe("delete", () => {
   });
 });
 
+// These fees are added by hand, so the contract starts without a down payment.
+const NO_DOWN = { ...CONTRACT, down_payment: 0 };
+
 describe("fees", () => {
   const insurance = (
     dueOn: string,
@@ -967,9 +972,32 @@ describe("fees", () => {
     note: null,
   });
 
-  it("keeps one row per yearly insurance payment", async () => {
+  it("starts a contract with its down payment due the day it is signed", async () => {
     const db = await seeded();
     const contractId = await createContract(db, CONTRACT);
+    const [down] = await contractFees(db, contractId);
+    expect(down.type).toBe("down");
+    expect(down.amount).toBe(CONTRACT.down_payment);
+    expect(down.due_on).toBe(todayIso());
+    expect(down.paid_on).toBeNull();
+  });
+
+  it("gives an older contract its down payment once, however often asked", async () => {
+    const db = await seeded();
+    const contractId = await createContract(db, CONTRACT);
+    await deleteFee(db, (await contractFees(db, contractId))[0].id);
+    await Promise.all([ensureDownFee(db, contractId), ensureDownFee(db, contractId)]);
+    expect(await contractFees(db, contractId)).toHaveLength(1);
+  });
+
+  it("makes no down payment for a contract without one", async () => {
+    const db = await seeded();
+    expect(await ensureDownFee(db, await createContract(db, NO_DOWN))).toBeNull();
+  });
+
+  it("keeps one row per yearly insurance payment", async () => {
+    const db = await seeded();
+    const contractId = await createContract(db, NO_DOWN);
 
     await saveFee(db, contractId, insurance("2026-09-02", 500000, 30000));
     await saveFee(db, contractId, insurance("2027-09-20", 520000, null));
@@ -982,7 +1010,7 @@ describe("fees", () => {
 
   it("keeps the police fine on its own payment date", async () => {
     const db = await seeded();
-    const contractId = await createContract(db, CONTRACT);
+    const contractId = await createContract(db, NO_DOWN);
 
     // The insurance is settled on the 2nd, the fine only two weeks later.
     await saveFee(db, contractId, {
@@ -997,7 +1025,7 @@ describe("fees", () => {
 
   it("records a fee the client has not paid yet, then marks it paid", async () => {
     const db = await seeded();
-    const contractId = await createContract(db, CONTRACT);
+    const contractId = await createContract(db, NO_DOWN);
 
     await saveFee(db, contractId, insurance("2027-09-01", 520000, null, null));
     const owed = (await contractFees(db, contractId))[0];
@@ -1014,7 +1042,7 @@ describe("fees", () => {
 
   it("corrects a fee in place and deletes one", async () => {
     const db = await seeded();
-    const contractId = await createContract(db, CONTRACT);
+    const contractId = await createContract(db, NO_DOWN);
     await saveFee(db, contractId, {
       type: "down",
       due_on: "2026-09-01",
@@ -1350,5 +1378,44 @@ describe("plates", () => {
     await joinPlates(db);
     expect((await getCar(db, a))?.plate_number).toBe("ขค2481 ชลบุรี");
     expect((await getCar(db, c))?.plate_number).toBe("ขค 1 ชลบุรี");
+  });
+});
+
+describe("activeFeeDues", () => {
+  it("lists down payment parts, covered in date order, and insurance with its fine", async () => {
+    const db = await seeded();
+    const id = await createContract(db, NO_DOWN);
+    await saveFee(db, id, {
+      type: "down",
+      due_on: "2026-09-01",
+      paid_on: null,
+      amount: 2000000,
+      officer_amount: null,
+      officer_paid_on: null,
+      note: null,
+    });
+    await saveFee(db, id, {
+      type: "insurance",
+      due_on: "2026-10-01",
+      paid_on: "2026-10-01",
+      amount: 500000,
+      officer_amount: 30000,
+      officer_paid_on: null,
+      note: null,
+    });
+    const down = (await contractFees(db, id)).find((f) => f.type === "down")!;
+    await addFeeSchedulePart(db, down.id, "2026-09-01", 1000000);
+    await addFeeSchedulePart(db, down.id, "2026-09-20", 1000000);
+    await addFeePayment(db, down.id, "2026-09-05", 1200000);
+
+    const rows = await activeFeeDues(db);
+    expect(rows.map((r) => [r.kind, r.due_date, r.amount_due, r.paid_total])).toEqual([
+      ["down", "2026-09-01", 1000000, 1000000],
+      ["down", "2026-09-20", 1000000, 200000],
+      ["insurance", "2026-10-01", 500000, 500000],
+      ["officer", "2026-10-01", 30000, 0],
+    ]);
+    expect(new Set(rows.map((r) => r.id)).size).toBe(4);
+    expect(rows.every((r) => r.id < 0)).toBe(true);
   });
 });

@@ -807,6 +807,8 @@ export async function createContract(
     );
   }
 
+  await ensureDownFee(db, lastInsertId);
+
   await setCarStatus(db, fields.car_id, "on_contract");
   await addCarEvent(db, fields.car_id, todayIso(), "contract_started", lastInsertId);
   await addClientEvent(db, fields.client_id, todayIso(), "contract_started", lastInsertId);
@@ -1159,6 +1161,23 @@ export async function contractFees(db: Db, contractId: number): Promise<Fee[]> {
     "SELECT * FROM fees WHERE contract_id = ? ORDER BY due_on, id",
     [contractId],
   );
+}
+
+/**
+ * The contract's down fee. The down payment page works on it, so one is made
+ * if missing: due today, for the agreed amount. A contract made before fees
+ * were created with it gets one the first time that page opens. One statement,
+ * so two calls at once still make only one. Null with no down payment.
+ */
+export async function ensureDownFee(db: Db, contractId: number): Promise<Fee | null> {
+  await db.execute(
+    "INSERT INTO fees (contract_id, type, due_on, amount, created_at)" +
+      " SELECT id, 'down', ?, down_payment, ? FROM contracts" +
+      " WHERE id = ? AND down_payment > 0" +
+      " AND NOT EXISTS (SELECT 1 FROM fees WHERE contract_id = ? AND type = 'down')",
+    [todayIso(), nowIso(), contractId, contractId],
+  );
+  return (await contractFees(db, contractId)).find((f) => f.type === "down") ?? null;
 }
 
 export async function getFee(db: Db, id: number): Promise<Fee | undefined> {
