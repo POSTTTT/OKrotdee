@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { errorMessage } from "../errors";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
@@ -21,7 +22,6 @@ import {
   type CarEvent,
   type ContractRow,
 } from "../db";
-import { isErrorKey } from "../lang";
 import { formatBaht, todayIso } from "../money";
 
 export default function CarDetail() {
@@ -74,7 +74,7 @@ export default function CarDetail() {
                 await deleteCar(db, car.id);
                 navigate("/cars");
               } catch (e) {
-                setError(e instanceof Error && isErrorKey(e.message) ? t(e.message) : String(e));
+                setError(errorMessage(e, t));
               }
             }}
           >

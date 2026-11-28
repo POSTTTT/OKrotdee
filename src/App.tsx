@@ -19,6 +19,8 @@ import Dashboard from "./pages/Dashboard";
 import PaymentForm from "./pages/PaymentForm";
 import Rules from "./pages/Rules";
 import Settings from "./Settings";
+import ErrorBoundary from "./ErrorBoundary";
+import { errorMessage, logInfo, UNHANDLED } from "./errors";
 import Modal from "./Modal";
 import Updates, { UpdateNotes, VERSIONS } from "./pages/Updates";
 import UpdatePrompt from "./UpdatePrompt";
@@ -29,10 +31,26 @@ export default function App() {
   const [settings, setSettings] = useState(false);
   // The version whose notes pop up on its first open, until closed.
   const [fresh, setFresh] = useState<string | null>(null);
+  // An error no screen handled — a failed load, a button whose work threw —
+  // shown here rather than lost, so the staff know the last step did not happen.
+  const [failure, setFailure] = useState<string | null>(null);
+
+  useEffect(() => {
+    const show = (reason: unknown) => setFailure(errorMessage(reason, t, UNHANDLED));
+    const onRejection = (event: PromiseRejectionEvent) => show(event.reason);
+    const onError = (event: ErrorEvent) => show(event.error ?? event.message);
+    window.addEventListener("unhandledrejection", onRejection);
+    window.addEventListener("error", onError);
+    return () => {
+      window.removeEventListener("unhandledrejection", onRejection);
+      window.removeEventListener("error", onError);
+    };
+  }, [t]);
 
   // The first open of a new version shows what changed in it, once.
   useEffect(() => {
     getVersion().then((version) => {
+      logInfo(`started ${version}`);
       if (localStorage.getItem("seenVersion") === version) return;
       localStorage.setItem("seenVersion", version);
       if (VERSIONS.includes(version)) setFresh(version);
@@ -75,9 +93,21 @@ export default function App() {
         </span>
       </header>
       <main>
+        {failure && (
+          <div className="flash crash" role="alert">
+            <p>
+              {failure}
+            </p>
+            <button type="button" className="ghost" onClick={() => setFailure(null)}>
+              {t("close")}
+            </button>
+          </div>
+        )}
         {/* Keyed on the path so every screen is drawn fresh, and the eye is
             told a new page arrived rather than having to read the heading. */}
         <div className="route" key={pathname}>
+          {/* Keyed with the route, so leaving a broken screen clears it. */}
+          <ErrorBoundary t={t}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/calendar" element={<Calendar />} />
@@ -97,6 +127,7 @@ export default function App() {
             <Route path="/updates" element={<Updates />} />
             <Route path="/updates/:version" element={<Updates />} />
           </Routes>
+          </ErrorBoundary>
         </div>
       </main>
       {settings && <Settings onClose={() => setSettings(false)} />}

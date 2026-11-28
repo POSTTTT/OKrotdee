@@ -568,7 +568,10 @@ form.stack > label:has(textarea) { grid-column: 1 / -1; }
 form.stack.paired > label:has(textarea) { grid-column: auto; }
 /* A form's opening line sits in the form's own column, not at the page edge. */
 form.stack > p.intro { grid-column: 1 / -1; margin: 0; color: var(--ink-soft); }
-form.stack > .flash { grid-column: 1 / -1; margin: 0; }
+form.stack > /* Something failed that no screen caught: said plainly, with a way on. */
+.flash.crash { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s4); }
+.flash.crash p { margin: 0; flex: 1 1 20rem; }
+.flash { grid-column: 1 / -1; margin: 0; }
 /* A form's error standing just above it lines up with the form, too. */
 .flash:has(+ form.stack) { max-width: 58rem; margin-inline: auto; }
 /* A question needs less room than a form: the dialog narrows around it. */

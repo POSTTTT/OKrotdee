@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { errorMessage } from "../errors";
 import { useNavigate, useParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
@@ -16,7 +17,6 @@ import {
   type Car,
   type CarStatus,
 } from "../db";
-import { isErrorKey } from "../lang";
 import { todayIso } from "../money";
 import { PROVINCES, joinPlate, splitPlate } from "../provinces";
 
@@ -106,14 +106,7 @@ export default function CarForm({
         navigate(`/cars/${await createCar(db, fields)}`);
       }
     } catch (e) {
-      const message = String(e);
-      setError(
-        message.includes("UNIQUE")
-          ? t("err_plate_taken")
-          : e instanceof Error && isErrorKey(e.message)
-            ? t(e.message)
-            : message,
-      );
+      setError(errorMessage(String(e).includes("UNIQUE") ? "err_plate_taken" : e, t));
     } finally {
       setBusy(false);
     }

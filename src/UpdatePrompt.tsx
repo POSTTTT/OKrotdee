@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { errorMessage } from "./errors";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 
@@ -29,7 +30,7 @@ export default function UpdatePrompt() {
       await relaunch();
     } catch (e) {
       setBusy(false);
-      setError(String(e));
+      setError(errorMessage(e, t));
     }
   };
 

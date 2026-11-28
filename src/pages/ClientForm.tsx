@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { errorMessage } from "../errors";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
@@ -95,13 +96,7 @@ export default function ClientForm({
         navigate(`/clients/${newId}`);
       }
     } catch (e) {
-      setError(
-        e instanceof ValidationError
-          ? t(e.message)
-          : String(e).includes("UNIQUE")
-            ? t("err_thai_id_taken")
-            : String(e),
-      );
+      setError(errorMessage(String(e).includes("UNIQUE") ? "err_thai_id_taken" : e, t));
     } finally {
       setBusy(false);
     }

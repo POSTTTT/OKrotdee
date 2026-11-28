@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { errorMessage } from "../errors";
 import { createPortal } from "react-dom";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
@@ -23,7 +24,6 @@ import {
   type ContractFields,
   type ContractRow,
 } from "../db";
-import { isErrorKey } from "../lang";
 import { formatBaht, generateSchedule, outstanding, toSatang, type Rules } from "../money";
 import Modal from "../Modal";
 import RulesForm from "../RulesForm";
@@ -129,13 +129,7 @@ export default function ContractForm() {
       }
       navigate(`/contracts/${id}`);
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? isErrorKey(e.message)
-            ? t(e.message)
-            : e.message
-          : String(e),
-      );
+      setError(errorMessage(e, t));
     } finally {
       setBusy(false);
     }

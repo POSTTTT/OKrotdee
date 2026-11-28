@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { errorMessage } from "./errors";
 import { invoke } from "@tauri-apps/api/core";
-import { appConfigDir, join } from "@tauri-apps/api/path";
+import { appConfigDir, appLogDir, join } from "@tauri-apps/api/path";
 import { getVersion } from "@tauri-apps/api/app";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Link } from "react-router-dom";
@@ -22,17 +23,19 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const [version, setVersion] = useState("");
   const [folder, setFolder] = useState("");
   const [backups, setBackups] = useState("");
+  const [logs, setLogs] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [shown, setShown] = useState<(typeof TABS)[number]>("general");
 
   useEffect(() => {
-    getVersion().then(setVersion, (e) => setError(String(e)));
-    dataDir().then(setFolder, (e) => setError(String(e)));
+    getVersion().then(setVersion, (e) => setError(errorMessage(e, t)));
+    dataDir().then(setFolder, (e) => setError(errorMessage(e, t)));
     appConfigDir()
       .then((dir) => join(dir, "backups"))
-      .then(setBackups, (e) => setError(String(e)));
+      .then(setBackups, (e) => setError(errorMessage(e, t)));
+    appLogDir().then(setLogs, (e) => setError(errorMessage(e, t)));
   }, []);
 
   const run = async (work: () => Promise<string | null>) => {
@@ -43,7 +46,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
       const message = await work();
       if (message) setDone(message);
     } catch (e) {
-      setError(String(e));
+      setError(errorMessage(e, t));
     } finally {
       setBusy(false);
     }
@@ -205,6 +208,29 @@ export default function Settings({ onClose }: { onClose: () => void }) {
               }
             >
               {t("show_backups")}
+            </button>
+          </div>
+
+          {/* The program's log, for sending along when reporting a problem. */}
+          <h2>{t("log")}</h2>
+          <dl className="facts">
+            <div>
+              <dt>{t("log_folder")}</dt>
+              <dd className="text">{logs || "…"}</dd>
+            </div>
+          </dl>
+          <div className="toolbar">
+            <button
+              className="ghost"
+              disabled={busy}
+              onClick={() =>
+                run(async () => {
+                  await invoke("open_log_dir");
+                  return null;
+                })
+              }
+            >
+              {t("open_log_folder")}
             </button>
           </div>
         </>

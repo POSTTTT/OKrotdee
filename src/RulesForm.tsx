@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from "react";
 
+import { errorMessage } from "./errors";
 import { useApp } from "./context";
 import DateInput from "./DateInput";
 import Info from "./Info";
-import { isErrorKey } from "./lang";
 import type { Rules } from "./money";
 
 /**
@@ -43,7 +43,7 @@ export default function RulesForm({
         repossessAfter: num("repossess_after"),
       }, startsOn === undefined ? undefined : String(form.get("starts_on") ?? ""));
     } catch (e) {
-      setError(e instanceof Error && isErrorKey(e.message) ? t(e.message) : String(e));
+      setError(errorMessage(e, t));
     } finally {
       setBusy(false);
     }

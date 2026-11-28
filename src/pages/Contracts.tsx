@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { errorMessage } from "../errors";
 import { Link } from "react-router-dom";
 
 import RowLink from "../RowLink";
@@ -102,7 +103,7 @@ export default function Contracts() {
                       try {
                         await deleteContract(db, c.id);
                       } catch (e) {
-                        setError(String(e));
+                        setError(errorMessage(e, t));
                       }
                       setContracts(await listContracts(db, status || undefined));
                     }}

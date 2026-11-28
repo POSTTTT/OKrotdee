@@ -1,9 +1,10 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
+import { errorMessage, errorText } from "./errors";
 import { startupBackup } from "./backup";
 import { clearDataDir } from "./datadir";
 import { openDatabase, type Db } from "./db";
-import { DEFAULT_LANG, isErrorKey, t as translate, type LangCode } from "./lang";
+import { DEFAULT_LANG, t as translate, type LangCode } from "./lang";
 import { applyTheme, savedTheme, type ThemeChoice } from "./theme";
 
 interface AppValue {
@@ -33,10 +34,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // predates anything this session writes, and a checkpoint needs a
     // connection. A failed backup must not keep the shop from working, but it
     // must never pass unnoticed either.
+    const tr = (key: string) => translate(key, lang);
     openDatabase().then(async (opened) => {
-      await startupBackup(opened).catch((e) => setBackupError(String(e)));
+      await startupBackup(opened).catch((e) => setBackupError(errorMessage(e, tr)));
       setDb(opened);
-    }, (e) => setError(String(e)));
+    }, (e) => setError(errorMessage(e, tr)));
   }, []);
 
   const setLang = (code: LangCode) => {
@@ -62,7 +64,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // back on has to be here: this screen is all there is until it opens.
     return (
       <>
-        <p className="flash alarm">{isErrorKey(error) ? translate(error, lang) : error}</p>
+        <p className="flash alarm">{error}</p>
         <div className="toolbar">
           <button
             onClick={() => clearDataDir().then(() => window.location.reload())}
@@ -90,7 +92,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     >
       {backupError && (
         <p className="flash alarm">
-          {translate("err_backup_failed", lang)}: {backupError}
+          {errorText("err_backup_failed", (key) => translate(key, lang))}: {backupError}
         </p>
       )}
       {children}

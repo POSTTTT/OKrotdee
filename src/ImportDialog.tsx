@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 
+import { errorMessage, errorText } from "./errors";
 import Info from "./Info";
 import Modal from "./Modal";
 import Select from "./Select";
@@ -65,7 +66,7 @@ export default function ImportDialog({
   );
   // All of them, ticked or not: they start unticked, and the count says why.
   const maybeSaved = twins.size;
-  const message = (key: string) => (isErrorKey(key) ? t(key) : key);
+  const message = (key: string) => (isErrorKey(key) ? errorText(key, t) : key);
   // The columns staff matched, in the form order, shown as they will be saved.
   const shown = FIELDS[kind].filter((f) => f in mapping);
   const show = (field: string, value: unknown) =>
@@ -103,7 +104,7 @@ export default function ImportDialog({
       );
     } catch (e) {
       setRows([]);
-      setError(String(e));
+      setError(errorMessage(e, t));
     }
   };
 
@@ -116,7 +117,7 @@ export default function ImportDialog({
       setRows([]);
       onImported();
     } catch (e) {
-      setError(String(e));
+      setError(errorMessage(e, t));
     } finally {
       setBusy(false);
     }

@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { errorMessage } from "../errors";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
@@ -27,7 +28,6 @@ import {
   type FeeSchedulePart,
   type FeeType,
 } from "../db";
-import { isErrorKey } from "../lang";
 import {
   downRules,
   formatBaht,
@@ -149,7 +149,7 @@ export default function FeeForm() {
         navigate(`/contracts/${contractId}`);
       }
     } catch (e) {
-      setError(e instanceof Error && isErrorKey(e.message) ? t(e.message) : String(e));
+      setError(errorMessage(e, t));
     } finally {
       setBusy(false);
     }
@@ -189,7 +189,7 @@ export default function FeeForm() {
       element.reset();
       await loadParts(fee.id);
     } catch (e) {
-      setError(e instanceof Error && isErrorKey(e.message) ? t(e.message) : String(e));
+      setError(errorMessage(e, t));
     } finally {
       setBusy(false);
     }
@@ -211,7 +211,7 @@ export default function FeeForm() {
       element.reset();
       await loadParts(fee.id);
     } catch (e) {
-      setError(e instanceof Error && isErrorKey(e.message) ? t(e.message) : String(e));
+      setError(errorMessage(e, t));
     } finally {
       setBusy(false);
     }
@@ -231,7 +231,7 @@ export default function FeeForm() {
       setFee((await getFee(db, fee.id)) ?? null);
       await loadParts(fee.id);
     } catch (e) {
-      setError(e instanceof Error && isErrorKey(e.message) ? t(e.message) : String(e));
+      setError(errorMessage(e, t));
     } finally {
       setBusy(false);
     }

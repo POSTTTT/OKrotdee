@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { errorMessage } from "../errors";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
@@ -21,7 +22,6 @@ import {
   type LateFeeKind,
   type LateFeePayment,
 } from "../db";
-import { isErrorKey } from "../lang";
 import {
   formatBaht,
   lateCount,
@@ -114,7 +114,7 @@ export default function LateFees() {
       navigate(`/contracts/${contractId}/late-fees/${kind}`);
       await load();
     } catch (e) {
-      setError(e instanceof Error && isErrorKey(e.message) ? t(e.message) : String(e));
+      setError(errorMessage(e, t));
     } finally {
       setBusy(false);
     }

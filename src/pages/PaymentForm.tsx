@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { errorMessage } from "../errors";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import BackButton from "../BackButton";
@@ -20,7 +21,6 @@ import {
   type ContractRow,
   type InstallmentRow,
 } from "../db";
-import { isErrorKey } from "../lang";
 import { formatBaht, outstanding, toSatang, todayIso } from "../money";
 import { payment as validatePayment } from "../validate";
 
@@ -101,13 +101,7 @@ export default function PaymentForm({
       await syncContractStatus(db, installment.contract_id);
       done();
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? isErrorKey(e.message)
-            ? t(e.message)
-            : e.message
-          : String(e),
-      );
+      setError(errorMessage(e, t));
     } finally {
       setBusy(false);
     }
@@ -254,9 +248,7 @@ export default function PaymentForm({
                 await syncContractStatus(db, installment.contract_id);
                 done();
               } catch (e) {
-                setError(
-                  e instanceof Error ? (isErrorKey(e.message) ? t(e.message) : e.message) : String(e),
-                );
+                setError(errorMessage(e, t));
               } finally {
                 setBusy(false);
               }
