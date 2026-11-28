@@ -221,6 +221,9 @@ export default function Calendar() {
           </span>
         )}
         <h1>{t("calendar")}</h1>
+        {/* The slice of time on screen, up beside the title where the eye
+            lands first, rather than as a small heading over the grid. */}
+        <span className="period">{heading}</span>
         <span className="actions">
           <span className="views">
             {VIEWS.map((v) => (
@@ -261,8 +264,6 @@ export default function Calendar() {
           stepping a month draws a new sheet, arriving from the side it came
           from, so the change is seen and not read off the heading. */}
       <div className={`sheet ${dir}`} key={`${view}-${at}`}>
-        <h2>{heading}</h2>
-
         {view === "year" ? (
           <div className="calendar year">
             {Array.from({ length: 12 }, (_, i) => {

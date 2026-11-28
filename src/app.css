@@ -250,6 +250,13 @@ h1 {
   border-bottom: 1px solid var(--line);
 }
 .pagehead .actions { margin-left: auto; display: flex; gap: var(--s2); }
+/* The calendar's day, week, month or year, read before anything under it. */
+.pagehead .period {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
 
 /* A record page opens on a name — a client, a car, a contract. It is what the
    staff came to find, so it sits centered between the way back and the two
