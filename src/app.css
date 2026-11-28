@@ -387,6 +387,12 @@ dl.facts dd.sub {
   letter-spacing: 0;
 }
 
+/* A second figure in the same block, ruled off edge to edge below the first. */
+dl.facts dt.split {
+  margin: var(--s3) calc(-1 * var(--s4)) 0;
+  padding: var(--s3) var(--s4) 0;
+  border-top: 1px solid var(--line);
+}
 dl.facts dd small { font-size: 0.85rem; font-weight: 500; color: var(--ink-soft); }
 /* The contract's late-fee rules: three short label–value lines, not a
    sentence wrapping round an edit button. */
