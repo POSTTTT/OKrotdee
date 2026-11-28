@@ -12,7 +12,7 @@ import {
   updateClient,
   type Client,
 } from "../db";
-import { ValidationError } from "../validate";
+import { thaiId, ValidationError } from "../validate";
 
 /**
  * Adds a record when given onClose, as a dialog over the list; edits one on
@@ -54,10 +54,12 @@ export default function ClientForm({ onClose }: { onClose?: () => void }) {
       if (!first_name || !last_name) {
         throw new ValidationError("err_name_required");
       }
+      const idText = value("thai_id");
       const fields = {
         first_name,
         last_name,
         nickname: value("nickname"),
+        thai_id: idText ? thaiId(idText) : null,
         phone:
           form
             .getAll("phone")
@@ -68,7 +70,6 @@ export default function ClientForm({ onClose }: { onClose?: () => void }) {
         lo_work: value("lo_work"),
         // Not on the form; carried through so an edit does not erase what an
         // older version of the form recorded.
-        thai_id: client?.thai_id ?? null,
         note: client?.note ?? null,
       };
       if (!saveAnyway.current) {
@@ -85,7 +86,13 @@ export default function ClientForm({ onClose }: { onClose?: () => void }) {
         navigate(`/clients/${newId}`);
       }
     } catch (e) {
-      setError(e instanceof ValidationError ? t(e.message) : String(e));
+      setError(
+        e instanceof ValidationError
+          ? t(e.message)
+          : String(e).includes("UNIQUE")
+            ? t("err_thai_id_taken")
+            : String(e),
+      );
     } finally {
       setBusy(false);
     }
@@ -110,6 +117,10 @@ export default function ClientForm({ onClose }: { onClose?: () => void }) {
         <label>
           {t("nickname")}
           <input name="nickname" defaultValue={client?.nickname ?? ""} />
+        </label>
+        <label>
+          {t("thai_id")}
+          <input name="thai_id" inputMode="numeric" defaultValue={client?.thai_id ?? ""} />
         </label>
         <label>
           {t("phone")}

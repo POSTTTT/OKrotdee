@@ -84,6 +84,10 @@ export default function ClientDetail() {
       {error && <p className="flash">{error}</p>}
       <dl className="facts">
         <div>
+          <dt>{t("thai_id")}</dt>
+          <dd>{client.thai_id ?? "-"}</dd>
+        </div>
+        <div>
           <dt>{t("phone")}</dt>
           <dd>
             {phoneList(client.phone).map((phone) => (
