@@ -1679,6 +1679,15 @@ article.update > .title {
 }
 article.update > .title h1 { margin: 0; justify-content: center; color: var(--accent); }
 article.update > .title p { margin: var(--s1) 0 0; color: var(--ink-soft); }
+/* Read before updating: set apart from the notes like any other warning. */
+article.update section.caution {
+  margin-top: var(--s6);
+  padding: var(--s2) var(--s5) var(--s4);
+  background: var(--alarm-wash);
+  border: 1px solid var(--alarm);
+  border-radius: var(--radius);
+}
+article.update section.caution h2 { margin-top: var(--s3); color: var(--alarm); }
 /* What the notes hold, before the notes: sections with their changes under
    them, each a way straight to it. */
 nav.outline {
